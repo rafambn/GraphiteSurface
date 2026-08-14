@@ -1,0 +1,12 @@
+.gradle/
+build/
+**/build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+
+# Native build output
+*.dSYM/
+*.framework/
+*.xcarchive/
