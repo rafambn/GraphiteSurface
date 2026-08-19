@@ -6,11 +6,22 @@ plugins {
 }
 
 val skiaRevision = "m152-7bb45c7c26"
+val skiaBuildType = providers.gradleProperty("graphiteSurfaceSkiaBuildType")
+    .map { it.replaceFirstChar(Char::uppercaseChar) }
+    .orElse("Release")
+    .get()
+    .also {
+        require(it == "Debug" || it == "Release") {
+            "graphiteSurfaceSkiaBuildType must be Debug or Release"
+        }
+    }
 val skiaArchiveUrl =
     "https://github.com/JetBrains/skia/releases/download/$skiaRevision/" +
-        "Skia-$skiaRevision-android-debug-arm64.zip"
-val skiaRoot = layout.buildDirectory.dir("skia/$skiaRevision").get().asFile
-val skiaArchive = layout.buildDirectory.file("downloads/Skia-$skiaRevision-android-debug-arm64.zip").get().asFile
+        "Skia-$skiaRevision-android-$skiaBuildType-arm64.zip"
+val skiaRoot = layout.buildDirectory.dir("skia/$skiaRevision-$skiaBuildType").get().asFile
+val skiaArchive = layout.buildDirectory.file(
+    "downloads/Skia-$skiaRevision-android-$skiaBuildType-arm64.zip",
+).get().asFile
 
 val prepareSkiaAndroid = tasks.register("prepareSkiaAndroid") {
     description = "Downloads the engine-owned Android Skia Graphite archive."
@@ -23,7 +34,9 @@ val prepareSkiaAndroid = tasks.register("prepareSkiaAndroid") {
 
         skiaArchive.parentFile.mkdirs()
         if (!skiaArchive.isFile) {
-            logger.lifecycle("Downloading Android Skia Graphite archive ($skiaRevision)")
+            logger.lifecycle(
+                "Downloading Android Skia Graphite archive ($skiaRevision, $skiaBuildType)",
+            )
             URI(skiaArchiveUrl).toURL().openStream().use { input ->
                 FileOutputStream(skiaArchive).use { output ->
                     input.copyTo(output)
@@ -41,7 +54,7 @@ val prepareSkiaAndroid = tasks.register("prepareSkiaAndroid") {
         check(staging.resolve("include/gpu/graphite/vk/VulkanGraphiteContext.h").isFile) {
             "The downloaded Skia archive does not contain the Graphite Vulkan headers."
         }
-        check(staging.resolve("out/Debug-android-arm64/libskia_graphite_ext.a").isFile) {
+        check(staging.resolve("out/${skiaBuildType}-android-arm64/libskia_graphite_ext.a").isFile) {
             "The downloaded Skia archive does not contain the Android Graphite library."
         }
         check(staging.renameTo(skiaRoot)) {
@@ -63,6 +76,7 @@ android {
         externalNativeBuild {
             cmake {
                 arguments += "-DGRAPHITE_SKIA_ROOT=${skiaRoot.absolutePath}"
+                arguments += "-DGRAPHITE_SKIA_BUILD_TYPE=$skiaBuildType"
             }
         }
     }

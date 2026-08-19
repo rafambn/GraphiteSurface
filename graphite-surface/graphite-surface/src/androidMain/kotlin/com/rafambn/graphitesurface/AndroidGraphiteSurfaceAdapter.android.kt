@@ -163,6 +163,7 @@ private class GraphiteSurfaceView(
         if (disposed || !surfaceReady) return
 
         if (renderMode == GraphiteRenderMode.WhenDirty && !pendingRender) return
+        AndroidGraphiteNative.setFrameTimeNanos(engineHandle, frameTimeNanos)
         if (AndroidGraphiteNative.beginFrame(engineHandle)) {
             pendingRender = false
             try {

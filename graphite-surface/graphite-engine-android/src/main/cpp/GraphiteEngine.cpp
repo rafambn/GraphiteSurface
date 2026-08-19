@@ -9,7 +9,6 @@
 
 #include <algorithm>
 #include <array>
-#include <atomic>
 #include <cstdint>
 #include <dlfcn.h>
 #include <memory>
@@ -117,6 +116,7 @@ private:
 
 struct HardwareBufferCallbackContext {
     std::shared_ptr<HardwareBufferState> state;
+    ASurfaceControl* surfaceControl = nullptr;
 };
 
 using AHardwareBufferAllocateProc = int (*)(
@@ -134,6 +134,13 @@ using ASurfaceTransactionSetBufferProc = void (*)(
     ASurfaceControl*,
     AHardwareBuffer*,
     int);
+using ASurfaceTransactionSetBufferWithReleaseProc = void (*)(
+    ASurfaceTransaction*,
+    ASurfaceControl*,
+    AHardwareBuffer*,
+    int,
+    void*,
+    ASurfaceTransaction_OnBufferRelease);
 using ASurfaceTransactionSetGeometryProc = void (*)(
     ASurfaceTransaction*,
     ASurfaceControl*,
@@ -144,6 +151,16 @@ using ASurfaceTransactionSetOnCompleteProc = void (*)(
     ASurfaceTransaction*,
     void*,
     ASurfaceTransaction_OnComplete);
+using ASurfaceTransactionSetEnableBackPressureProc = void (*)(
+    ASurfaceTransaction*,
+    ASurfaceControl*,
+    bool);
+using ASurfaceTransactionSetDesiredPresentTimeProc = void (*)(
+    ASurfaceTransaction*,
+    int64_t);
+using ASurfaceTransactionStatsGetPreviousReleaseFenceFdProc = int (*)(
+    ASurfaceTransactionStats*,
+    ASurfaceControl*);
 
 template <typename Proc>
 Proc resolveAndroidProc(const char* name) {
@@ -173,12 +190,24 @@ struct AndroidHardwareBufferApi {
         resolveAndroidProc<ASurfaceTransactionApplyProc>("ASurfaceTransaction_apply");
     ASurfaceTransactionSetBufferProc setBuffer =
         resolveAndroidProc<ASurfaceTransactionSetBufferProc>("ASurfaceTransaction_setBuffer");
+    ASurfaceTransactionSetBufferWithReleaseProc setBufferWithRelease =
+        resolveAndroidProc<ASurfaceTransactionSetBufferWithReleaseProc>(
+            "ASurfaceTransaction_setBufferWithRelease");
     ASurfaceTransactionSetGeometryProc setGeometry =
         resolveAndroidProc<ASurfaceTransactionSetGeometryProc>(
             "ASurfaceTransaction_setGeometry");
     ASurfaceTransactionSetOnCompleteProc setOnComplete =
         resolveAndroidProc<ASurfaceTransactionSetOnCompleteProc>(
             "ASurfaceTransaction_setOnComplete");
+    ASurfaceTransactionSetEnableBackPressureProc setEnableBackPressure =
+        resolveAndroidProc<ASurfaceTransactionSetEnableBackPressureProc>(
+            "ASurfaceTransaction_setEnableBackPressure");
+    ASurfaceTransactionSetDesiredPresentTimeProc setDesiredPresentTime =
+        resolveAndroidProc<ASurfaceTransactionSetDesiredPresentTimeProc>(
+            "ASurfaceTransaction_setDesiredPresentTime");
+    ASurfaceTransactionStatsGetPreviousReleaseFenceFdProc getPreviousReleaseFenceFd =
+        resolveAndroidProc<ASurfaceTransactionStatsGetPreviousReleaseFenceFdProc>(
+            "ASurfaceTransactionStats_getPreviousReleaseFenceFd");
 
     bool available() const {
         return allocate != nullptr && isSupported != nullptr && release != nullptr &&
@@ -197,10 +226,27 @@ AndroidHardwareBufferApi& androidHardwareBufferApi() {
 void onHardwareBufferTransactionComplete(
         void* opaqueContext,
         ASurfaceTransactionStats* transactionStats) {
-    (void)transactionStats;
     std::unique_ptr<HardwareBufferCallbackContext> callbackContext(
         static_cast<HardwareBufferCallbackContext*>(opaqueContext));
-    if (callbackContext->state != nullptr) callbackContext->state->markReleased(-1);
+    int releaseFenceFd = -1;
+    AndroidHardwareBufferApi& androidApi = androidHardwareBufferApi();
+    if (transactionStats != nullptr && callbackContext->surfaceControl != nullptr &&
+        androidApi.getPreviousReleaseFenceFd != nullptr) {
+        releaseFenceFd = androidApi.getPreviousReleaseFenceFd(
+            transactionStats,
+            callbackContext->surfaceControl);
+    }
+    if (callbackContext->state != nullptr) {
+        callbackContext->state->markReleased(releaseFenceFd);
+    }
+}
+
+void onHardwareBufferRelease(void* opaqueContext, int releaseFenceFd) {
+    std::unique_ptr<HardwareBufferCallbackContext> callbackContext(
+        static_cast<HardwareBufferCallbackContext*>(opaqueContext));
+    if (callbackContext->state != nullptr) {
+        callbackContext->state->markReleased(releaseFenceFd);
+    }
 }
 
 struct FrameSlot {
@@ -213,6 +259,7 @@ struct FrameSlot {
     AHardwareBuffer* hardwareBuffer = nullptr;
     std::shared_ptr<HardwareBufferState> hardwareBufferState;
     skgpu::graphite::BackendTexture hardwareBackendTexture;
+    sk_sp<SkSurface> hardwareSurface;
 };
 
 bool hasDeviceExtension(VkPhysicalDevice physicalDevice, const char* requestedExtension) {
@@ -307,6 +354,10 @@ public:
         return createSwapchain(requestedWidth, requestedHeight);
     }
 
+    void setFrameTimeNanos(int64_t frameTimeNanos) {
+        frameTimeNanos_ = frameTimeNanos;
+    }
+
     bool beginFrame() {
         if (context_ == nullptr) return false;
         if (hardwareBufferOutput_) return beginHardwareBufferFrame();
@@ -323,10 +374,12 @@ public:
         FrameSlot& frameSlot = frameSlots_[static_cast<size_t>(frameSlotIndex)];
 
         uint32_t imageIndex = 0;
+        // Keep acquire asynchronous, but give the presentation queue a short window to hand
+        // back an image instead of dropping the entire display tick on VK_NOT_READY.
         VkResult result = vkAcquireNextImageKHR(
             device_,
             swapchain_,
-            0,
+            2'000'000,
             frameSlot.imageAvailableSemaphore,
             VK_NULL_HANDLE,
             &imageIndex);
@@ -562,7 +615,6 @@ private:
             for (FrameSlot& frameSlot : frameSlots_) {
                 if (frameSlot.inFlight && frameSlot.hardwareBufferState != nullptr &&
                     frameSlot.hardwareBufferState->pollAvailable()) {
-                    releaseHardwareBackendTexture(frameSlot);
                     frameSlot.inFlight = false;
                 }
             }
@@ -610,6 +662,7 @@ private:
     }
 
     void releaseHardwareBackendTexture(FrameSlot& frameSlot) {
+        frameSlot.hardwareSurface.reset();
         if (frameSlot.hardwareBackendTexture.isValid() && frameSlot.recorder != nullptr) {
             frameSlot.recorder->deleteBackendTexture(frameSlot.hardwareBackendTexture);
             frameSlot.hardwareBackendTexture = {};
@@ -622,29 +675,13 @@ private:
         const int frameSlotIndex = findAvailableFrameSlot();
         if (frameSlotIndex < 0) return false;
         FrameSlot& frameSlot = frameSlots_[static_cast<size_t>(frameSlotIndex)];
+        if (frameSlot.hardwareSurface == nullptr ||
+            !frameSlot.hardwareBackendTexture.isValid()) {
+            logError("Graphite hardware-buffer resources are not initialized");
+            return false;
+        }
         activeFrameSlotIndex_ = frameSlotIndex;
-        frameSlot.hardwareBackendTexture = frameSlot.recorder->createBackendTexture(
-            frameSlot.hardwareBuffer,
-            true,
-            false,
-            {surfaceWidth_, surfaceHeight_},
-            false);
-        if (!frameSlot.hardwareBackendTexture.isValid()) {
-            resetActiveFrame();
-            logError("Graphite could not import the AHardwareBuffer");
-            return false;
-        }
-        frameSurface_ = SkSurfaces::WrapBackendTexture(
-            frameSlot.recorder.get(),
-            frameSlot.hardwareBackendTexture,
-            srgbColorSpace_,
-            nullptr);
-        if (frameSurface_ == nullptr) {
-            releaseHardwareBackendTexture(frameSlot);
-            resetActiveFrame();
-            logError("SkSurfaces::WrapAndroidHardwareBuffer returned null");
-            return false;
-        }
+        frameSurface_ = frameSlot.hardwareSurface;
         canvas_ = frameSurface_->getCanvas();
         if (canvas_ == nullptr) resetActiveFrame();
         return canvas_ != nullptr;
@@ -717,11 +754,16 @@ private:
 
         const int submittedFrameSlotIndex = activeFrameSlotIndex_;
         frameSlot.hardwareBufferState->markSubmitted();
-        std::shared_ptr<HardwareBufferState> previousBufferState = lastHardwareBufferState_;
-        auto* callbackContext = new HardwareBufferCallbackContext{
-            previousBufferState,
-        };
         AndroidHardwareBufferApi& androidApi = androidHardwareBufferApi();
+        const bool useBufferReleaseCallback =
+            android_get_device_api_level() >= 36 &&
+            androidApi.setBufferWithRelease != nullptr;
+        std::shared_ptr<HardwareBufferState> callbackState =
+            useBufferReleaseCallback ? frameSlot.hardwareBufferState : lastHardwareBufferState_;
+        auto* callbackContext = new HardwareBufferCallbackContext{
+            callbackState,
+            useBufferReleaseCallback ? nullptr : hardwareSurfaceControl_,
+        };
         ASurfaceTransaction* transaction = androidApi.createTransaction();
         if (transaction == nullptr) {
             close(acquireFenceFd);
@@ -733,27 +775,55 @@ private:
             return false;
         }
 
-        androidApi.setBuffer(
-            transaction,
-            hardwareSurfaceControl_,
-            frameSlot.hardwareBuffer,
-            acquireFenceFd);
-        const ARect source{0, 0, surfaceWidth_, surfaceHeight_};
-        const ARect destination{0, 0, surfaceWidth_, surfaceHeight_};
-        androidApi.setGeometry(
-            transaction,
-            hardwareSurfaceControl_,
-            source,
-            destination,
-            0);
-        androidApi.setOnComplete(
-            transaction,
-            callbackContext,
-            onHardwareBufferTransactionComplete);
+        if (useBufferReleaseCallback) {
+            androidApi.setBufferWithRelease(
+                transaction,
+                hardwareSurfaceControl_,
+                frameSlot.hardwareBuffer,
+                acquireFenceFd,
+                callbackContext,
+                onHardwareBufferRelease);
+        } else {
+            androidApi.setBuffer(
+                transaction,
+                hardwareSurfaceControl_,
+                frameSlot.hardwareBuffer,
+                acquireFenceFd);
+        }
+        if (androidApi.setDesiredPresentTime != nullptr && frameTimeNanos_ > 0) {
+            androidApi.setDesiredPresentTime(transaction, frameTimeNanos_);
+        }
+        if (androidApi.setEnableBackPressure != nullptr) {
+            androidApi.setEnableBackPressure(
+                transaction,
+                hardwareSurfaceControl_,
+                true);
+        }
+        if (!hardwareSurfaceGeometrySet_) {
+            const ARect source{0, 0, surfaceWidth_, surfaceHeight_};
+            const ARect destination{0, 0, surfaceWidth_, surfaceHeight_};
+            androidApi.setGeometry(
+                transaction,
+                hardwareSurfaceControl_,
+                source,
+                destination,
+                0);
+        }
+        if (useBufferReleaseCallback) {
+            callbackContext = nullptr;
+        } else {
+            androidApi.setOnComplete(
+                transaction,
+                callbackContext,
+                onHardwareBufferTransactionComplete);
+        }
         androidApi.applyTransaction(transaction);
         androidApi.deleteTransaction(transaction);
+        hardwareSurfaceGeometrySet_ = true;
 
-        lastHardwareBufferState_ = frameSlot.hardwareBufferState;
+        if (!useBufferReleaseCallback) {
+            lastHardwareBufferState_ = frameSlot.hardwareBufferState;
+        }
         frameSlot.inFlight = true;
         resetActiveFrame();
         nextFrameSlotIndex_ =
@@ -765,10 +835,16 @@ private:
         if (!hardwareBufferOutput_ || android_get_device_api_level() < 29) return false;
         AndroidHardwareBufferApi& androidApi = androidHardwareBufferApi();
         if (!androidApi.available()) return false;
+        if (android_get_device_api_level() < 36 &&
+            androidApi.getPreviousReleaseFenceFd == nullptr) {
+            logError("SurfaceControl release-fence API is unavailable; using swapchain");
+            return false;
+        }
         hardwareSurfaceControl_ = androidApi.createFromWindow(
             window_,
             "GraphiteSurface-AHardwareBuffer");
         if (hardwareSurfaceControl_ == nullptr) return false;
+        hardwareSurfaceGeometrySet_ = false;
 
         surfaceWidth_ = std::max(1, requestedWidth);
         surfaceHeight_ = std::max(1, requestedHeight);
@@ -795,6 +871,25 @@ private:
                 return false;
             }
             frameSlot.hardwareBufferState = std::make_shared<HardwareBufferState>();
+            frameSlot.hardwareBackendTexture = frameSlot.recorder->createBackendTexture(
+                frameSlot.hardwareBuffer,
+                true,
+                false,
+                {surfaceWidth_, surfaceHeight_},
+                false);
+            if (!frameSlot.hardwareBackendTexture.isValid()) {
+                logError("Graphite could not import the AHardwareBuffer");
+                return false;
+            }
+            frameSlot.hardwareSurface = SkSurfaces::WrapBackendTexture(
+                frameSlot.recorder.get(),
+                frameSlot.hardwareBackendTexture,
+                srgbColorSpace_,
+                nullptr);
+            if (frameSlot.hardwareSurface == nullptr) {
+                logError("Graphite could not wrap the AHardwareBuffer");
+                return false;
+            }
         }
         return true;
     }
@@ -817,6 +912,7 @@ private:
             }
             hardwareSurfaceControl_ = nullptr;
         }
+        hardwareSurfaceGeometrySet_ = false;
         for (FrameSlot& frameSlot : frameSlots_) {
             releaseHardwareBackendTexture(frameSlot);
             if (frameSlot.hardwareBuffer != nullptr) {
@@ -1227,6 +1323,7 @@ private:
     int outputMode_ = 0;
     bool hardwareBufferOutput_ = false;
     ASurfaceControl* hardwareSurfaceControl_ = nullptr;
+    bool hardwareSurfaceGeometrySet_ = false;
     std::shared_ptr<HardwareBufferState> lastHardwareBufferState_;
 
     VkInstance instance_ = VK_NULL_HANDLE;
@@ -1254,6 +1351,7 @@ private:
     int activeFrameSlotIndex_ = -1;
     bool swapchainOutOfDate_ = false;
     uint64_t nextFrameId_ = 1;
+    int64_t frameTimeNanos_ = 0;
 
     skgpu::VulkanExtensions vulkanExtensions_;
     std::unique_ptr<skgpu::graphite::Context> context_;
@@ -1301,6 +1399,17 @@ Java_com_rafambn_graphitesurface_engine_AndroidGraphiteNative_beginFrame(
     jlong handle) {
     GraphiteEngine* engine = fromHandle(handle);
     return engine != nullptr && engine->beginFrame() ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_rafambn_graphitesurface_engine_AndroidGraphiteNative_setFrameTimeNanos(
+    JNIEnv*,
+    jclass,
+    jlong handle,
+    jlong frameTimeNanos) {
+    if (GraphiteEngine* engine = fromHandle(handle)) {
+        engine->setFrameTimeNanos(static_cast<int64_t>(frameTimeNanos));
+    }
 }
 
 extern "C" JNIEXPORT jboolean JNICALL

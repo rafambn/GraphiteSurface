@@ -17,6 +17,8 @@ public final class AndroidGraphiteNative {
 
     public static native boolean beginFrame(long handle);
 
+    public static native void setFrameTimeNanos(long handle, long frameTimeNanos);
+
     public static native boolean endFrame(long handle);
 
     public static native void dispose(long handle);

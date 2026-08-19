@@ -5,8 +5,11 @@ project(graphite-engine-android LANGUAGES CXX)
 if(NOT GRAPHITE_SKIA_ROOT)
     message(FATAL_ERROR "GRAPHITE_SKIA_ROOT must point to the engine-owned Skia archive")
 endif()
+if(NOT GRAPHITE_SKIA_BUILD_TYPE)
+    message(FATAL_ERROR "GRAPHITE_SKIA_BUILD_TYPE must be Debug or Release")
+endif()
 
-set(SKIA_OUT "${GRAPHITE_SKIA_ROOT}/out/Debug-android-arm64")
+set(SKIA_OUT "${GRAPHITE_SKIA_ROOT}/out/${GRAPHITE_SKIA_BUILD_TYPE}-android-arm64")
 set(SKIA_INCLUDE "${GRAPHITE_SKIA_ROOT}/include")
 
 if(NOT EXISTS "${SKIA_OUT}/libskia_graphite_ext.a")
