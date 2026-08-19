@@ -1,0 +1,3 @@
+language = Objective-C
+package = com.rafambn.graphitesurface.enginebridge
+headers = /Users/rafael/Desktop/projetos/GraphiteSurface/graphite-surface/sample/iosApp/iosApp/EngineBridge.h

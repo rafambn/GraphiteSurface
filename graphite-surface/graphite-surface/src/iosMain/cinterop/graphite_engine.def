@@ -1,0 +1,3 @@
+language = Objective-C
+package = com.rafambn.graphitesurface.graphiteengine
+headers = graphite_engine_api.h
