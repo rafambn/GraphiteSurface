@@ -93,9 +93,10 @@ adb install -r graphite-surface/sample/androidApp/build/outputs/apk/debug/androi
 ```
 
 The first engine build downloads the pinned Skia archive into the module build
-directory. The sample selects `HardwareBuffer` so the optional path is
-exercised; applications can keep the default `Surface` mode while integrating
-their own consumer-side zero-copy bridge.
+directory. The sample uses `Surface` for the regular Vulkan swapchain path.
+Select `HardwareBuffer` explicitly to exercise the optional API 29+
+AHardwareBuffer/SurfaceControl path while integrating a consumer-side zero-copy
+bridge.
 
 ## Compose and engine versions
 

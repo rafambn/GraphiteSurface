@@ -32,7 +32,7 @@ fun App() {
         GraphiteSurface(
             renderer = renderer,
             modifier = Modifier.fillMaxSize(),
-            outputMode = GraphiteOutputMode.HardwareBuffer,
+            outputMode = GraphiteOutputMode.Surface,
         )
         BasicText(
             text = "Graphite PoC",
