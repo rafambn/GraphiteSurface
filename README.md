@@ -6,8 +6,7 @@ Workspace for exposing Skia Graphite through a Compose Multiplatform surface.
 
 - `skiko-fork/skiko`: full Skiko fork tracked as a Git submodule. The upstream remote is `upstream`.
 - `skiko-fork/skiko/skiko/skiko-graphite`: Graphite `Context`, `Recorder`, `Recording`, and surface bindings from Skiko.
-- `graphite-surface/graphite-engine`: isolated dynamic iOS framework containing the experimental Skia/Graphite engine.
-- `graphite-surface/graphite-surface`: Compose Multiplatform composable and public API.
+- `graphite-surface/graphite-surface`: single Compose Multiplatform module with the Graphite engine and the public API.
 - `graphite-surface/sample`: platform samples.
 - `build-logic`: shared Gradle conventions.
 
@@ -30,11 +29,17 @@ The Graphite binding is currently an experimental Skiko module. Android-specific
 
 ## iOS PoC
 
-The current simulator sample builds two separate rendering stacks:
+`graphite-surface` is a single module: the Graphite engine renders into a `CAMetalLayer` owned by a `UIView` hosted through Compose's `UIKitView`. The public API mirrors `GLSurfaceView.Renderer`:
 
-- Compose keeps its own Skiko runtime inside `ComposeApp.framework`.
-- `GraphiteEngine.framework` contains the Graphite runtime and owns a `CAMetalLayer`.
-- `GraphiteSurface` hosts the native view through `UIKitView`.
+```kotlin
+@Composable
+fun GraphiteSurface(
+    renderer: GraphiteRenderer,                    // onSurfaceCreated / onSurfaceChanged / onDrawFrame(canvas)
+    modifier: Modifier = Modifier,
+    renderMode: GraphiteRenderMode = Continuously, // or WhenDirty + controller.requestRender()
+    controller: GraphiteSurfaceController? = null,
+)
+```
 
 Run the sample from Xcode:
 

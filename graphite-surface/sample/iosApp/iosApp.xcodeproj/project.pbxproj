@@ -8,13 +8,11 @@
 
 /* Begin PBXBuildFile section */
 		A93A953B29CC810C00F8E227 /* iosApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93A953A29CC810C00F8E227 /* iosApp.swift */; };
-		C0DEB1050000000000000001 /* EngineBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = C0DEB1050000000000000002 /* EngineBridge.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		A93A953729CC810C00F8E227 /* Multiplatform App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Multiplatform App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A93A953A29CC810C00F8E227 /* iosApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iosApp.swift; sourceTree = "<group>"; };
-		C0DEB1050000000000000002 /* EngineBridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = EngineBridge.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -49,7 +47,6 @@
 			isa = PBXGroup;
 			children = (
 				A93A953A29CC810C00F8E227 /* iosApp.swift */,
-				C0DEB1050000000000000002 /* EngineBridge.m */,
 			);
 			path = iosApp;
 			sourceTree = "<group>";
@@ -129,7 +126,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "cd \"$SRCROOT/../../..\"\n./gradlew :graphite-engine:linkDebugFrameworkIosSimulatorArm64 :sample:sharedUI:embedAndSignAppleFrameworkForXcode\nENGINE_FRAMEWORK=\"$SRCROOT/../../graphite-engine/build/bin/iosSimulatorArm64/debugFramework/GraphiteEngine.framework\"\nrm -rf \"$BUILT_PRODUCTS_DIR/GraphiteEngine.framework\"\ncp -R \"$ENGINE_FRAMEWORK\" \"$BUILT_PRODUCTS_DIR/GraphiteEngine.framework\"\nAPP_FRAMEWORKS=\"$TARGET_BUILD_DIR/Multiplatform App.app/Frameworks\"\nmkdir -p \"$APP_FRAMEWORKS\"\nrm -rf \"$APP_FRAMEWORKS/GraphiteEngine.framework\"\ncp -R \"$ENGINE_FRAMEWORK\" \"$APP_FRAMEWORKS/GraphiteEngine.framework\"\n";
+			shellScript = "cd \"$SRCROOT/../../..\"\n./gradlew :graphite-engine:linkDebugFrameworkIosSimulatorArm64 :sample:sharedUI:embedAndSignAppleFrameworkForXcode\nENGINE_FRAMEWORK=\"$SRCROOT/../../graphite-engine/build/bin/iosSimulatorArm64/debugFramework/GraphiteEngine.framework\"\nAPP_FRAMEWORKS=\"$TARGET_BUILD_DIR/Multiplatform App.app/Frameworks\"\nmkdir -p \"$APP_FRAMEWORKS\"\ncp -R \"$ENGINE_FRAMEWORK\" \"$APP_FRAMEWORKS/\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -139,7 +136,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				A93A953B29CC810C00F8E227 /* iosApp.swift in Sources */,
-				C0DEB1050000000000000001 /* EngineBridge.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -1,7 +1,6 @@
 @file:OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
 
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -39,15 +38,10 @@ kotlin {
         }
     }
 
-    targets.withType<KotlinNativeTarget>().configureEach {
+    targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget>().configureEach {
         compilations.getByName("main").cinterops {
-            create("graphiteEngine") {
-                defFile(project.file("src/iosMain/cinterop/graphite_engine.def"))
-                compilerOpts("-I${project.file("src/iosMain/cinterop").absolutePath}")
-            }
-            create("engineBridge") {
-                defFile(project.file("src/iosMain/cinterop/engine_bridge.def"))
-                compilerOpts("-I${project.file("../../sample/iosApp/iosApp").absolutePath}")
+            create("gse") {
+                defFile(project.file("src/iosMain/cinterop/gse.def"))
             }
         }
     }

@@ -6,7 +6,10 @@ import androidx.compose.ui.Modifier
 @Composable
 @ExperimentalGraphiteSurfaceApi
 public actual fun GraphiteSurface(
+    renderer: GraphiteRenderer,
     modifier: Modifier,
+    renderMode: GraphiteRenderMode,
+    controller: GraphiteSurfaceController?,
 ) {
     error("GraphiteSurface JVM host is not implemented yet")
 }

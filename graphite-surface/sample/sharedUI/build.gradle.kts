@@ -34,4 +34,13 @@ kotlin {
             isStatic = true
         }
     }
+
+    targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget>().configureEach {
+        tasks.named("linkDebugFrameworkIosSimulatorArm64") {
+            dependsOn(":graphite-engine:linkDebugFrameworkIosSimulatorArm64")
+        }
+        tasks.named("linkDebugFrameworkIosArm64") {
+            dependsOn(":graphite-engine:linkDebugFrameworkIosArm64")
+        }
+    }
 }

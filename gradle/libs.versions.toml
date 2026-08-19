@@ -3,11 +3,14 @@ kotlin = "2.4.10"
 agp = "9.1.1"
 compose = "1.12.0-beta03"
 composeCompiler = "2.4.10"
+skikoGraphite = "0.152.0-alpha01"
 
 [libraries]
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose" }
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose" }
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose" }
+skiko = { module = "org.jetbrains.skiko:skiko", version.ref = "skikoGraphite" }
+skiko-graphite = { module = "org.jetbrains.skiko:skiko-graphite", version.ref = "skikoGraphite" }
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
