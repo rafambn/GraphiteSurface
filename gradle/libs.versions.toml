@@ -4,6 +4,7 @@ agp = "9.1.1"
 # The adapter owns this Compose version. Consumers can select another Compose line.
 composeAdapter = "1.12.0-beta03"
 composeCompiler = "2.4.10"
+androidxActivity = "1.12.2"
 # The engine owns this Skiko/Graphite version independently from the adapter.
 graphiteEngineSkiko = "0.152.0-alpha01"
 
@@ -11,12 +12,15 @@ graphiteEngineSkiko = "0.152.0-alpha01"
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeAdapter" }
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeAdapter" }
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "composeAdapter" }
+androidx-activity = { module = "androidx.activity:activity", version.ref = "androidxActivity" }
 engine-skiko = { module = "org.jetbrains.skiko:skiko", version.ref = "graphiteEngineSkiko" }
 engine-skiko-graphite = { module = "org.jetbrains.skiko:skiko-graphite", version.ref = "graphiteEngineSkiko" }
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 android-kmp-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "composeAdapter" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "composeCompiler" }

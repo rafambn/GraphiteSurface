@@ -11,4 +11,5 @@ public expect fun GraphiteSurface(
     modifier: Modifier = Modifier,
     renderMode: GraphiteRenderMode = GraphiteRenderMode.Continuously,
     controller: GraphiteSurfaceController? = null,
+    outputMode: GraphiteOutputMode = GraphiteOutputMode.Surface,
 )

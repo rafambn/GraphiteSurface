@@ -10,6 +10,7 @@ public actual fun GraphiteSurface(
     modifier: Modifier,
     renderMode: GraphiteRenderMode,
     controller: GraphiteSurfaceController?,
+    outputMode: GraphiteOutputMode,
 ) {
     unsupportedGraphiteSurfaceHost("JVM/Desktop")
 }

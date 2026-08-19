@@ -1,8 +1,8 @@
 # GraphiteSurface workspace
 
-This workspace contains a Compose-facing adapter and a separate iOS Graphite
-engine. The adapter is intentionally independent from the engine's Skiko
-version.
+This workspace contains a Compose-facing adapter and separate platform
+Graphite engines. The adapter is intentionally independent from each engine's
+Skiko/Skia version.
 
 ## Modules
 
@@ -12,7 +12,9 @@ version.
 - `graphite-surface/graphite-engine` is the private iOS engine. It owns the
   Skiko/Skia dependency and publishes a dynamic `GraphiteEngine.framework`
   through a small Objective-C ABI.
-- `graphite-surface/sample` contains the iOS and desktop samples.
+- `graphite-surface/graphite-engine-android` is the private Android engine. It
+  owns Vulkan, the native Skia Graphite archive, and the JNI bridge.
+- `graphite-surface/sample` contains the iOS, Android, and desktop samples.
 
 ## Version ownership
 
@@ -45,5 +47,15 @@ Open `graphite-surface/sample/iosApp/iosApp.xcodeproj` to build and launch the
 sample. Its Xcode script embeds the matching simulator or device engine
 framework beside the static `ComposeApp` framework.
 
-The other Compose targets keep the same public contract, but their native GPU
-hosts are explicit unsupported stubs until their platform engines are added.
+The Android proof build uses a `SurfaceView` and a dedicated display-priority
+render thread. It keeps three Graphite recorders/frame slots in flight and
+submits with `SyncToCpu::kNo`; a separate Vulkan completion fence tracks when a
+slot can be recycled. `GraphiteOutputMode.Surface` presents the Vulkan
+swapchain. API 29+ also exposes the experimental
+`GraphiteOutputMode.HardwareBuffer` mode, which renders to an asynchronous
+three-buffer AHardwareBuffer ring and publishes through SurfaceControl, falling
+back to the swapchain when capabilities are missing. The current hardware mode
+validates direct buffer ownership and fences; it is not yet a Compose sampler
+for the same buffer. The other Compose targets keep the same public contract,
+but their native GPU hosts are explicit unsupported stubs until their platform
+engines are added.

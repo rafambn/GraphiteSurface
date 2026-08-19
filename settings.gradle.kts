@@ -26,6 +26,9 @@ project(":graphite-surface").projectDir = file("graphite-surface/graphite-surfac
 include(":graphite-engine")
 project(":graphite-engine").projectDir = file("graphite-surface/graphite-engine")
 
+include(":graphite-engine-android")
+project(":graphite-engine-android").projectDir = file("graphite-surface/graphite-engine-android")
+
 include(":sample")
 project(":sample").projectDir = file("graphite-surface/sample")
 
@@ -34,3 +37,6 @@ project(":sample:sharedUI").projectDir = file("graphite-surface/sample/sharedUI"
 
 include(":sample:desktopApp")
 project(":sample:desktopApp").projectDir = file("graphite-surface/sample/desktopApp")
+
+include(":sample:androidApp")
+project(":sample:androidApp").projectDir = file("graphite-surface/sample/androidApp")

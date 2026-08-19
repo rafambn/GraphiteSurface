@@ -18,6 +18,7 @@ public actual fun GraphiteSurface(
     modifier: Modifier,
     renderMode: GraphiteRenderMode,
     controller: GraphiteSurfaceController?,
+    outputMode: GraphiteOutputMode,
 ) {
     val adapter = remember(renderer, renderMode) { GraphiteSurfaceAdapter(renderer, renderMode) }
 

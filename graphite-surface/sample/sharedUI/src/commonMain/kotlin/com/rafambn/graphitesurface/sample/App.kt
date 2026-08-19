@@ -15,6 +15,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rafambn.graphitesurface.GraphiteDrawContext
+import com.rafambn.graphitesurface.GraphiteOutputMode
 import com.rafambn.graphitesurface.GraphiteRenderer
 import com.rafambn.graphitesurface.GraphiteSize
 import com.rafambn.graphitesurface.GraphiteSurface
@@ -31,6 +32,7 @@ fun App() {
         GraphiteSurface(
             renderer = renderer,
             modifier = Modifier.fillMaxSize(),
+            outputMode = GraphiteOutputMode.HardwareBuffer,
         )
         BasicText(
             text = "Graphite PoC",

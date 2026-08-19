@@ -9,6 +9,8 @@ adapter.
 - `skiko-fork/skiko/skiko/skiko-graphite`: Graphite bindings from Skiko.
 - `graphite-surface/graphite-surface`: public Compose Multiplatform adapter.
 - `graphite-surface/graphite-engine`: iOS Graphite engine with private Skiko and Skia dependencies.
+- `graphite-surface/graphite-engine-android`: Android Vulkan/Graphite engine with its own pinned
+  Skia archive and JNI boundary.
 - `graphite-surface/sample`: platform samples.
 - `build-logic`: shared Gradle conventions.
 
@@ -27,9 +29,8 @@ git -C skiko-fork/skiko merge upstream/master
 git add skiko-fork/skiko
 ```
 
-The Graphite binding is currently an experimental Skiko module. Android,
-desktop, JS, and Wasm keep target stubs behind the same adapter contract until
-their native engines are implemented.
+The Graphite binding is currently an experimental Skiko module. Desktop, JS,
+and Wasm still keep target stubs behind the same adapter contract.
 
 ## iOS PoC
 
@@ -43,6 +44,7 @@ fun GraphiteSurface(
     modifier: Modifier = Modifier,
     renderMode: GraphiteRenderMode = Continuously, // or WhenDirty + controller.requestRender()
     controller: GraphiteSurfaceController? = null,
+    outputMode: GraphiteOutputMode = Surface,
 )
 ```
 
@@ -54,6 +56,47 @@ graphite-surface/sample/iosApp/iosApp.xcodeproj
 
 The PoC renders a rotating red triangle through Graphite on the iOS Simulator.
 
+## Android Vulkan PoC
+
+The Android host follows the same public renderer contract:
+
+```text
+Compose AndroidView -> SurfaceView -> ANativeWindow -> Vulkan swapchain
+                    -> Skia Graphite -> SurfaceView presentation
+```
+
+`graphite-engine-android` owns the Vulkan instance/device, swapchain, acquire
+and present semaphores, and the Skia Graphite context. The Compose adapter only
+depends on its small Java/JNI bridge; it does not import Skia or Skiko. The
+Android renderer runs on a dedicated display-priority `HandlerThread`, keeps
+three recorders/frame slots in flight, submits Graphite with
+`SyncToCpu::kNo`, and uses a separate Vulkan completion fence for reuse
+tracking. The normal frame path does not call `vkQueueWaitIdle`.
+
+`GraphiteOutputMode.Surface` uses the Vulkan swapchain. On API 29+, selecting
+`GraphiteOutputMode.HardwareBuffer` asks the engine to render into a three-buffer
+`AHardwareBuffer` ring and publish each completed buffer through
+`ASurfaceControl` with an acquire fence. If the device, driver, Skia build, or
+SurfaceControl API cannot support that path, it falls back to the swapchain.
+This proves the buffer and fence ownership path; it is not yet a Compose
+sampler that imports the same buffer as a zero-copy image.
+
+It uses the engine-owned `m152-7bb45c7c26` Android debug Skia archive and
+currently packages `arm64-v8a`, which matches the attached emulator.
+
+Install Android CMake 3.31.6 and an Android NDK 28.x through the SDK manager,
+then build and install the sample:
+
+```bash
+./gradlew :sample:androidApp:assembleDebug
+adb install -r graphite-surface/sample/androidApp/build/outputs/apk/debug/androidApp-debug.apk
+```
+
+The first engine build downloads the pinned Skia archive into the module build
+directory. The sample selects `HardwareBuffer` so the optional path is
+exercised; applications can keep the default `Surface` mode while integrating
+their own consumer-side zero-copy bridge.
+
 ## Compose and engine versions
 
 `gradle/libs.versions.toml` keeps these owners separate:
@@ -64,11 +107,11 @@ The PoC renders a rotating red triangle through Graphite on the iOS Simulator.
 - `graphiteEngineSkiko = 0.152.0-alpha01` controls Skiko and Skiko Graphite
   inside `:graphite-engine`.
 
-Compose `1.12.0-beta03` resolves Skiko `0.150.1` transitively. The engine
-resolves Skiko `0.152.0-alpha01`. The iOS sample keeps those native copies in
-different Mach-O images. The engine framework is dynamic (`MH_DYLIB`) and
-uses the Mach-O `TWOLEVEL` namespace, so the boundary is visible in the
-linker output and not only in Gradle project structure.
+Compose `1.12.0-beta03` resolves Skiko `0.150.1` transitively. The iOS engine
+resolves Skiko `0.152.0-alpha01` in its own project and is loaded as a separate
+dynamic framework. The Android POC pins the native Skia archive independently
+inside `graphite-engine-android`; its JNI boundary means the Compose adapter
+does not inherit that engine implementation detail.
 
 Run `./gradlew :verifyGraphiteSurfaceBoundary` to prevent Skiko or Skia from
 leaking back into the public adapter.

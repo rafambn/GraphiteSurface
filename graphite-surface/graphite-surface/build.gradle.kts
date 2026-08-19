@@ -39,6 +39,10 @@ kotlin {
             implementation(libs.compose.foundation)
         }
 
+        androidMain.dependencies {
+            implementation(project(":graphite-engine-android"))
+        }
+
         commonTest.dependencies {
             implementation(kotlin("test"))
         }
