@@ -33,16 +33,20 @@ kotlin {
             implementation(libs.compose.foundation)
         }
 
+        iosMain.dependencies {
+            implementation(libs.skiko)
+            implementation(libs.skiko.graphite)
+        }
+
         commonTest.dependencies {
             implementation(kotlin("test"))
         }
     }
 
     targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget>().configureEach {
-        compilations.getByName("main").cinterops {
-            create("gse") {
-                defFile(project.file("src/iosMain/cinterop/gse.def"))
-            }
+        binaries.framework {
+            baseName = "GraphiteSurface"
+            isStatic = true
         }
     }
 }

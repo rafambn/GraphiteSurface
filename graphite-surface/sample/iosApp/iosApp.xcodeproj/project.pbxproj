@@ -126,7 +126,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "cd \"$SRCROOT/../../..\"\n./gradlew :graphite-engine:linkDebugFrameworkIosSimulatorArm64 :sample:sharedUI:embedAndSignAppleFrameworkForXcode\nENGINE_FRAMEWORK=\"$SRCROOT/../../graphite-engine/build/bin/iosSimulatorArm64/debugFramework/GraphiteEngine.framework\"\nAPP_FRAMEWORKS=\"$TARGET_BUILD_DIR/Multiplatform App.app/Frameworks\"\nmkdir -p \"$APP_FRAMEWORKS\"\ncp -R \"$ENGINE_FRAMEWORK\" \"$APP_FRAMEWORKS/\"\n";
+			shellScript = "cd \"$SRCROOT/../../..\"\n./gradlew :sample:sharedUI:embedAndSignAppleFrameworkForXcode\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

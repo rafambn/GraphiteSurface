@@ -7,6 +7,7 @@ pluginManagement {
         google()
         gradlePluginPortal()
         mavenCentral()
+        maven("https://redirector.kotlinlang.org/maven/compose-dev")
     }
 }
 
@@ -21,9 +22,6 @@ dependencyResolutionManagement {
 
 include(":graphite-surface")
 project(":graphite-surface").projectDir = file("graphite-surface/graphite-surface")
-
-include(":graphite-engine")
-project(":graphite-engine").projectDir = file("graphite-surface/graphite-engine")
 
 include(":sample")
 project(":sample").projectDir = file("graphite-surface/sample")

@@ -1,13 +1,11 @@
 @file:OptIn(
     kotlinx.cinterop.BetaInteropApi::class,
     kotlinx.cinterop.ExperimentalForeignApi::class,
-    kotlin.experimental.ExperimentalNativeApi::class,
     org.jetbrains.skiko.ExperimentalSkikoApi::class,
 )
 
-package com.rafambn.graphiteengine
+package com.rafambn.graphitesurface.engine
 
-import com.rafambn.graphiteengine.api.GSFrameCallback
 import kotlinx.cinterop.CValue
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.objcPtr
@@ -48,91 +46,61 @@ import platform.darwin.dispatch_semaphore_wait
 internal const val GS_RENDER_MODE_CONTINUOUSLY = 0
 internal const val GS_RENDER_MODE_WHEN_DIRTY = 1
 
-@Suppress("unused")
-@kotlin.native.CName("gsCreateView")
-public fun gsCreateView(renderMode: Int): UIView = GraphiteEngineView(renderMode)
+internal fun gsCreateView(renderMode: Int): UIView = GraphiteEngineView(renderMode)
 
-@Suppress("unused")
-@kotlin.native.CName("gsDisposeView")
-public fun gsDisposeView(view: UIView) {
+internal fun gsDisposeView(view: UIView) {
     (view as? GraphiteEngineView)?.dispose()
 }
 
-@Suppress("unused")
-@kotlin.native.CName("gsStartRendering")
-public fun gsStartRendering(view: UIView, callback: GSFrameCallback?) {
+internal fun gsStartRendering(view: UIView, callback: (() -> Unit)?) {
     (view as? GraphiteEngineView)?.startRendering(callback)
 }
 
-@Suppress("unused")
-@kotlin.native.CName("gsStopRendering")
-public fun gsStopRendering(view: UIView) {
+internal fun gsStopRendering(view: UIView) {
     (view as? GraphiteEngineView)?.stopRendering()
 }
 
-@Suppress("unused")
-@kotlin.native.CName("gsRequestRender")
-public fun gsRequestRender(view: UIView) {
+internal fun gsRequestRender(view: UIView) {
     (view as? GraphiteEngineView)?.requestRender()
 }
 
-@Suppress("unused")
-@kotlin.native.CName("gsClear")
-public fun gsClear(view: UIView, color: UInt) {
+internal fun gsClear(view: UIView, color: UInt) {
     frameContextOf(view).canvas.clear(color.toInt())
 }
 
-@Suppress("unused")
-@kotlin.native.CName("gsSave")
-public fun gsSave(view: UIView) {
+internal fun gsSave(view: UIView) {
     frameContextOf(view).canvas.save()
 }
 
-@Suppress("unused")
-@kotlin.native.CName("gsRestore")
-public fun gsRestore(view: UIView) {
+internal fun gsRestore(view: UIView) {
     frameContextOf(view).canvas.restore()
 }
 
-@Suppress("unused")
-@kotlin.native.CName("gsTranslate")
-public fun gsTranslate(view: UIView, x: Float, y: Float) {
+internal fun gsTranslate(view: UIView, x: Float, y: Float) {
     frameContextOf(view).canvas.translate(x, y)
 }
 
-@Suppress("unused")
-@kotlin.native.CName("gsRotate")
-public fun gsRotate(view: UIView, degrees: Float) {
+internal fun gsRotate(view: UIView, degrees: Float) {
     frameContextOf(view).canvas.rotate(degrees)
 }
 
-@Suppress("unused")
-@kotlin.native.CName("gsBeginPath")
-public fun gsBeginPath(view: UIView) {
+internal fun gsBeginPath(view: UIView) {
     frameContextOf(view).path = PathBuilder()
 }
 
-@Suppress("unused")
-@kotlin.native.CName("gsMoveTo")
-public fun gsMoveTo(view: UIView, x: Float, y: Float) {
+internal fun gsMoveTo(view: UIView, x: Float, y: Float) {
     frameContextOf(view).path.moveTo(x, y)
 }
 
-@Suppress("unused")
-@kotlin.native.CName("gsLineTo")
-public fun gsLineTo(view: UIView, x: Float, y: Float) {
+internal fun gsLineTo(view: UIView, x: Float, y: Float) {
     frameContextOf(view).path.lineTo(x, y)
 }
 
-@Suppress("unused")
-@kotlin.native.CName("gsClosePath")
-public fun gsClosePath(view: UIView) {
+internal fun gsClosePath(view: UIView) {
     frameContextOf(view).path.closePath()
 }
 
-@Suppress("unused")
-@kotlin.native.CName("gsDrawPath")
-public fun gsDrawPath(view: UIView, color: UInt, antiAlias: Int) {
+internal fun gsDrawPath(view: UIView, color: UInt, antiAlias: Int) {
     val frame = frameContextOf(view)
     val path = frame.path.detach()
     val paint = Paint().apply {
@@ -167,7 +135,7 @@ internal class GraphiteEngineView : UIView {
     private var displayLink: CADisplayLink? = null
     private var disposed = false
     private var pendingRender = true
-    private var frameCallback: GSFrameCallback? = null
+    private var frameCallback: (() -> Unit)? = null
     internal var currentFrameContext: FrameContext? = null
 
     public constructor(
@@ -187,7 +155,7 @@ internal class GraphiteEngineView : UIView {
         error("init(coder:) is not supported")
     }
 
-    public fun startRendering(callback: GSFrameCallback?) {
+    public fun startRendering(callback: (() -> Unit)?) {
         frameCallback = callback
         if (callback != null && pendingRender) {
             draw()

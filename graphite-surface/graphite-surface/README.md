@@ -17,7 +17,7 @@ interface GraphiteRenderer {
 }
 ```
 
-The API mirrors `GLSurfaceView.Renderer`: the surface owns the native render loop (Metal + Skia Graphite on iOS), the renderer owns the scene. The drawing DSL is Skia's `Canvas`, backed by a Graphite recorder that is submitted and presented after `onDrawFrame` returns.
+The API mirrors `GLSurfaceView.Renderer`: the surface owns the native render loop (Metal + Skia Graphite on iOS), the renderer owns the scene. The drawing DSL is backed by a Graphite recorder that is submitted and presented after `onDrawFrame` returns. The engine implementation lives in this module's iOS source set and remains internal.
 
 `GraphiteRenderMode.WhenDirty` only renders when `GraphiteSurfaceController.requestRender()` is called.
 

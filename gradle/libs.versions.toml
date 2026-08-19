@@ -1,7 +1,8 @@
 [versions]
 kotlin = "2.4.10"
 agp = "9.1.1"
-compose = "1.12.0-beta03"
+# The Graphite PoC currently requires the Compose snapshot built against Skiko 0.152.0-alpha01.
+compose = "1.12.10-alpha01+snapshot.default"
 composeCompiler = "2.4.10"
 skikoGraphite = "0.152.0-alpha01"
 

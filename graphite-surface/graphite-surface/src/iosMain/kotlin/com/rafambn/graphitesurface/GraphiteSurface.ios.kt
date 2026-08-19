@@ -13,7 +13,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.viewinterop.UIKitView
-import com.rafambn.graphitesurface.engine.GraphiteEngineGraphiteEngineViewKt
+import com.rafambn.graphitesurface.engine.gsBeginPath
+import com.rafambn.graphitesurface.engine.gsClear
+import com.rafambn.graphitesurface.engine.gsClosePath
+import com.rafambn.graphitesurface.engine.gsCreateView
+import com.rafambn.graphitesurface.engine.gsDisposeView
+import com.rafambn.graphitesurface.engine.gsDrawPath
+import com.rafambn.graphitesurface.engine.gsLineTo
+import com.rafambn.graphitesurface.engine.gsMoveTo
+import com.rafambn.graphitesurface.engine.gsRequestRender
+import com.rafambn.graphitesurface.engine.gsRestore
+import com.rafambn.graphitesurface.engine.gsRotate
+import com.rafambn.graphitesurface.engine.gsSave
+import com.rafambn.graphitesurface.engine.gsStartRendering
+import com.rafambn.graphitesurface.engine.gsStopRendering
+import com.rafambn.graphitesurface.engine.gsTranslate
 import kotlinx.cinterop.useContents
 import platform.UIKit.UIView
 import kotlin.math.roundToInt
@@ -54,21 +68,21 @@ private class GraphiteSurfaceAdapter(
         get() {
             val existing = engineView
             if (existing != null) return existing
-            return GraphiteEngineGraphiteEngineViewKt.gsCreateViewRenderMode(renderMode.ordinal)!!.also { created ->
+            return gsCreateView(renderMode.ordinal).also { created ->
                 engineView = created
-                GraphiteEngineGraphiteEngineViewKt.gsStartRenderingView(created) {
+                gsStartRendering(created) {
                     onFrame(created)
                 }
             }
         }
 
     fun requestRender() {
-        engineView?.let { GraphiteEngineGraphiteEngineViewKt.gsRequestRenderView(it) }
+        engineView?.let(::gsRequestRender)
     }
 
     fun dispose() {
-        engineView?.let { GraphiteEngineGraphiteEngineViewKt.gsStopRenderingView(it) }
-        engineView?.let { GraphiteEngineGraphiteEngineViewKt.gsDisposeViewView(it) }
+        engineView?.let(::gsStopRendering)
+        engineView?.let(::gsDisposeView)
         engineView = null
     }
 
@@ -96,42 +110,42 @@ private class GSGraphiteDrawContext(
     private val view: UIView,
 ) : GraphiteDrawContext {
     override fun clear(color: Long) {
-        GraphiteEngineGraphiteEngineViewKt.gsClearView(view, color.toUInt())
+        gsClear(view, color.toUInt())
     }
 
     override fun save() {
-        GraphiteEngineGraphiteEngineViewKt.gsSaveView(view)
+        gsSave(view)
     }
 
     override fun restore() {
-        GraphiteEngineGraphiteEngineViewKt.gsRestoreView(view)
+        gsRestore(view)
     }
 
     override fun translate(x: Float, y: Float) {
-        GraphiteEngineGraphiteEngineViewKt.gsTranslateView(view, x, y)
+        gsTranslate(view, x, y)
     }
 
     override fun rotate(degrees: Float) {
-        GraphiteEngineGraphiteEngineViewKt.gsRotateView(view, degrees)
+        gsRotate(view, degrees)
     }
 
     override fun beginPath() {
-        GraphiteEngineGraphiteEngineViewKt.gsBeginPathView(view)
+        gsBeginPath(view)
     }
 
     override fun moveTo(x: Float, y: Float) {
-        GraphiteEngineGraphiteEngineViewKt.gsMoveToView(view, x, y)
+        gsMoveTo(view, x, y)
     }
 
     override fun lineTo(x: Float, y: Float) {
-        GraphiteEngineGraphiteEngineViewKt.gsLineToView(view, x, y)
+        gsLineTo(view, x, y)
     }
 
     override fun closePath() {
-        GraphiteEngineGraphiteEngineViewKt.gsClosePathView(view)
+        gsClosePath(view)
     }
 
     override fun drawPath(color: Long, antiAlias: Boolean) {
-        GraphiteEngineGraphiteEngineViewKt.gsDrawPathView(view, color.toUInt(), if (antiAlias) 1 else 0)
+        gsDrawPath(view, color.toUInt(), if (antiAlias) 1 else 0)
     }
 }
