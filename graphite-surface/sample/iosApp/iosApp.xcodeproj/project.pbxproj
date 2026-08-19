@@ -126,7 +126,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "cd \"$SRCROOT/../../..\"\n./gradlew :sample:sharedUI:embedAndSignAppleFrameworkForXcode\n";
+			shellScript = "cd \"$SRCROOT/../../..\"\nif [ \"$PLATFORM_NAME\" = \"iphonesimulator\" ]; then ENGINE_TARGET=iosSimulatorArm64; else ENGINE_TARGET=iosArm64; fi\nif [ \"$CONFIGURATION\" = \"Release\" ]; then ENGINE_BUILD_TYPE=Release; ENGINE_DIRECTORY=releaseFramework; else ENGINE_BUILD_TYPE=Debug; ENGINE_DIRECTORY=debugFramework; fi\n./gradlew :graphite-engine:link${ENGINE_BUILD_TYPE}Framework${ENGINE_TARGET} :sample:sharedUI:embedAndSignAppleFrameworkForXcode\nENGINE_FRAMEWORK=\"$SRCROOT/../../graphite-engine/build/bin/${ENGINE_TARGET}/${ENGINE_DIRECTORY}/GraphiteEngine.framework\"\nAPP_FRAMEWORKS=\"$TARGET_BUILD_DIR/Multiplatform App.app/Frameworks\"\nmkdir -p \"$APP_FRAMEWORKS\"\nrm -rf \"$APP_FRAMEWORKS/GraphiteEngine.framework\"\ncp -R \"$ENGINE_FRAMEWORK\" \"$APP_FRAMEWORKS/\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -267,6 +267,16 @@
 				);
 				OTHER_LDFLAGS = (
 					"$(inherited)",
+					"-framework",
+					GraphiteEngine,
+				);
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"$(SRCROOT)/../../graphite-engine/build/bin/iosArm64/debugFramework",
+				);
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"$(SRCROOT)/../../graphite-engine/build/bin/iosSimulatorArm64/debugFramework",
 				);
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -296,6 +306,16 @@
 				);
 				OTHER_LDFLAGS = (
 					"$(inherited)",
+					"-framework",
+					GraphiteEngine,
+				);
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"$(SRCROOT)/../../graphite-engine/build/bin/iosArm64/releaseFramework",
+				);
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"$(SRCROOT)/../../graphite-engine/build/bin/iosSimulatorArm64/releaseFramework",
 				);
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;

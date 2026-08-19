@@ -6,13 +6,12 @@
 
 package com.rafambn.graphitesurface.engine
 
+import com.rafambn.graphitesurface.engine.api.GSFrameCallback
 import kotlinx.cinterop.CValue
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.objcPtr
-import kotlinx.cinterop.pin
 import kotlinx.cinterop.useContents
 import kotlinx.cinterop.usePinned
-import org.jetbrains.skia.Canvas
 import org.jetbrains.skia.ColorSpace
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.PathBuilder
@@ -26,8 +25,8 @@ import platform.CoreGraphics.CGColorSpaceCreateDeviceRGB
 import platform.CoreGraphics.CGRect
 import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGSizeMake
-import platform.Foundation.NSRunLoop
 import platform.Foundation.NSCoder
+import platform.Foundation.NSRunLoop
 import platform.Foundation.NSSelectorFromString
 import platform.Metal.MTLPixelFormatBGRA8Unorm
 import platform.Metal.MTLCreateSystemDefaultDevice
@@ -37,70 +36,84 @@ import platform.QuartzCore.CAMetalLayer
 import platform.UIKit.UIView
 import platform.UIKit.UIViewMeta
 import platform.darwin.DISPATCH_TIME_FOREVER
-import platform.darwin.NSObject
 import platform.darwin.dispatch_semaphore_create
 import platform.darwin.dispatch_semaphore_signal
 import platform.darwin.dispatch_semaphore_t
 import platform.darwin.dispatch_semaphore_wait
 
-internal const val GS_RENDER_MODE_CONTINUOUSLY = 0
-internal const val GS_RENDER_MODE_WHEN_DIRTY = 1
+private const val GS_RENDER_MODE_CONTINUOUSLY = 0
+private const val GS_RENDER_MODE_WHEN_DIRTY = 1
 
-internal fun gsCreateView(renderMode: Int): UIView = GraphiteEngineView(renderMode)
+@Suppress("unused")
+public fun gsCreateView(renderMode: Int): UIView = GraphiteEngineView(renderMode)
 
-internal fun gsDisposeView(view: UIView) {
+@Suppress("unused")
+public fun gsDisposeView(view: UIView) {
     (view as? GraphiteEngineView)?.dispose()
 }
 
-internal fun gsStartRendering(view: UIView, callback: (() -> Unit)?) {
+@Suppress("unused")
+public fun gsStartRendering(view: UIView, callback: GSFrameCallback) {
     (view as? GraphiteEngineView)?.startRendering(callback)
 }
 
-internal fun gsStopRendering(view: UIView) {
+@Suppress("unused")
+public fun gsStopRendering(view: UIView) {
     (view as? GraphiteEngineView)?.stopRendering()
 }
 
-internal fun gsRequestRender(view: UIView) {
+@Suppress("unused")
+public fun gsRequestRender(view: UIView) {
     (view as? GraphiteEngineView)?.requestRender()
 }
 
-internal fun gsClear(view: UIView, color: UInt) {
+@Suppress("unused")
+public fun gsClear(view: UIView, color: UInt) {
     frameContextOf(view).canvas.clear(color.toInt())
 }
 
-internal fun gsSave(view: UIView) {
+@Suppress("unused")
+public fun gsSave(view: UIView) {
     frameContextOf(view).canvas.save()
 }
 
-internal fun gsRestore(view: UIView) {
+@Suppress("unused")
+public fun gsRestore(view: UIView) {
     frameContextOf(view).canvas.restore()
 }
 
-internal fun gsTranslate(view: UIView, x: Float, y: Float) {
+@Suppress("unused")
+public fun gsTranslate(view: UIView, x: Float, y: Float) {
     frameContextOf(view).canvas.translate(x, y)
 }
 
-internal fun gsRotate(view: UIView, degrees: Float) {
+@Suppress("unused")
+public fun gsRotate(view: UIView, degrees: Float) {
     frameContextOf(view).canvas.rotate(degrees)
 }
 
-internal fun gsBeginPath(view: UIView) {
+@Suppress("unused")
+public fun gsBeginPath(view: UIView) {
     frameContextOf(view).path = PathBuilder()
 }
 
-internal fun gsMoveTo(view: UIView, x: Float, y: Float) {
+@Suppress("unused")
+public fun gsMoveTo(view: UIView, x: Float, y: Float) {
     frameContextOf(view).path.moveTo(x, y)
 }
 
-internal fun gsLineTo(view: UIView, x: Float, y: Float) {
+@Suppress("unused")
+public fun gsLineTo(view: UIView, x: Float, y: Float) {
     frameContextOf(view).path.lineTo(x, y)
 }
 
-internal fun gsClosePath(view: UIView) {
+@Suppress("unused")
+public fun gsClosePath(view: UIView) {
     frameContextOf(view).path.closePath()
 }
 
-internal fun gsDrawPath(view: UIView, color: UInt, antiAlias: Int) {
+@Suppress("unused")
+public fun gsDrawPath(view: UIView, color: UInt, antiAlias: Int) {
     val frame = frameContextOf(view)
     val path = frame.path.detach()
     val paint = Paint().apply {
@@ -112,8 +125,8 @@ internal fun gsDrawPath(view: UIView, color: UInt, antiAlias: Int) {
     paint.close()
 }
 
-internal class GraphiteEngineView : UIView {
-    public companion object : UIViewMeta() {
+private class GraphiteEngineView : UIView {
+    companion object : UIViewMeta() {
         override fun layerClass() = CAMetalLayer
     }
 
@@ -135,10 +148,10 @@ internal class GraphiteEngineView : UIView {
     private var displayLink: CADisplayLink? = null
     private var disposed = false
     private var pendingRender = true
-    private var frameCallback: (() -> Unit)? = null
+    private var frameCallback: GSFrameCallback = null
     internal var currentFrameContext: FrameContext? = null
 
-    public constructor(
+    constructor(
         renderMode: Int,
         frame: CValue<CGRect> = CGRectMake(0.0, 0.0, 0.0, 0.0),
     ) : super(frame) {
@@ -151,28 +164,28 @@ internal class GraphiteEngineView : UIView {
 
     @Suppress("UNUSED")
     @kotlinx.cinterop.ObjCObjectBase.OverrideInit
-    public constructor(coder: NSCoder) : super(coder) {
+    constructor(coder: NSCoder) : super(coder) {
         error("init(coder:) is not supported")
     }
 
-    public fun startRendering(callback: (() -> Unit)?) {
+    fun startRendering(callback: GSFrameCallback) {
         frameCallback = callback
         if (callback != null && pendingRender) {
             draw()
         }
     }
 
-    public fun stopRendering() {
+    fun stopRendering() {
         frameCallback = null
     }
 
-    public fun requestRender() {
+    fun requestRender() {
         if (disposed) return
         pendingRender = true
         draw()
     }
 
-    public fun dispose() {
+    fun dispose() {
         if (disposed) return
         disposed = true
         displayLink?.invalidate()
@@ -270,20 +283,6 @@ internal class GraphiteEngineView : UIView {
     }
 }
 
-internal class FrameContext(val canvas: Canvas) {
-    var path: PathBuilder = PathBuilder()
-}
-
-private fun frameContextOf(view: UIView): FrameContext {
-    return (view as? GraphiteEngineView)?.currentFrameContext
+private fun frameContextOf(view: UIView): FrameContext =
+    (view as? GraphiteEngineView)?.currentFrameContext
         ?: error("Graphite draw calls are only valid during onDrawFrame")
-}
-
-private class DisplayLinkProxy(
-    private val callback: () -> Unit,
-) : NSObject() {
-    @kotlinx.cinterop.ObjCAction
-    fun handleDisplayLinkTick() {
-        callback()
-    }
-}

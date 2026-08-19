@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import java.io.File
 
 plugins {
@@ -29,7 +30,7 @@ kotlin {
         }
     }
 
-    targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget>().configureEach {
+    targets.withType<KotlinNativeTarget>().configureEach {
         val swiftPlatform = if (name.startsWith("iosSimulator")) "iphonesimulator" else "iphoneos"
         val developerDirectory = (System.getenv("DEVELOPER_DIR")
             ?.let(::File)
@@ -41,9 +42,22 @@ kotlin {
         binaries.framework {
             baseName = "ComposeApp"
             isStatic = true
+            binaryOptions["bundleId"] = "com.rafambn.graphitesurface.sample"
+            val engineFrameworkDirectory = rootProject.file(
+                "graphite-surface/graphite-engine/build/bin/$name/${buildType.name.lowercase()}Framework",
+            )
+            linkerOpts("-F${engineFrameworkDirectory.absolutePath}", "-framework", "GraphiteEngine")
             linkerOpts(
                 "-L${developerDirectory.resolve("Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$swiftPlatform")}",
             )
+        }
+
+        tasks.matching { task ->
+            task.name.startsWith("link") && task.name.contains("FrameworkIos")
+        }.configureEach {
+            val buildType = if (name.startsWith("linkRelease")) "Release" else "Debug"
+            val targetName = name.substringAfter("Framework")
+            dependsOn(":graphite-engine:link${buildType}Framework$targetName")
         }
     }
 }

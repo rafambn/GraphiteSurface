@@ -11,5 +11,5 @@ public actual fun GraphiteSurface(
     renderMode: GraphiteRenderMode,
     controller: GraphiteSurfaceController?,
 ) {
-    error("GraphiteSurface JS host is not implemented yet")
+    unsupportedGraphiteSurfaceHost("JavaScript")
 }

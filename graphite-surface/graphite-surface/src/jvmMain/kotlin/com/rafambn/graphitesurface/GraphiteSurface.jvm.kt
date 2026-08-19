@@ -11,5 +11,5 @@ public actual fun GraphiteSurface(
     renderMode: GraphiteRenderMode,
     controller: GraphiteSurfaceController?,
 ) {
-    error("GraphiteSurface JVM host is not implemented yet")
+    unsupportedGraphiteSurfaceHost("JVM/Desktop")
 }

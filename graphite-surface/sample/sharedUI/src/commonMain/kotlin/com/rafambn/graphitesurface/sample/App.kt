@@ -12,11 +12,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rafambn.graphitesurface.GraphiteDrawContext
 import com.rafambn.graphitesurface.GraphiteRenderer
+import com.rafambn.graphitesurface.GraphiteSize
 import com.rafambn.graphitesurface.GraphiteSurface
 import kotlin.math.min
 import kotlin.time.TimeSource
@@ -42,11 +42,11 @@ fun App() {
 
 private class TriangleRenderer : GraphiteRenderer {
     private val startTime = TimeSource.Monotonic.markNow()
-    private var size = IntSize.Zero
+    private var size = GraphiteSize.Zero
 
     override fun onSurfaceCreated() = Unit
 
-    override fun onSurfaceChanged(size: IntSize) {
+    override fun onSurfaceChanged(size: GraphiteSize) {
         this.size = size
     }
 

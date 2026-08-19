@@ -1,0 +1,3 @@
+language = Objective-C
+package = com.rafambn.graphitesurface.engine.api
+headers = GSTypes.h

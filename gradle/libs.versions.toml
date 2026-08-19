@@ -1,21 +1,22 @@
 [versions]
 kotlin = "2.4.10"
 agp = "9.1.1"
-# The Graphite PoC currently requires the Compose snapshot built against Skiko 0.152.0-alpha01.
-compose = "1.12.10-alpha01+snapshot.default"
+# The adapter owns this Compose version. Consumers can select another Compose line.
+composeAdapter = "1.12.0-beta03"
 composeCompiler = "2.4.10"
-skikoGraphite = "0.152.0-alpha01"
+# The engine owns this Skiko/Graphite version independently from the adapter.
+graphiteEngineSkiko = "0.152.0-alpha01"
 
 [libraries]
-compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose" }
-compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose" }
-compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose" }
-skiko = { module = "org.jetbrains.skiko:skiko", version.ref = "skikoGraphite" }
-skiko-graphite = { module = "org.jetbrains.skiko:skiko-graphite", version.ref = "skikoGraphite" }
+compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeAdapter" }
+compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeAdapter" }
+compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "composeAdapter" }
+engine-skiko = { module = "org.jetbrains.skiko:skiko", version.ref = "graphiteEngineSkiko" }
+engine-skiko-graphite = { module = "org.jetbrains.skiko:skiko-graphite", version.ref = "graphiteEngineSkiko" }
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 android-kmp-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
-compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "compose" }
+compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "composeAdapter" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "composeCompiler" }

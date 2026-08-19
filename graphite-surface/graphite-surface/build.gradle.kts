@@ -21,8 +21,14 @@ kotlin {
         compilerOptions.jvmTarget.set(JvmTarget.JVM_17)
     }
 
-    js { browser() }
-    wasmJs { browser() }
+    js {
+        browser()
+        binaries.executable()
+    }
+    wasmJs {
+        browser()
+        binaries.executable()
+    }
     iosArm64()
     iosSimulatorArm64()
 
@@ -33,13 +39,19 @@ kotlin {
             implementation(libs.compose.foundation)
         }
 
-        iosMain.dependencies {
-            implementation(libs.skiko)
-            implementation(libs.skiko.graphite)
-        }
-
         commonTest.dependencies {
             implementation(kotlin("test"))
+        }
+    }
+
+    val engineApiDirectory = rootProject.file("graphite-surface/graphite-engine/src/iosMain/cinterop")
+
+    targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget>().configureEach {
+        compilations.getByName("main").cinterops {
+            create("graphiteEngine") {
+                defFile(project.file("src/iosMain/cinterop/engine.def"))
+                compilerOpts("-I${engineApiDirectory.absolutePath}")
+            }
         }
     }
 
