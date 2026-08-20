@@ -15,109 +15,240 @@ import org.jetbrains.skia.gpu.graphite.Recorder
 import org.jetbrains.skia.gpu.graphite.wrapBackendTexture
 import org.jetbrains.skia.impl.use
 import org.jetbrains.skiko.graphite.GraphiteMetalHost
+import org.jetbrains.skiko.graphite.GraphiteVulkanHost
 
-/** A macOS Metal-backed JVM Graphite surface. */
+/** A JVM Graphite surface backed by Metal on macOS or Vulkan on Linux. */
 public class JvmGraphiteSurface(
-    private val renderer: JvmGraphiteRenderer,
+    renderer: JvmGraphiteRenderer,
 ) : AutoCloseable {
-    private val host = GraphiteMetalHost()
-    private var graphiteContext: GraphiteContext? = null
-    private var recorder: Recorder? = null
-    private var lastWidth = 0
-    private var lastHeight = 0
-    private var closed = false
-
-    init {
-        check(isSupported) {
-            "JVM Graphite requires macOS with Metal support"
-        }
+    private val backend: Backend = when {
+        isMacOs -> MetalBackend(renderer)
+        isLinux -> VulkanBackend(renderer)
+        else -> error("JVM Graphite requires macOS/Metal or Linux/Vulkan support")
     }
 
-    /** AWT component that owns the CAMetalLayer used by this surface. */
+    /** AWT component that owns the native GPU presentation surface. */
     public val component: Component
-        get() = host
+        get() = backend.component
 
-    /** Whether this JVM Graphite implementation can run on the current host. */
-    public companion object {
-        public val isSupported: Boolean =
-            System.getProperty("os.name").equals("Mac OS X", ignoreCase = true)
-    }
-
-    /** Records and submits one Graphite frame when the AWT component has a size. */
+    /** Records and presents one Graphite frame when the AWT component has a size. */
     public fun render() {
-        check(!closed) { "JvmGraphiteSurface is closed" }
-        if (!host.initialize()) return
-
-        val logicalWidth = host.width
-        val logicalHeight = host.height
-        if (logicalWidth <= 0 || logicalHeight <= 0) return
-
-        val scale = host.scale
-        val width = (logicalWidth * scale).roundToInt().coerceAtLeast(1)
-        val height = (logicalHeight * scale).roundToInt().coerceAtLeast(1)
-        host.resize(logicalWidth, logicalHeight, scale)
-        ensureContext()
-
-        if (width != lastWidth || height != lastHeight) {
-            lastWidth = width
-            lastHeight = height
-            renderer.onSurfaceChanged(width, height)
-        }
-
-        val texturePointer = host.nextDrawable()
-        if (texturePointer == 0L) return
-
-        var backendTexture: BackendTexture? = null
-        var surface: Surface? = null
-        var presented = false
-        try {
-            val currentRecorder = checkNotNull(recorder)
-            val currentContext = checkNotNull(graphiteContext)
-            backendTexture = BackendTexture.makeMetal(width, height, texturePointer)
-            surface = Surface.wrapBackendTexture(
-                recorder = currentRecorder,
-                backendTexture = backendTexture,
-                colorSpace = ColorSpace.sRGB,
-            )
-            if (surface == null) return
-
-            renderer.onDrawFrame(SkiaGraphiteDrawContext(surface.canvas))
-            currentRecorder.snap().use { recording ->
-                currentContext.insertRecording(recording)
-                currentContext.submit(syncCpu = true)
-            }
-            host.present()
-            presented = true
-        } finally {
-            surface?.close()
-            backendTexture?.close()
-            if (!presented) host.dropDrawable()
-        }
+        backend.render()
     }
 
     override fun close() {
-        if (closed) return
-        closed = true
-        recorder?.close()
-        recorder = null
-        graphiteContext?.close()
-        graphiteContext = null
-        host.close()
+        backend.close()
     }
 
-    private fun ensureContext() {
-        if (graphiteContext != null) return
-        val context = GraphiteContext.makeMetal(host.devicePointer, host.queuePointer)
-        val newRecorder = context.makeRecorder()
-        try {
-            renderer.onSurfaceCreated()
-        } catch (error: Throwable) {
-            newRecorder.close()
-            context.close()
-            throw error
+    /** Whether this JVM implementation has a native Graphite presentation backend. */
+    public companion object {
+        public val isSupported: Boolean = isMacOs || isLinux
+
+        private val isMacOs: Boolean
+            get() = System.getProperty("os.name").equals("Mac OS X", ignoreCase = true)
+
+        private val isLinux: Boolean
+            get() = System.getProperty("os.name").equals("Linux", ignoreCase = true)
+    }
+
+    private interface Backend : AutoCloseable {
+        val component: Component
+
+        fun render()
+    }
+
+    private class MetalBackend(
+        private val renderer: JvmGraphiteRenderer,
+    ) : Backend {
+        private val host = GraphiteMetalHost()
+        private var graphiteContext: GraphiteContext? = null
+        private var recorder: Recorder? = null
+        private var lastWidth = 0
+        private var lastHeight = 0
+        private var closed = false
+
+        override val component: Component
+            get() = host
+
+        override fun render() {
+            check(!closed) { "JvmGraphiteSurface is closed" }
+            if (!host.initialize()) return
+
+            val logicalWidth = host.width
+            val logicalHeight = host.height
+            if (logicalWidth <= 0 || logicalHeight <= 0) return
+
+            val scale = host.scale
+            val width = (logicalWidth * scale).roundToInt().coerceAtLeast(1)
+            val height = (logicalHeight * scale).roundToInt().coerceAtLeast(1)
+            host.resize(logicalWidth, logicalHeight, scale)
+            ensureContext()
+
+            if (width != lastWidth || height != lastHeight) {
+                lastWidth = width
+                lastHeight = height
+                renderer.onSurfaceChanged(width, height)
+            }
+
+            val texturePointer = host.nextDrawable()
+            if (texturePointer == 0L) return
+
+            var backendTexture: BackendTexture? = null
+            var surface: Surface? = null
+            var presented = false
+            try {
+                val currentRecorder = checkNotNull(recorder)
+                val currentContext = checkNotNull(graphiteContext)
+                backendTexture = BackendTexture.makeMetal(width, height, texturePointer)
+                surface = Surface.wrapBackendTexture(
+                    recorder = currentRecorder,
+                    backendTexture = backendTexture,
+                    colorSpace = ColorSpace.sRGB,
+                )
+                if (surface == null) return
+
+                renderer.onDrawFrame(SkiaGraphiteDrawContext(surface.canvas))
+                currentRecorder.snap().use { recording ->
+                    currentContext.insertRecording(recording)
+                    currentContext.submit(syncCpu = true)
+                }
+                host.present()
+                presented = true
+            } finally {
+                surface?.close()
+                backendTexture?.close()
+                if (!presented) host.dropDrawable()
+            }
         }
-        graphiteContext = context
-        recorder = newRecorder
+
+        override fun close() {
+            if (closed) return
+            closed = true
+            recorder?.close()
+            recorder = null
+            graphiteContext?.close()
+            graphiteContext = null
+            host.close()
+        }
+
+        private fun ensureContext() {
+            if (graphiteContext != null) return
+            val context = GraphiteContext.makeMetal(host.devicePointer, host.queuePointer)
+            val newRecorder = context.makeRecorder()
+            try {
+                renderer.onSurfaceCreated()
+            } catch (error: Throwable) {
+                newRecorder.close()
+                context.close()
+                throw error
+            }
+            graphiteContext = context
+            recorder = newRecorder
+        }
+    }
+
+    private class VulkanBackend(
+        private val renderer: JvmGraphiteRenderer,
+    ) : Backend {
+        private val host = GraphiteVulkanHost()
+        private var graphiteContext: GraphiteContext? = null
+        private var recorder: Recorder? = null
+        private var lastWidth = 0
+        private var lastHeight = 0
+        private var closed = false
+
+        override val component: Component
+            get() = host
+
+        override fun render() {
+            check(!closed) { "JvmGraphiteSurface is closed" }
+            if (!host.initialize()) return
+
+            val logicalWidth = host.width
+            val logicalHeight = host.height
+            if (logicalWidth <= 0 || logicalHeight <= 0) return
+
+            if (!host.resize(logicalWidth, logicalHeight, host.scale)) return
+            val width = host.pixelWidth
+            val height = host.pixelHeight
+            if (width <= 0 || height <= 0) return
+            ensureContext()
+
+            if (width != lastWidth || height != lastHeight) {
+                lastWidth = width
+                lastHeight = height
+                renderer.onSurfaceChanged(width, height)
+            }
+
+            val imagePointer = host.nextDrawable()
+            if (imagePointer == 0L) return
+
+            var backendTexture: BackendTexture? = null
+            var surface: Surface? = null
+            var presented = false
+            try {
+                val currentRecorder = checkNotNull(recorder)
+                val currentContext = checkNotNull(graphiteContext)
+                backendTexture = BackendTexture.makeVulkan(
+                    width = width,
+                    height = height,
+                    format = host.imageFormat,
+                    imageUsage = host.imageUsage,
+                    imageLayout = host.imageLayout,
+                    queueFamilyIndex = host.queueFamilyIndex,
+                    imagePtr = imagePointer,
+                )
+                surface = Surface.wrapBackendTexture(
+                    recorder = currentRecorder,
+                    backendTexture = backendTexture,
+                    colorSpace = ColorSpace.sRGB,
+                )
+                if (surface == null) return
+
+                renderer.onDrawFrame(SkiaGraphiteDrawContext(surface.canvas))
+                currentRecorder.snap().use { recording ->
+                    currentContext.insertRecording(recording)
+                    currentContext.submit(syncCpu = true)
+                }
+                host.present()
+                presented = true
+            } finally {
+                surface?.close()
+                backendTexture?.close()
+                if (!presented) host.dropDrawable()
+            }
+        }
+
+        override fun close() {
+            if (closed) return
+            closed = true
+            recorder?.close()
+            recorder = null
+            graphiteContext?.close()
+            graphiteContext = null
+            host.close()
+        }
+
+        private fun ensureContext() {
+            if (graphiteContext != null) return
+            val context = GraphiteContext.makeVulkan(
+                instancePtr = host.instancePointer,
+                physicalDevicePtr = host.physicalDevicePointer,
+                devicePtr = host.devicePointer,
+                queuePtr = host.queuePointer,
+                queueFamilyIndex = host.queueFamilyIndex,
+            )
+            val newRecorder = context.makeRecorder()
+            try {
+                renderer.onSurfaceCreated()
+            } catch (error: Throwable) {
+                newRecorder.close()
+                context.close()
+                throw error
+            }
+            graphiteContext = context
+            recorder = newRecorder
+        }
     }
 
     private class SkiaGraphiteDrawContext(

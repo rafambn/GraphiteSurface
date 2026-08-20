@@ -24,9 +24,11 @@ The JVM/Desktop sample is built with:
 ./gradlew :sample:desktopApp:run
 ```
 
-The desktop host requires macOS with Metal. It presents the rotating triangle
-through an AWT `CAMetalLayer` and the Skia Graphite Metal backend; it does not
-fall back to Compose Canvas rendering.
+On macOS the host uses an AWT `CAMetalLayer` and the Skia Graphite Metal
+backend. On Linux it uses an X11-backed Vulkan swapchain and the Skia Graphite
+Vulkan backend. Both paths render the triangle through Graphite and do not fall
+back to Compose Canvas rendering. Linux requires a Vulkan driver and an X11
+display (including XWayland).
 
 The browser POCs use the same sample UI but expose separate Kotlin/JS and
 Kotlin/Wasm executables from `:sample:sharedUI`. They use the local Skiko fork

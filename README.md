@@ -30,7 +30,7 @@ git add skiko-fork/skiko
 ```
 
 The Graphite binding is currently an experimental Skiko module. macOS JVM has a
-Metal host behind the same adapter contract, while JS and Wasm have browser
+Metal host, Linux JVM has an X11/Vulkan host, and JS and Wasm have browser
 POCs.
 
 ## iOS PoC

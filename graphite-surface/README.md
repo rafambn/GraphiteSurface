@@ -57,5 +57,5 @@ three-buffer AHardwareBuffer ring and publishes through SurfaceControl, falling
 back to the swapchain when capabilities are missing. The current hardware mode
 validates direct buffer ownership and fences; it is not yet a Compose sampler
 for the same buffer. The JVM host uses a real `CAMetalLayer` and Skia Graphite
-on macOS. Other JVM operating systems remain unsupported because this Graphite
-fork exposes no JVM Vulkan or Dawn presentation backend.
+on macOS. On Linux it uses an X11-backed Vulkan swapchain and Skia Graphite
+Vulkan. Other JVM operating systems remain unsupported.
