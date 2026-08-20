@@ -14,6 +14,7 @@ dependencies {
 compose.desktop {
     application {
         mainClass = "com.rafambn.graphitesurface.sample.MainKt"
+        jvmArgs += "--enable-native-access=ALL-UNNAMED"
     }
 }
 
