@@ -25,7 +25,6 @@ val verifyGraphiteSurfaceBoundary = tasks.register("verifyGraphiteSurfaceBoundar
             "libs.engine.skiko",
             "libs.skiko",
             "skiko-graphite",
-            "project(\":graphite-engine\")",
         )
         val violations = adapterFiles.files.flatMap { file ->
             val contents = file.readText()

@@ -1,12 +1,41 @@
+@file:OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
 }
 
 kotlin {
+    js {
+        browser()
+    }
+    wasmJs {
+        browser()
+    }
     iosArm64()
     iosSimulatorArm64()
 
     sourceSets {
+        val commonMain = getByName("commonMain")
+        val webMain = maybeCreate("webMain").apply {
+            dependsOn(commonMain)
+            dependencies {
+                implementation(libs.kotlinx.browser)
+            }
+        }
+        val jsMain = getByName("jsMain").apply {
+            dependsOn(webMain)
+            dependencies {
+                implementation(libs.engine.skiko)
+                implementation(libs.engine.skiko.graphite)
+            }
+        }
+        val wasmJsMain = getByName("wasmJsMain").apply {
+            dependsOn(webMain)
+            dependencies {
+                implementation(libs.engine.skiko)
+                implementation(libs.engine.skiko.graphite)
+            }
+        }
         val iosArm64Main by getting {
             dependencies {
                 implementation(libs.engine.skiko)

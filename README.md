@@ -8,7 +8,7 @@ adapter.
 - `skiko-fork/skiko`: full Skiko fork tracked as a Git submodule. The upstream remote is `upstream`.
 - `skiko-fork/skiko/skiko/skiko-graphite`: Graphite bindings from Skiko.
 - `graphite-surface/graphite-surface`: public Compose Multiplatform adapter.
-- `graphite-surface/graphite-engine`: iOS Graphite engine with private Skiko and Skia dependencies.
+- `graphite-surface/graphite-engine`: iOS and Web Graphite engines with private Skiko and Skia dependencies.
 - `graphite-surface/graphite-engine-android`: Android Vulkan/Graphite engine with its own pinned
   Skia archive and JNI boundary.
 - `graphite-surface/sample`: platform samples.
@@ -29,8 +29,9 @@ git -C skiko-fork/skiko merge upstream/master
 git add skiko-fork/skiko
 ```
 
-The Graphite binding is currently an experimental Skiko module. Desktop, JS,
-and Wasm still keep target stubs behind the same adapter contract.
+The Graphite binding is currently an experimental Skiko module. Desktop still
+keeps a target stub, while JS and Wasm have browser POCs behind the same
+adapter contract.
 
 ## iOS PoC
 
@@ -97,6 +98,25 @@ directory. The sample uses `Surface` for the regular Vulkan swapchain path.
 Select `HardwareBuffer` explicitly to exercise the optional API 29+
 AHardwareBuffer/SurfaceControl path while integrating a consumer-side zero-copy
 bridge.
+
+## Web POCs
+
+The sample shared UI also builds as separate Kotlin/JS and Kotlin/Wasm browser
+executables:
+
+```bash
+source /path/to/emsdk/emsdk_env.sh   # Emscripten 4.0.7
+./gradlew :sample:sharedUI:jsBrowserDevelopmentWebpack
+./gradlew :sample:sharedUI:wasmJsBrowserDevelopmentWebpack
+```
+
+These are separate web implementations over the same browser engine. The
+canvas is only the WebGPU swapchain host: frames are acquired with
+`GPUCanvasContext.getCurrentTexture()`, wrapped as a Skia Graphite Dawn
+`BackendTexture`, recorded with a Graphite `Recorder`, and submitted to the
+same texture. The JS build uses Kotlin/JS; the second uses Kotlin/Wasm. Both
+link the local Skiko fork and its WebGPU-enabled Emscripten module, and require
+a browser with WebGPU enabled. There is no WebGL or Compose Canvas fallback.
 
 ## Compose and engine versions
 

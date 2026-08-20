@@ -27,12 +27,22 @@ On iOS, the adapter calls a small Objective-C ABI and hosts the returned
 `:graphite-engine` module. That module is the only module that imports Skiko
 or Skia.
 
+On JS and Wasm, `GraphiteSurface` hosts a real HTML canvas through
+`HtmlElementView`, but Compose does not perform the drawing. The web engine
+creates a WebGPU context, gets the current swapchain texture, wraps it in a
+Skia Graphite Dawn `BackendTexture`, records the renderer callback with Skia,
+and submits the recording to Graphite. JS and Wasm are separate executable
+targets that share this WebGPU/Dawn path.
+
+The web POC requires Emscripten 4.0.7, the checked-out `skiko-fork`, and a
+browser with WebGPU enabled. It intentionally has no WebGL or Compose Canvas
+fallback.
+
 `GraphiteRenderMode.WhenDirty` only renders when
 `GraphiteSurfaceController.requestRender()` is called.
 
-Android, JVM/Desktop, JS, and Wasm keep the same API and currently fail fast
-with an explicit unsupported-host error. Their native GPU hosts can be added
-without changing the Compose-facing contract.
+Android, JS, and Wasm now have working hosts behind the same API. JVM/Desktop
+still fails fast with an explicit unsupported-host error.
 
 ## Version ownership
 

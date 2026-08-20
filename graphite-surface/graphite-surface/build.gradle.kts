@@ -33,6 +33,14 @@ kotlin {
     iosSimulatorArm64()
 
     sourceSets {
+        val commonMain = getByName("commonMain")
+        val webMain = maybeCreate("webMain").apply {
+            dependsOn(commonMain)
+        }
+
+        getByName("jsMain").dependsOn(webMain)
+        getByName("wasmJsMain").dependsOn(webMain)
+
         commonMain.dependencies {
             api(libs.compose.runtime)
             api(libs.compose.ui)
@@ -41,6 +49,14 @@ kotlin {
 
         androidMain.dependencies {
             implementation(project(":graphite-engine-android"))
+        }
+
+        jsMain.dependencies {
+            implementation(project(":graphite-engine"))
+        }
+
+        wasmJsMain.dependencies {
+            implementation(project(":graphite-engine"))
         }
 
         commonTest.dependencies {

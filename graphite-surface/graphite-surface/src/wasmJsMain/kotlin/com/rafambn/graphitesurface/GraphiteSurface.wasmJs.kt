@@ -12,5 +12,11 @@ public actual fun GraphiteSurface(
     controller: GraphiteSurfaceController?,
     outputMode: GraphiteOutputMode,
 ) {
-    unsupportedGraphiteSurfaceHost("Wasm")
+    WebGraphiteSurface(
+        renderer = renderer,
+        modifier = modifier,
+        renderMode = renderMode,
+        controller = controller,
+        outputMode = outputMode,
+    )
 }

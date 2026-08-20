@@ -11,6 +11,17 @@ pluginManagement {
     }
 }
 
+includeBuild("skiko-fork/skiko/skiko") {
+    dependencySubstitution {
+        substitute(module("org.jetbrains.skiko:skiko")).using(project(":"))
+        substitute(module("org.jetbrains.skiko:skiko-js")).using(project(":"))
+        substitute(module("org.jetbrains.skiko:skiko-wasm-js")).using(project(":"))
+        substitute(module("org.jetbrains.skiko:skiko-graphite")).using(project(":skiko-graphite"))
+        substitute(module("org.jetbrains.skiko:skiko-graphite-js")).using(project(":skiko-graphite"))
+        substitute(module("org.jetbrains.skiko:skiko-graphite-wasm-js")).using(project(":skiko-graphite"))
+    }
+}
+
 dependencyResolutionManagement {
     repositories {
         google()
