@@ -1,10 +1,15 @@
 @file:OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
 
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
 }
 
 kotlin {
+    jvm {
+        compilerOptions.jvmTarget.set(JvmTarget.JVM_17)
+    }
     js {
         browser()
     }
@@ -16,6 +21,12 @@ kotlin {
 
     sourceSets {
         val commonMain = getByName("commonMain")
+        val jvmMain = getByName("jvmMain").apply {
+            dependencies {
+                implementation(libs.engine.skiko)
+                implementation(libs.engine.skiko.graphite)
+            }
+        }
         val webMain = maybeCreate("webMain").apply {
             dependsOn(commonMain)
             dependencies {

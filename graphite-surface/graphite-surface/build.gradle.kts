@@ -47,6 +47,10 @@ kotlin {
             implementation(libs.compose.foundation)
         }
 
+        jvmMain.dependencies {
+            implementation(project(":graphite-engine"))
+        }
+
         androidMain.dependencies {
             implementation(project(":graphite-engine-android"))
         }

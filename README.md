@@ -29,9 +29,9 @@ git -C skiko-fork/skiko merge upstream/master
 git add skiko-fork/skiko
 ```
 
-The Graphite binding is currently an experimental Skiko module. Desktop still
-keeps a target stub, while JS and Wasm have browser POCs behind the same
-adapter contract.
+The Graphite binding is currently an experimental Skiko module. macOS JVM has a
+Metal host behind the same adapter contract, while JS and Wasm have browser
+POCs.
 
 ## iOS PoC
 

@@ -19,6 +19,8 @@ includeBuild("skiko-fork/skiko/skiko") {
         substitute(module("org.jetbrains.skiko:skiko-graphite")).using(project(":skiko-graphite"))
         substitute(module("org.jetbrains.skiko:skiko-graphite-js")).using(project(":skiko-graphite"))
         substitute(module("org.jetbrains.skiko:skiko-graphite-wasm-js")).using(project(":skiko-graphite"))
+        substitute(module("org.jetbrains.skiko:skiko-awt-runtime-macos-arm64")).using(project(":"))
+        substitute(module("org.jetbrains.skiko:skiko-graphite-awt-runtime-macos-arm64")).using(project(":skiko-graphite"))
     }
 }
 

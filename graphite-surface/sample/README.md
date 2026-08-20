@@ -18,6 +18,16 @@ regular Vulkan swapchain path. Select `GraphiteOutputMode.HardwareBuffer`
 explicitly to exercise the API 29+ AHardwareBuffer/SurfaceControl path;
 unsupported devices automatically use the swapchain fallback.
 
+The JVM/Desktop sample is built with:
+
+```bash
+./gradlew :sample:desktopApp:run
+```
+
+The desktop host requires macOS with Metal. It presents the rotating triangle
+through an AWT `CAMetalLayer` and the Skia Graphite Metal backend; it does not
+fall back to Compose Canvas rendering.
+
 The browser POCs use the same sample UI but expose separate Kotlin/JS and
 Kotlin/Wasm executables from `:sample:sharedUI`. They use the local Skiko fork
 to link Skia Graphite's Dawn backend into the WebGPU module; the HTML canvas is

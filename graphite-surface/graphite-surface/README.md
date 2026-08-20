@@ -41,8 +41,8 @@ fallback.
 `GraphiteRenderMode.WhenDirty` only renders when
 `GraphiteSurfaceController.requestRender()` is called.
 
-Android, JS, and Wasm now have working hosts behind the same API. JVM/Desktop
-still fails fast with an explicit unsupported-host error.
+Android, JS, Wasm, and JVM/Desktop now have working hosts behind the same API.
+JVM/Desktop is implemented as a Compose Canvas PoC host.
 
 ## Version ownership
 

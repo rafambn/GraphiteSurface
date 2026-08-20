@@ -9,9 +9,9 @@ Skiko/Skia version.
 - `graphite-surface/graphite-surface` is the public Compose Multiplatform
   adapter. It does not declare or link the engine's Skiko/Skia artifacts and
   exposes only library-owned renderer and drawing types.
-- `graphite-surface/graphite-engine` is the private iOS engine. It owns the
-  Skiko/Skia dependency and publishes a dynamic `GraphiteEngine.framework`
-  through a small Objective-C ABI.
+- `graphite-surface/graphite-engine` owns the iOS, macOS JVM, and Web engines.
+  It keeps the Skiko/Skia dependency private and publishes the iOS engine as a
+  dynamic `GraphiteEngine.framework`.
 - `graphite-surface/graphite-engine-android` is the private Android engine. It
   owns Vulkan, the native Skia Graphite archive, and the JNI bridge.
 - `graphite-surface/sample` contains the iOS, Android, and desktop samples.
@@ -56,6 +56,6 @@ swapchain. API 29+ also exposes the experimental
 three-buffer AHardwareBuffer ring and publishes through SurfaceControl, falling
 back to the swapchain when capabilities are missing. The current hardware mode
 validates direct buffer ownership and fences; it is not yet a Compose sampler
-for the same buffer. The other Compose targets keep the same public contract,
-but their native GPU hosts are explicit unsupported stubs until their platform
-engines are added.
+for the same buffer. The JVM host uses a real `CAMetalLayer` and Skia Graphite
+on macOS. Other JVM operating systems remain unsupported because this Graphite
+fork exposes no JVM Vulkan or Dawn presentation backend.
