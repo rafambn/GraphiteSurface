@@ -7,9 +7,9 @@ import com.rafambn.graphitesurface.GraphiteRenderMode
 import com.rafambn.graphitesurface.GraphiteRenderer
 import com.rafambn.graphitesurface.GraphiteEngine
 import com.rafambn.graphitesurface.GraphiteTransform
-import com.rafambn.graphitesurface.sample.GraphiteSampleScene
 import com.rafambn.graphitesurface.sample.RotationSpeed
 import com.rafambn.graphitesurface.sample.loopingRotationDegrees
+import com.rafambn.graphitesurface.sample.prepareGraphiteSampleScene
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.coroutines.cancellation.CancellationException
@@ -46,15 +46,15 @@ internal class ContinuousRendererViewModel : ViewModel() {
         presentation: GraphitePresentationInfo,
     ) {
         try {
-            val prepared = GraphiteSampleScene.prepare(
+            val (target, displayList) = prepareGraphiteSampleScene(
                 runtime = runtime,
                 pixelSize = presentation.pixelSize,
             )
             animationStartNanos.compareAndSet(ANIMATION_NOT_STARTED, frameTimeNanos)
             val elapsedNanos = (frameTimeNanos - animationStartNanos.load()).coerceAtLeast(0L)
-            val recording = runtime.recorders.first().record(prepared.target) {
+            val recording = runtime.recorders.first().record(target) {
                 draw(
-                    prepared.displayList,
+                    displayList,
                     transform = GraphiteTransform.translation(
                         presentation.pixelSize.width / 2f,
                         presentation.pixelSize.height / 2f,

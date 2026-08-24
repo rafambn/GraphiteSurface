@@ -11,11 +11,13 @@ class GraphiteSampleSceneTest {
     fun preparesANewSceneForEachCall() = runTest {
         val runtime = GraphiteEngine()
         try {
-            val first = GraphiteSampleScene.prepare(runtime, GraphiteSize(100, 80))
-            val second = GraphiteSampleScene.prepare(runtime, GraphiteSize(100, 80))
+            val (firstTarget, firstDisplayList) =
+                prepareGraphiteSampleScene(runtime, GraphiteSize(100, 80))
+            val (secondTarget, secondDisplayList) =
+                prepareGraphiteSampleScene(runtime, GraphiteSize(100, 80))
 
-            assertNotSame(first, second)
-            assertNotSame(first.displayList, second.displayList)
+            assertNotSame(firstTarget, secondTarget)
+            assertNotSame(firstDisplayList, secondDisplayList)
         } finally {
             runtime.close()
             runtime.awaitClosed()
