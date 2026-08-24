@@ -24,6 +24,7 @@ kotlinx-browser = { module = "org.jetbrains.kotlinx:kotlinx-browser", version.re
 engine-skiko = { module = "org.jetbrains.skiko:skiko", version.ref = "graphiteEngineSkiko" }
 engine-skiko-graphite = { module = "org.jetbrains.skiko:skiko-graphite", version.ref = "graphiteEngineSkiko" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
+kotlinx-coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "kotlinxCoroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
 scribe = { module = "com.rafambn:scribe", version.ref = "scribe" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
