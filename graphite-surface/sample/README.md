@@ -13,10 +13,9 @@ The Android engine uses the optimized Skia archive by default. Use
 needed.
 
 It requires a Vulkan-capable `arm64-v8a` device or emulator for the current
-Graphite engine proof. The sample uses `GraphiteOutputMode.Surface` for the
-regular Vulkan swapchain path. Select `GraphiteOutputMode.HardwareBuffer`
-explicitly to exercise the API 29+ AHardwareBuffer/SurfaceControl path;
-unsupported devices automatically use the swapchain fallback.
+Graphite engine proof. The sample presents through the Vulkan swapchain. The
+experimental AHardwareBuffer path remains internal while a portable zero-copy
+API is designed.
 
 The JVM/Desktop sample is built with:
 
@@ -43,6 +42,12 @@ source /path/to/emsdk/emsdk_env.sh   # Emscripten 4.0.7
 
 The browser must support WebGPU. These targets do not fall back to WebGL or
 Compose Canvas rendering.
+
+The web server must also send COOP `same-origin`, COEP `require-corp`, and a
+WebAssembly MIME type. The repository's Bun experiment server supplies these
+headers. Both browser executables have been exercised in windowed Chrome for
+Testing 152 with WebGPU, two recorder Workers, the render Worker, animation,
+and physical canvas resize.
 
 To build and serve one directly, use its matching `jsBrowserDevelopmentRun` or
 `wasmJsBrowserDevelopmentRun` task.

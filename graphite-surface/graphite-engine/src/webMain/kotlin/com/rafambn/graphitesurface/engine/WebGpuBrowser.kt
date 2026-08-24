@@ -29,3 +29,21 @@ internal expect fun currentWebGpuTexture(context: JsAny): JsAny
 internal expect fun requestWebGpuAnimationFrame(callback: (Double) -> Unit): Int
 
 internal expect fun reportWebGpuError(message: String)
+
+internal expect fun supportsGraphiteRenderWorker(canvas: HTMLCanvasElement): Boolean
+
+internal expect fun createGraphiteRenderWorker(
+    canvas: HTMLCanvasElement,
+    onReady: () -> Unit,
+    onFailure: (String) -> Unit,
+    onDisposed: () -> Unit,
+): JsAny
+
+internal expect fun postGraphiteRenderFrame(
+    worker: JsAny,
+    width: Int,
+    height: Int,
+    commands: String,
+)
+
+internal expect fun disposeGraphiteRenderWorker(worker: JsAny)

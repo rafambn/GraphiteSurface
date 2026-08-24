@@ -17,15 +17,17 @@ public actual fun GraphiteSurface(
     renderer: GraphiteRenderer,
     modifier: Modifier,
     renderMode: GraphiteRenderMode,
-    controller: GraphiteSurfaceController?,
-    outputMode: GraphiteOutputMode,
+    state: GraphiteSurfaceState,
 ) {
     val adapter = remember(renderer, renderMode) { GraphiteSurfaceAdapter(renderer, renderMode) }
 
-    DisposableEffect(controller, adapter) {
-        controller?.setRequestRenderHandler { adapter.requestRender() }
+    DisposableEffect(state, adapter, renderMode) {
+        val requestFrameHandler = { adapter.requestRender() }
+        if (renderMode == GraphiteRenderMode.OnDemand) {
+            state.setRequestFrameHandler(requestFrameHandler)
+        }
         onDispose {
-            controller?.setRequestRenderHandler(null)
+            state.clearRequestFrameHandler(requestFrameHandler)
         }
     }
 

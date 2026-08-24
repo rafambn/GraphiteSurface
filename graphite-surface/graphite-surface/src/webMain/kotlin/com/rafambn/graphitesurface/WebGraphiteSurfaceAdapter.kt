@@ -12,7 +12,7 @@ internal class WebGraphiteSurfaceAdapter(
     private val renderer: GraphiteRenderer,
     renderMode: GraphiteRenderMode,
 ) {
-    private val engineContinuously = renderMode == GraphiteRenderMode.Continuously
+    private val engineContinuously = renderMode == GraphiteRenderMode.Continuous
     private var host: HTMLDivElement? = null
     private var canvas: HTMLCanvasElement? = null
     private var engine: WebGraphiteEngine? = null
@@ -45,6 +45,7 @@ internal class WebGraphiteSurfaceAdapter(
             onDrawFrame = { context ->
                 renderer.onDrawFrame(WebGraphiteDrawContext(context))
             },
+            onSurfaceError = renderer::onSurfaceError,
         )
         engine = createdEngine
         createdEngine.start()

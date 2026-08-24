@@ -25,17 +25,19 @@ public actual fun GraphiteSurface(
     renderer: GraphiteRenderer,
     modifier: Modifier,
     renderMode: GraphiteRenderMode,
-    controller: GraphiteSurfaceController?,
-    outputMode: GraphiteOutputMode,
+    state: GraphiteSurfaceState,
 ) {
-    val adapter = remember(renderer, renderMode, outputMode) {
-        AndroidGraphiteSurfaceAdapter(renderer, renderMode, outputMode)
+    val adapter = remember(renderer, renderMode) {
+        AndroidGraphiteSurfaceAdapter(renderer, renderMode)
     }
 
-    DisposableEffect(controller, adapter) {
-        controller?.setRequestRenderHandler { adapter.requestRender() }
+    DisposableEffect(state, adapter, renderMode) {
+        val requestFrameHandler = { adapter.requestRender() }
+        if (renderMode == GraphiteRenderMode.OnDemand) {
+            state.setRequestFrameHandler(requestFrameHandler)
+        }
         onDispose {
-            controller?.setRequestRenderHandler(null)
+            state.clearRequestFrameHandler(requestFrameHandler)
         }
     }
 
@@ -49,12 +51,11 @@ public actual fun GraphiteSurface(
 private class AndroidGraphiteSurfaceAdapter(
     private val renderer: GraphiteRenderer,
     private val renderMode: GraphiteRenderMode,
-    private val outputMode: GraphiteOutputMode,
 ) {
     private var view: GraphiteSurfaceView? = null
 
     fun createView(context: Context): GraphiteSurfaceView {
-        return view ?: GraphiteSurfaceView(context, renderer, renderMode, outputMode).also { view = it }
+        return view ?: GraphiteSurfaceView(context, renderer, renderMode).also { view = it }
     }
 
     fun requestRender() {
@@ -71,7 +72,6 @@ private class GraphiteSurfaceView(
     context: Context,
     private val renderer: GraphiteRenderer,
     private val renderMode: GraphiteRenderMode,
-    private val outputMode: GraphiteOutputMode,
 ) : SurfaceView(context), SurfaceHolder.Callback, Choreographer.FrameCallback {
     private val renderThread = HandlerThread(
         "GraphiteSurface",
@@ -95,10 +95,12 @@ private class GraphiteSurfaceView(
         setBackgroundColor(Color.TRANSPARENT)
         renderHandler.post {
             choreographer = Choreographer.getInstance()
-            engineHandle = AndroidGraphiteNative.create(outputMode.ordinal)
+            engineHandle = AndroidGraphiteNative.create(false)
             if (engineHandle == 0L) {
                 disposed = true
-                Log.e(TAG, "The Android Graphite engine could not be created")
+                val error = IllegalStateException("The Android Graphite engine could not be created")
+                Log.e(TAG, error.message, error)
+                renderer.onSurfaceError(error)
             }
         }
     }
@@ -116,7 +118,9 @@ private class GraphiteSurfaceView(
                 surfaceHeight,
             )
             if (!surfaceReady) {
-                Log.e(TAG, "The Android Graphite engine could not bind the Surface")
+                val error = IllegalStateException("The Android Graphite engine could not bind the Surface")
+                Log.e(TAG, error.message, error)
+                renderer.onSurfaceError(error)
                 return@post
             }
             if (!rendererCreated) {
@@ -139,7 +143,9 @@ private class GraphiteSurfaceView(
                 height,
             )
             if (!surfaceReady) {
-                Log.e(TAG, "The Android Graphite engine could not resize the Surface")
+                val error = IllegalStateException("The Android Graphite engine could not resize the Surface")
+                Log.e(TAG, error.message, error)
+                renderer.onSurfaceError(error)
                 return@post
             }
             updateSize(width, height)
@@ -162,7 +168,7 @@ private class GraphiteSurfaceView(
         frameScheduled = false
         if (disposed || !surfaceReady) return
 
-        if (renderMode == GraphiteRenderMode.WhenDirty && !pendingRender) return
+        if (renderMode == GraphiteRenderMode.OnDemand && !pendingRender) return
         AndroidGraphiteNative.setFrameTimeNanos(engineHandle, frameTimeNanos)
         if (AndroidGraphiteNative.beginFrame(engineHandle)) {
             pendingRender = false
@@ -170,12 +176,14 @@ private class GraphiteSurfaceView(
                 renderer.onDrawFrame(AndroidGraphiteDrawContext(engineHandle))
             } finally {
                 if (!AndroidGraphiteNative.endFrame(engineHandle)) {
-                    Log.e(TAG, "The Android Graphite frame could not be presented")
+                    val error = IllegalStateException("The Android Graphite frame could not be presented")
+                    Log.e(TAG, error.message, error)
+                    renderer.onSurfaceError(error)
                 }
             }
         }
 
-        if (renderMode == GraphiteRenderMode.Continuously || pendingRender) {
+        if (renderMode == GraphiteRenderMode.Continuous || pendingRender) {
             scheduleFrame()
         }
     }
@@ -207,7 +215,7 @@ private class GraphiteSurfaceView(
 
     private fun scheduleFrame() {
         if (disposed || !surfaceReady || frameScheduled) return
-        if (renderMode == GraphiteRenderMode.WhenDirty && !pendingRender) return
+        if (renderMode == GraphiteRenderMode.OnDemand && !pendingRender) return
         val frameClock = choreographer ?: return
         frameScheduled = true
         frameClock.postFrameCallback(this)
@@ -249,6 +257,19 @@ private class AndroidGraphiteDrawContext(
         AndroidGraphiteNative.rotate(engineHandle, degrees)
     }
 
+    override fun concat(transform: GraphiteTransform) {
+        AndroidGraphiteNative.concat(
+            engineHandle,
+            FloatArray(16) { index -> transform[index / 4, index % 4] },
+        )
+    }
+
+    override fun clipRect(rect: GraphiteRect, antiAlias: Boolean) {
+        AndroidGraphiteNative.clipRect(
+            engineHandle, rect.left, rect.top, rect.right, rect.bottom, antiAlias,
+        )
+    }
+
     override fun beginPath() {
         AndroidGraphiteNative.beginPath(engineHandle)
     }
@@ -267,5 +288,61 @@ private class AndroidGraphiteDrawContext(
 
     override fun drawPath(color: Long, antiAlias: Boolean) {
         AndroidGraphiteNative.drawPath(engineHandle, color.toInt(), antiAlias)
+    }
+
+    override fun drawPath(path: GraphitePath, paint: GraphitePaint) {
+        AndroidGraphiteNative.drawImmutablePath(
+            engineHandle,
+            path.verbs,
+            path.points,
+            paint.color.toArgbLong().toInt(),
+            paint.style == GraphitePaint.Style.Stroke,
+            paint.strokeWidth,
+            paint.antiAlias,
+        )
+    }
+
+    override fun drawRect(rect: GraphiteRect, paint: GraphitePaint) {
+        AndroidGraphiteNative.drawRect(
+            engineHandle, rect.left, rect.top, rect.right, rect.bottom,
+            paint.color.toArgbLong().toInt(), paint.style == GraphitePaint.Style.Stroke,
+            paint.strokeWidth, paint.antiAlias,
+        )
+    }
+
+    override fun drawRoundRect(
+        rect: GraphiteRect,
+        radiusX: Float,
+        radiusY: Float,
+        paint: GraphitePaint,
+    ) {
+        AndroidGraphiteNative.drawRoundRect(
+            engineHandle, rect.left, rect.top, rect.right, rect.bottom, radiusX, radiusY,
+            paint.color.toArgbLong().toInt(), paint.style == GraphitePaint.Style.Stroke,
+            paint.strokeWidth, paint.antiAlias,
+        )
+    }
+
+    override fun drawOval(rect: GraphiteRect, paint: GraphitePaint) {
+        AndroidGraphiteNative.drawOval(
+            engineHandle, rect.left, rect.top, rect.right, rect.bottom,
+            paint.color.toArgbLong().toInt(), paint.style == GraphitePaint.Style.Stroke,
+            paint.strokeWidth, paint.antiAlias,
+        )
+    }
+
+    override fun drawCircle(center: GraphitePoint, radius: Float, paint: GraphitePaint) {
+        AndroidGraphiteNative.drawCircle(
+            engineHandle, center.x, center.y, radius,
+            paint.color.toArgbLong().toInt(), paint.style == GraphitePaint.Style.Stroke,
+            paint.strokeWidth, paint.antiAlias,
+        )
+    }
+
+    override fun drawLine(start: GraphitePoint, end: GraphitePoint, paint: GraphitePaint) {
+        AndroidGraphiteNative.drawLine(
+            engineHandle, start.x, start.y, end.x, end.y,
+            paint.color.toArgbLong().toInt(), paint.strokeWidth, paint.antiAlias,
+        )
     }
 }

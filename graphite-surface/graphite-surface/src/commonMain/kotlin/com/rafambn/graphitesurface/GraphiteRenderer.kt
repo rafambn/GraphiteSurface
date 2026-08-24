@@ -13,4 +13,7 @@ public interface GraphiteRenderer {
 
     /** Records one frame using the library-owned drawing context. */
     public fun onDrawFrame(context: GraphiteDrawContext)
+
+    /** Reports a terminal presentation worker failure. */
+    public fun onSurfaceError(error: Throwable) = Unit
 }

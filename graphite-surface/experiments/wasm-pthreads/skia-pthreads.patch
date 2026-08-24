@@ -1,0 +1,15 @@
+diff --git a/gn/skia/BUILD.gn b/gn/skia/BUILD.gn
+index 28ea205acc..166aa73ae7 100644
+--- a/gn/skia/BUILD.gn
++++ b/gn/skia/BUILD.gn
+@@ -808,10 +808,7 @@ if (is_wasm) {
+     config("wasm") {
+       common = [
+         "--sysroot=$skia_emsdk_dir/upstream/emscripten/cache/sysroot",
+-        # This was introduced after m146, but it breaks Skiko's Emscripten
+-        # MAIN_MODULE=2 runtime with memory access out of bounds failures
+-        # "-pthread",
++        "-pthread",
+       ]
+       cflags = common
+       ldflags = common

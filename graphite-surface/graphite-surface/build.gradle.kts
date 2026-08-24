@@ -31,19 +31,15 @@ kotlin {
     }
     iosArm64()
     iosSimulatorArm64()
+    applyDefaultHierarchyTemplate()
 
     sourceSets {
-        val commonMain = getByName("commonMain")
-        val webMain = maybeCreate("webMain").apply {
-            dependsOn(commonMain)
-        }
-
-        getByName("jsMain").dependsOn(webMain)
-        getByName("wasmJsMain").dependsOn(webMain)
-
         commonMain.dependencies {
             api(libs.compose.runtime)
             api(libs.compose.ui)
+            api(libs.kotlinx.coroutines.core)
+            api(libs.scribe)
+            implementation(libs.kotlinx.serialization.json)
             implementation(libs.compose.foundation)
         }
 
@@ -65,6 +61,7 @@ kotlin {
 
         commonTest.dependencies {
             implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 

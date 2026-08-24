@@ -7,4 +7,6 @@ public interface JvmGraphiteRenderer {
     public fun onSurfaceChanged(width: Int, height: Int)
 
     public fun onDrawFrame(context: JvmGraphiteDrawContext)
+
+    public fun onSurfaceError(error: Throwable) = Unit
 }

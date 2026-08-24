@@ -1,48 +1,63 @@
 # GraphiteSurface Compose adapter
 
+The primary API is a user-owned asynchronous runtime and a Compose-owned
+presentation attachment:
+
 ```kotlin
-@Composable
-@ExperimentalGraphiteSurfaceApi
-fun GraphiteSurface(
-    renderer: GraphiteRenderer,
-    modifier: Modifier = Modifier,
-    renderMode: GraphiteRenderMode = GraphiteRenderMode.Continuously,
-    controller: GraphiteSurfaceController? = null,
+val runtime = GraphiteRuntime.create(
+    GraphiteRuntimeConfig(recorderCount = 4),
 )
 
-interface GraphiteRenderer {
-    fun onSurfaceCreated()
-    fun onSurfaceChanged(size: GraphiteSize)
-    fun onDrawFrame(context: GraphiteDrawContext)
+GraphiteSurface(runtime, Modifier.fillMaxSize())
+
+val presentation = runtime.presentation
+    .filterIsInstance<GraphitePresentationState.Attached>()
+    .first()
+    .info
+val target = runtime.createRecordingTarget(presentation.pixelSize)
+val recording = runtime.recorders[0].record(target) {
+    draw(roads, transform = cameraMatrix)
+    drawPath(route, routePaint)
 }
+val frame = runtime.createFrame(presentation, GraphiteColor.White) {
+    insert(recording)
+}
+runtime.present(frame)
 ```
 
-The API mirrors `GLSurfaceView.Renderer`. The Compose adapter owns only the
-Compose lifecycle and the platform-view host. `GraphiteSize` and
-`GraphiteDrawContext` belong to this library, so the public API contains no
-Skia, Skiko, or platform GPU types.
+`record()` suspends for bounded queue capacity and completes asynchronously.
+Recorders have stable indices and independent native threads or Web Workers.
+`present()` uses a one-slot latest-wins mailbox and is the render request; the
+runtime has no implicit continuous mode. Public types contain no Skia, Skiko,
+WebGPU, or platform handles.
+
+In this first implementation, recorder workers validate and publish the
+immutable portable command program. The dedicated platform render worker owns
+Skia Graphite and replays the program. The handle model permits native targets
+to materialize deferred Graphite Recordings later without changing callers.
 
 On iOS, the adapter calls a small Objective-C ABI and hosts the returned
 `UIView` through `UIKitView`. The implementation lives in the separate
 `:graphite-engine` module. That module is the only module that imports Skiko
 or Skia.
 
-On JS and Wasm, `GraphiteSurface` hosts a real HTML canvas through
-`HtmlElementView`, but Compose does not perform the drawing. The web engine
-creates a WebGPU context, gets the current swapchain texture, wraps it in a
-Skia Graphite Dawn `BackendTexture`, records the renderer callback with Skia,
-and submits the recording to Graphite. JS and Wasm are separate executable
-targets that share this WebGPU/Dawn path.
+On JS and Wasm, `GraphiteSurface` transfers its canvas to an
+`OffscreenCanvas`. A dedicated module Web Worker owns WebGPU, Skia Graphite,
+the swapchain, command execution, and submission. The browser main thread only
+hosts Compose, observes layout, encodes portable commands, and posts messages.
+JS and Wasm share the same WebGPU/Dawn ownership model.
 
 The web POC requires Emscripten 4.0.7, the checked-out `skiko-fork`, and a
 browser with WebGPU enabled. It intentionally has no WebGL or Compose Canvas
 fallback.
 
-`GraphiteRenderMode.WhenDirty` only renders when
-`GraphiteSurfaceController.requestRender()` is called.
+The older renderer callback overload remains temporarily for compatibility.
+New applications should use `GraphiteRuntime`; the callback overload and its
+continuous mode are not part of the intended version 1 runtime contract.
 
-Android, JS, Wasm, and JVM/Desktop now have working hosts behind the same API.
-JVM/Desktop is implemented as a Compose Canvas PoC host.
+Android, JS, Wasm, iOS, and supported JVM desktops have hosts behind the same
+runtime API. Android uses a `HandlerThread`, Apple a serial native dispatch
+queue, JVM a dedicated native thread, and browsers a dedicated Web Worker.
 
 ## Version ownership
 

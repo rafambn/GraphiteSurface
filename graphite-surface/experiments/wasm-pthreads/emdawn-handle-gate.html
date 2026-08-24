@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Emdawnwebgpu pthread handle gate</title>
+</head>
+<body>
+  <pre id="status">Starting Emdawnwebgpu handle gate</pre>
+  <pre id="metrics"></pre>
+  <script type="module">
+    import createGate from './emdawn-handle-gate.mjs';
+
+    const status = document.querySelector('#status');
+    const metrics = document.querySelector('#metrics');
+
+    try {
+      if (!crossOriginIsolated || typeof SharedArrayBuffer === 'undefined' || !navigator.gpu) {
+        throw new Error('cross-origin isolation, SharedArrayBuffer, and WebGPU are required');
+      }
+
+      const module = await createGate();
+      const deadline = performance.now() + 15_000;
+      const poll = () => {
+        const render = module._emdawn_render_status();
+        const recorder0 = module._emdawn_recorder_status(0);
+        const recorder1 = module._emdawn_recorder_status(1);
+        metrics.textContent = JSON.stringify({ render, recorder0, recorder1 }, null, 2);
+
+        if (recorder0 !== 0 && recorder1 !== 0) {
+          const passed = render === 2 && recorder0 === 3 && recorder1 === 3;
+          status.textContent = passed
+            ? 'Gate passed: both recorder pthreads created buffers'
+            : 'Probe failed: Emdawn handles are not usable across pthread realms';
+          return;
+        }
+        if (performance.now() >= deadline) {
+          status.textContent = 'Probe failed: timed out';
+          return;
+        }
+        setTimeout(poll, 25);
+      };
+      poll();
+    } catch (error) {
+      status.textContent = `Probe failed: ${error instanceof Error ? error.message : String(error)}`;
+      console.error(error);
+    }
+  </script>
+</body>
+</html>

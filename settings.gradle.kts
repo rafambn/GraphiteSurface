@@ -26,6 +26,11 @@ includeBuild("skiko-fork/skiko/skiko") {
     }
 }
 
+val localScribe = file("../Scribe")
+if (localScribe.isDirectory) {
+    includeBuild(localScribe)
+}
+
 dependencyResolutionManagement {
     repositories {
         google()
@@ -55,3 +60,11 @@ project(":sample:desktopApp").projectDir = file("graphite-surface/sample/desktop
 
 include(":sample:androidApp")
 project(":sample:androidApp").projectDir = file("graphite-surface/sample/androidApp")
+
+if (providers.gradleProperty("graphite.pthreadsExperiment").orNull == "true") {
+    include(":experiments")
+    project(":experiments").projectDir = file("graphite-surface/experiments")
+    include(":experiments:wasm-pthreads")
+    project(":experiments:wasm-pthreads").projectDir =
+        file("graphite-surface/experiments/wasm-pthreads")
+}

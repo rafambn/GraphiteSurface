@@ -6,9 +6,7 @@
 package com.rafambn.graphitesurface
 
 import com.rafambn.graphitesurface.engine.GraphiteEngineGraphiteEngineView_iosKt
-import kotlinx.cinterop.useContents
 import platform.UIKit.UIView
-import kotlin.math.roundToInt
 
 internal class GraphiteSurfaceAdapter(
     private val renderer: GraphiteRenderer,
@@ -26,9 +24,15 @@ internal class GraphiteSurfaceAdapter(
                 ?: error("Graphite engine returned no native view")
             return created.also {
                 engineView = created
-                GraphiteEngineGraphiteEngineView_iosKt.gsStartRenderingView(created) {
-                    onFrame(created)
-                }
+                GraphiteEngineGraphiteEngineView_iosKt.gsStartRenderingView(
+                    created,
+                    callback = { width, height -> onFrame(created, width, height) },
+                    failureCallback = { message ->
+                        renderer.onSurfaceError(
+                            IllegalStateException(message ?: "The iOS Graphite render worker failed"),
+                        )
+                    },
+                )
             }
         }
 
@@ -42,14 +46,8 @@ internal class GraphiteSurfaceAdapter(
         engineView = null
     }
 
-    private fun onFrame(view: UIView) {
-        val scale = view.contentScaleFactor
-        val size = view.bounds.useContents {
-            GraphiteSize(
-                (size.width * scale).roundToInt(),
-                (size.height * scale).roundToInt(),
-            )
-        }
+    private fun onFrame(view: UIView, width: Int, height: Int) {
+        val size = GraphiteSize(width, height)
         if (!surfaceCreated) {
             surfaceCreated = true
             renderer.onSurfaceCreated()

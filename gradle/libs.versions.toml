@@ -1,6 +1,6 @@
 [versions]
 kotlin = "2.4.10"
-agp = "9.1.1"
+agp = "9.3.1"
 # The adapter owns this Compose version. Consumers can select another Compose line.
 composeAdapter = "1.12.0-beta03"
 composeCompiler = "2.4.10"
@@ -8,6 +8,9 @@ androidxActivity = "1.12.2"
 kotlinxBrowser = "0.5.0"
 # The engine owns this Skiko/Graphite version independently from the adapter.
 graphiteEngineSkiko = "0.152.0-alpha01"
+kotlinxCoroutines = "1.11.0"
+scribe = "0.7.0"
+kotlinxSerialization = "1.11.0"
 
 [libraries]
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeAdapter" }
@@ -17,6 +20,10 @@ androidx-activity = { module = "androidx.activity:activity", version.ref = "andr
 kotlinx-browser = { module = "org.jetbrains.kotlinx:kotlinx-browser", version.ref = "kotlinxBrowser" }
 engine-skiko = { module = "org.jetbrains.skiko:skiko", version.ref = "graphiteEngineSkiko" }
 engine-skiko-graphite = { module = "org.jetbrains.skiko:skiko-graphite", version.ref = "graphiteEngineSkiko" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
+scribe = { module = "com.rafambn:scribe", version.ref = "scribe" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

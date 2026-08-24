@@ -18,46 +18,31 @@ kotlin {
     }
     iosArm64()
     iosSimulatorArm64()
+    applyDefaultHierarchyTemplate()
 
     sourceSets {
-        val commonMain = getByName("commonMain")
-        val jvmMain = getByName("jvmMain").apply {
-            dependencies {
-                implementation(libs.engine.skiko)
-                implementation(libs.engine.skiko.graphite)
-            }
+        jvmMain.dependencies {
+            implementation(libs.engine.skiko)
+            implementation(libs.engine.skiko.graphite)
         }
-        val webMain = maybeCreate("webMain").apply {
-            dependsOn(commonMain)
-            dependencies {
-                implementation(libs.kotlinx.browser)
-            }
+
+        webMain.dependencies {
+            implementation(libs.kotlinx.browser)
         }
-        val jsMain = getByName("jsMain").apply {
-            dependsOn(webMain)
-            dependencies {
-                implementation(libs.engine.skiko)
-                implementation(libs.engine.skiko.graphite)
-            }
+
+        jsMain.dependencies {
+            implementation(libs.engine.skiko)
+            implementation(libs.engine.skiko.graphite)
         }
-        val wasmJsMain = getByName("wasmJsMain").apply {
-            dependsOn(webMain)
-            dependencies {
-                implementation(libs.engine.skiko)
-                implementation(libs.engine.skiko.graphite)
-            }
+
+        wasmJsMain.dependencies {
+            implementation(libs.engine.skiko)
+            implementation(libs.engine.skiko.graphite)
         }
-        val iosArm64Main by getting {
-            dependencies {
-                implementation(libs.engine.skiko)
-                implementation(libs.engine.skiko.graphite)
-            }
-        }
-        val iosSimulatorArm64Main by getting {
-            dependencies {
-                implementation(libs.engine.skiko)
-                implementation(libs.engine.skiko.graphite)
-            }
+
+        iosMain.dependencies {
+            implementation(libs.engine.skiko)
+            implementation(libs.engine.skiko.graphite)
         }
     }
 

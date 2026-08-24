@@ -17,17 +17,19 @@ internal fun WebGraphiteSurface(
     renderer: GraphiteRenderer,
     modifier: Modifier,
     renderMode: GraphiteRenderMode,
-    controller: GraphiteSurfaceController?,
-    @Suppress("UNUSED_PARAMETER") outputMode: GraphiteOutputMode,
+    state: GraphiteSurfaceState,
 ) {
     val adapter = remember(renderer, renderMode) {
         WebGraphiteSurfaceAdapter(renderer, renderMode)
     }
 
-    DisposableEffect(controller, adapter) {
-        controller?.setRequestRenderHandler { adapter.requestRender() }
+    DisposableEffect(state, adapter, renderMode) {
+        val requestFrameHandler = { adapter.requestRender() }
+        if (renderMode == GraphiteRenderMode.OnDemand) {
+            state.setRequestFrameHandler(requestFrameHandler)
+        }
         onDispose {
-            controller?.setRequestRenderHandler(null)
+            state.clearRequestFrameHandler(requestFrameHandler)
         }
     }
 

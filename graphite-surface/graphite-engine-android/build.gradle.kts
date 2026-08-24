@@ -67,6 +67,7 @@ val prepareSkiaAndroid = tasks.register("prepareSkiaAndroid") {
 android {
     namespace = "com.rafambn.graphitesurface.engine.android"
     compileSdk = 37
+    ndkVersion = "27.1.12297006"
 
     defaultConfig {
         minSdk = 24
@@ -84,7 +85,7 @@ android {
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
-            version = "3.31.6"
+            version = "3.22.1"
         }
     }
 

@@ -1,13 +1,14 @@
 # GraphiteSurface
 
-Workspace for exposing a native GPU surface through a Compose Multiplatform
-adapter.
+Asynchronous Skia Graphite runtime and Compose Multiplatform presentation host.
+Applications own the runtime and recorder workers; Compose owns only surface
+attachment.
 
 ## Layout
 
 - `skiko-fork/skiko`: full Skiko fork tracked as a Git submodule. The upstream remote is `upstream`.
 - `skiko-fork/skiko/skiko/skiko-graphite`: Graphite bindings from Skiko.
-- `graphite-surface/graphite-surface`: public Compose Multiplatform adapter.
+- `graphite-surface/graphite-surface`: public runtime, drawing DSL, and Compose Multiplatform adapter.
 - `graphite-surface/graphite-engine`: iOS and Web Graphite engines with private Skiko and Skia dependencies.
 - `graphite-surface/graphite-engine-android`: Android Vulkan/Graphite engine with its own pinned
   Skia archive and JNI boundary.
@@ -29,25 +30,38 @@ git -C skiko-fork/skiko merge upstream/master
 git add skiko-fork/skiko
 ```
 
-The Graphite binding is currently an experimental Skiko module. macOS JVM has a
-Metal host, Linux JVM has an X11/Vulkan host, and JS and Wasm have browser
-POCs.
+The Graphite binding is currently an experimental Skiko module. macOS JVM has
+a Metal host, Linux JVM has an X11/Vulkan host, and JS/Wasm use WebGPU from a
+dedicated render Worker.
 
-## iOS PoC
+## Runtime API
 
-The iOS engine renders into a `CAMetalLayer` owned by a `UIView` hosted through
-Compose's `UIKitView`. The public API mirrors `GLSurfaceView.Renderer`:
+The common API uses explicit asynchronous recording and presentation:
 
 ```kotlin
-@Composable
-fun GraphiteSurface(
-    renderer: GraphiteRenderer,                    // onSurfaceCreated / onSurfaceChanged / onDrawFrame(context)
-    modifier: Modifier = Modifier,
-    renderMode: GraphiteRenderMode = Continuously, // or WhenDirty + controller.requestRender()
-    controller: GraphiteSurfaceController? = null,
-    outputMode: GraphiteOutputMode = Surface,
-)
+val runtime = GraphiteRuntime.create(GraphiteRuntimeConfig(recorderCount = 4))
+GraphiteSurface(runtime, Modifier.fillMaxSize())
+
+val recording = runtime.recorders[0].record(target) {
+    draw(roads, transform = cameraMatrix)
+}
+runtime.present(runtime.createFrame(presentation) { insert(recording) })
 ```
+
+Recorder queues are bounded and suspending. Calls to distinct recorder handles
+can proceed in parallel. Presentation is explicit and latest-wins.
+
+The current portable slice publishes validated immutable command programs from
+the recorder workers. The platform render worker replays those commands into
+its private Graphite Recorder. This preserves one API on JS, Wasm, Android,
+JVM, and Apple after Emdawn proved that a WebGPU device handle cannot be used
+by independent browser worker realms. Native deferred Graphite Recordings are
+a later optimization behind the same public handles.
+
+## iOS
+
+The iOS engine renders into a `CAMetalLayer` owned by a `UIView` hosted through
+Compose's `UIKitView`. Graphite calls run on a dedicated serial native queue.
 
 Run the sample from Xcode:
 
@@ -74,18 +88,15 @@ three recorders/frame slots in flight, submits Graphite with
 `SyncToCpu::kNo`, and uses a separate Vulkan completion fence for reuse
 tracking. The normal frame path does not call `vkQueueWaitIdle`.
 
-`GraphiteOutputMode.Surface` uses the Vulkan swapchain. On API 29+, selecting
-`GraphiteOutputMode.HardwareBuffer` asks the engine to render into a three-buffer
-`AHardwareBuffer` ring and publish each completed buffer through
-`ASurfaceControl` with an acquire fence. If the device, driver, Skia build, or
-SurfaceControl API cannot support that path, it falls back to the swapchain.
-This proves the buffer and fence ownership path; it is not yet a Compose
-sampler that imports the same buffer as a zero-copy image.
+The public adapter uses the platform's native presentation path. The Android
+engine presents through a Vulkan swapchain. Its experimental AHardwareBuffer
+path remains an internal engine implementation while a portable zero-copy API
+is designed.
 
 It uses the engine-owned `m152-7bb45c7c26` Android debug Skia archive and
 currently packages `arm64-v8a`, which matches the attached emulator.
 
-Install Android CMake 3.31.6 and an Android NDK 28.x through the SDK manager,
+Install Android CMake 3.22.1 and Android NDK 27.1.12297006 through the SDK manager,
 then build and install the sample:
 
 ```bash
@@ -94,10 +105,7 @@ adb install -r graphite-surface/sample/androidApp/build/outputs/apk/debug/androi
 ```
 
 The first engine build downloads the pinned Skia archive into the module build
-directory. The sample uses `Surface` for the regular Vulkan swapchain path.
-Select `HardwareBuffer` explicitly to exercise the optional API 29+
-AHardwareBuffer/SurfaceControl path while integrating a consumer-side zero-copy
-bridge.
+directory.
 
 ## Web POCs
 
@@ -110,11 +118,12 @@ source /path/to/emsdk/emsdk_env.sh   # Emscripten 4.0.7
 ./gradlew :sample:sharedUI:wasmJsBrowserDevelopmentWebpack
 ```
 
-These are separate web implementations over the same browser engine. The
-canvas is only the WebGPU swapchain host: frames are acquired with
+These are separate web implementations over the same browser engine. The HTML
+canvas is transferred to an `OffscreenCanvas` owned by a module Web Worker.
+That Worker owns WebGPU, Emdawn's handle registry, and Skia Graphite. Frames are acquired with
 `GPUCanvasContext.getCurrentTexture()`, wrapped as a Skia Graphite Dawn
 `BackendTexture`, recorded with a Graphite `Recorder`, and submitted to the
-same texture. The JS build uses Kotlin/JS; the second uses Kotlin/Wasm. Both
+same texture. No Skia or WebGPU drawing executes on browser main. The JS build uses Kotlin/JS; the second uses Kotlin/Wasm. Both
 link the local Skiko fork and its WebGPU-enabled Emscripten module, and require
 a browser with WebGPU enabled. There is no WebGL or Compose Canvas fallback.
 

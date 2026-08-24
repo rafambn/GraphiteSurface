@@ -106,6 +106,9 @@ val localSkikoGraphiteImports = rootProject.file(
 val localSkikoGraphiteWasm = rootProject.file(
     "skiko-fork/skiko/skiko/skiko-graphite/build/out/link/Release-wasm-es6-wasm/skiko-graphite.unoptimized.wasm",
 )
+val graphiteRenderWorker = rootProject.file(
+    "graphite-surface/graphite-engine/src/webMain/resources/graphite-render-worker.mjs",
+)
 
 configurations.configureEach {
     exclude(group = "org.jetbrains.skiko", module = "skiko-js-wasm-runtime")
@@ -135,6 +138,7 @@ val copyLocalSkikoRuntimeForJs by tasks.registering(Copy::class) {
     from(localSkikoGraphiteWasm) {
         rename { "skiko-graphite.wasm" }
     }
+    from(graphiteRenderWorker)
     into(rootProject.layout.buildDirectory.dir("js/packages/GraphiteSurface-sample-sharedUI/kotlin"))
 }
 
@@ -150,6 +154,7 @@ val copyLocalSkikoRuntimeForWasm by tasks.registering(Copy::class) {
     from(localSkikoGraphiteWasm) {
         rename { "skiko-graphite.wasm" }
     }
+    from(graphiteRenderWorker)
     into(rootProject.layout.buildDirectory.dir("wasm/packages/GraphiteSurface-sample-sharedUI/kotlin"))
 }
 

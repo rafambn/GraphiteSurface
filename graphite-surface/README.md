@@ -6,15 +6,17 @@ Skiko/Skia version.
 
 ## Modules
 
-- `graphite-surface/graphite-surface` is the public Compose Multiplatform
-  adapter. It does not declare or link the engine's Skiko/Skia artifacts and
-  exposes only library-owned renderer and drawing types.
+- `graphite-surface/graphite-surface` currently contains the public
+  multiplatform runtime plus the Compose adapter. It does not expose the
+  engine's Skiko/Skia artifacts; all public drawing and ownership types belong
+  to this library.
 - `graphite-surface/graphite-engine` owns the iOS, macOS JVM, and Web engines.
   It keeps the Skiko/Skia dependency private and publishes the iOS engine as a
   dynamic `GraphiteEngine.framework`.
 - `graphite-surface/graphite-engine-android` is the private Android engine. It
   owns Vulkan, the native Skia Graphite archive, and the JNI bridge.
-- `graphite-surface/sample` contains the iOS, Android, and desktop samples.
+- `graphite-surface/sample` exercises asynchronous recorders and explicit
+  latest-wins presentation on Android, JVM, iOS, JS, and Wasm.
 
 ## Version ownership
 
@@ -47,15 +49,8 @@ Open `graphite-surface/sample/iosApp/iosApp.xcodeproj` to build and launch the
 sample. Its Xcode script embeds the matching simulator or device engine
 framework beside the static `ComposeApp` framework.
 
-The Android proof build uses a `SurfaceView` and a dedicated display-priority
-render thread. It keeps three Graphite recorders/frame slots in flight and
-submits with `SyncToCpu::kNo`; a separate Vulkan completion fence tracks when a
-slot can be recycled. `GraphiteOutputMode.Surface` presents the Vulkan
-swapchain. API 29+ also exposes the experimental
-`GraphiteOutputMode.HardwareBuffer` mode, which renders to an asynchronous
-three-buffer AHardwareBuffer ring and publishes through SurfaceControl, falling
-back to the swapchain when capabilities are missing. The current hardware mode
-validates direct buffer ownership and fences; it is not yet a Compose sampler
-for the same buffer. The JVM host uses a real `CAMetalLayer` and Skia Graphite
-on macOS. On Linux it uses an X11-backed Vulkan swapchain and Skia Graphite
-Vulkan. Other JVM operating systems remain unsupported.
+The Android build uses a `SurfaceView` and a dedicated display-priority render
+thread. The JVM host uses Metal on macOS and Vulkan/X11 on Linux. Apple uses a
+`CAMetalLayer` whose Graphite work runs on a serial native queue. Browser
+targets transfer an `OffscreenCanvas` to a module Worker that exclusively owns
+WebGPU and Graphite. Other JVM operating systems remain unsupported.

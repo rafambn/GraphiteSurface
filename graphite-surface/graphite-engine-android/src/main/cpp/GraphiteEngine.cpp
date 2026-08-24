@@ -25,6 +25,8 @@
 #include "include/core/SkPaint.h"
 #include "include/core/SkPath.h"
 #include "include/core/SkPathBuilder.h"
+#include "include/core/SkM44.h"
+#include "include/core/SkRRect.h"
 #include "include/core/SkSurface.h"
 #include "include/android/graphite/SurfaceAndroid.h"
 #include "include/gpu/graphite/BackendSemaphore.h"
@@ -134,13 +136,15 @@ using ASurfaceTransactionSetBufferProc = void (*)(
     ASurfaceControl*,
     AHardwareBuffer*,
     int);
+using SurfaceTransactionOnBufferReleaseProc = void (*)(void*, int);
+using SurfaceTransactionOnCompleteProc = void (*)(void*, ASurfaceTransactionStats*);
 using ASurfaceTransactionSetBufferWithReleaseProc = void (*)(
     ASurfaceTransaction*,
     ASurfaceControl*,
     AHardwareBuffer*,
     int,
     void*,
-    ASurfaceTransaction_OnBufferRelease);
+    SurfaceTransactionOnBufferReleaseProc);
 using ASurfaceTransactionSetGeometryProc = void (*)(
     ASurfaceTransaction*,
     ASurfaceControl*,
@@ -150,7 +154,7 @@ using ASurfaceTransactionSetGeometryProc = void (*)(
 using ASurfaceTransactionSetOnCompleteProc = void (*)(
     ASurfaceTransaction*,
     void*,
-    ASurfaceTransaction_OnComplete);
+    SurfaceTransactionOnCompleteProc);
 using ASurfaceTransactionSetEnableBackPressureProc = void (*)(
     ASurfaceTransaction*,
     ASurfaceControl*,
@@ -286,7 +290,7 @@ bool hasDeviceExtension(VkPhysicalDevice physicalDevice, const char* requestedEx
 
 class GraphiteEngine final {
 public:
-    explicit GraphiteEngine(int outputMode) : outputMode_(outputMode) {}
+    explicit GraphiteEngine(bool useHardwareBuffer) : useHardwareBuffer_(useHardwareBuffer) {}
 
     ~GraphiteEngine() {
         dispose();
@@ -575,6 +579,16 @@ public:
         if (canvas_ != nullptr) canvas_->rotate(degrees);
     }
 
+    void concat(const float columnMajor[16]) {
+        if (canvas_ != nullptr) canvas_->concat(SkM44::ColMajor(columnMajor));
+    }
+
+    void clipRect(float left, float top, float right, float bottom, bool antiAlias) {
+        if (canvas_ != nullptr) {
+            canvas_->clipRect(SkRect::MakeLTRB(left, top, right, bottom), antiAlias);
+        }
+    }
+
     void beginPath() {
         pathBuilder_ = SkPathBuilder();
     }
@@ -593,13 +607,96 @@ public:
 
     void drawPath(uint32_t color, bool antiAlias) {
         if (canvas_ == nullptr) return;
-        SkPaint paint;
-        paint.setColor(static_cast<SkColor>(color));
-        paint.setAntiAlias(antiAlias);
+        SkPaint paint = makePaint(color, false, 1.0f, antiAlias);
         canvas_->drawPath(pathBuilder_.detach(), paint);
     }
 
+    void drawImmutablePath(
+            const std::vector<uint8_t>& verbs,
+            const std::vector<float>& points,
+            uint32_t color,
+            bool stroke,
+            float strokeWidth,
+            bool antiAlias) {
+        if (canvas_ == nullptr) return;
+        SkPathBuilder builder;
+        size_t pointIndex = 0;
+        for (uint8_t verb : verbs) {
+            switch (verb) {
+                case 1:
+                    if (pointIndex + 2 > points.size()) return;
+                    builder.moveTo(points[pointIndex], points[pointIndex + 1]);
+                    pointIndex += 2;
+                    break;
+                case 2:
+                    if (pointIndex + 2 > points.size()) return;
+                    builder.lineTo(points[pointIndex], points[pointIndex + 1]);
+                    pointIndex += 2;
+                    break;
+                case 3:
+                    builder.close();
+                    break;
+                default:
+                    return;
+            }
+        }
+        if (pointIndex != points.size()) return;
+        const SkPaint paint = makePaint(color, stroke, strokeWidth, antiAlias);
+        canvas_->drawPath(builder.detach(), paint);
+    }
+
+    void drawRect(
+            float left, float top, float right, float bottom,
+            uint32_t color, bool stroke, float strokeWidth, bool antiAlias) {
+        if (canvas_ == nullptr) return;
+        const SkPaint paint = makePaint(color, stroke, strokeWidth, antiAlias);
+        canvas_->drawRect(SkRect::MakeLTRB(left, top, right, bottom), paint);
+    }
+
+    void drawRoundRect(
+            float left, float top, float right, float bottom, float radiusX, float radiusY,
+            uint32_t color, bool stroke, float strokeWidth, bool antiAlias) {
+        if (canvas_ == nullptr) return;
+        const SkPaint paint = makePaint(color, stroke, strokeWidth, antiAlias);
+        canvas_->drawRRect(
+                SkRRect::MakeRectXY(SkRect::MakeLTRB(left, top, right, bottom), radiusX, radiusY),
+                paint);
+    }
+
+    void drawOval(
+            float left, float top, float right, float bottom,
+            uint32_t color, bool stroke, float strokeWidth, bool antiAlias) {
+        if (canvas_ == nullptr) return;
+        const SkPaint paint = makePaint(color, stroke, strokeWidth, antiAlias);
+        canvas_->drawOval(SkRect::MakeLTRB(left, top, right, bottom), paint);
+    }
+
+    void drawCircle(
+            float x, float y, float radius,
+            uint32_t color, bool stroke, float strokeWidth, bool antiAlias) {
+        if (canvas_ == nullptr) return;
+        const SkPaint paint = makePaint(color, stroke, strokeWidth, antiAlias);
+        canvas_->drawCircle(x, y, radius, paint);
+    }
+
+    void drawLine(
+            float x0, float y0, float x1, float y1,
+            uint32_t color, float strokeWidth, bool antiAlias) {
+        if (canvas_ == nullptr) return;
+        const SkPaint paint = makePaint(color, true, strokeWidth, antiAlias);
+        canvas_->drawLine(x0, y0, x1, y1, paint);
+    }
+
 private:
+    static SkPaint makePaint(uint32_t color, bool stroke, float strokeWidth, bool antiAlias) {
+        SkPaint paint;
+        paint.setColor(static_cast<SkColor>(color));
+        paint.setStyle(stroke ? SkPaint::kStroke_Style : SkPaint::kFill_Style);
+        paint.setStrokeWidth(strokeWidth);
+        paint.setAntiAlias(antiAlias);
+        return paint;
+    }
+
     int findAvailableFrameSlot() const {
         if (frameSlots_.empty()) return -1;
         for (size_t offset = 0; offset < frameSlots_.size(); ++offset) {
@@ -946,7 +1043,7 @@ private:
         }
 
         const bool requestHardwareBuffer =
-            outputMode_ == 1 && android_get_device_api_level() >= 29;
+            useHardwareBuffer_ && android_get_device_api_level() >= 29;
         for (int selectionPass = 0; selectionPass < (requestHardwareBuffer ? 2 : 1);
              ++selectionPass) {
             const bool requireHardwareBuffer = requestHardwareBuffer && selectionPass == 0;
@@ -1320,7 +1417,7 @@ private:
         }
     }
 
-    int outputMode_ = 0;
+    bool useHardwareBuffer_ = false;
     bool hardwareBufferOutput_ = false;
     ASurfaceControl* hardwareSurfaceControl_ = nullptr;
     bool hardwareSurfaceGeometrySet_ = false;
@@ -1371,8 +1468,8 @@ extern "C" JNIEXPORT jlong JNICALL
 Java_com_rafambn_graphitesurface_engine_AndroidGraphiteNative_create(
     JNIEnv*,
     jclass,
-    jint outputMode) {
-    auto* engine = new GraphiteEngine(outputMode);
+    jboolean useHardwareBuffer) {
+    auto* engine = new GraphiteEngine(useHardwareBuffer == JNI_TRUE);
     if (!engine->initialize()) {
         delete engine;
         return 0;
@@ -1474,6 +1571,27 @@ Java_com_rafambn_graphitesurface_engine_AndroidGraphiteNative_rotate(
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_com_rafambn_graphitesurface_engine_AndroidGraphiteNative_concat(
+    JNIEnv* env,
+    jclass,
+    jlong handle,
+    jfloatArray columnMajor) {
+    if (columnMajor == nullptr || env->GetArrayLength(columnMajor) != 16) return;
+    std::array<float, 16> values{};
+    env->GetFloatArrayRegion(columnMajor, 0, 16, values.data());
+    if (GraphiteEngine* engine = fromHandle(handle)) engine->concat(values.data());
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_rafambn_graphitesurface_engine_AndroidGraphiteNative_clipRect(
+    JNIEnv*, jclass, jlong handle, jfloat left, jfloat top, jfloat right, jfloat bottom,
+    jboolean antiAlias) {
+    if (GraphiteEngine* engine = fromHandle(handle)) {
+        engine->clipRect(left, top, right, bottom, antiAlias == JNI_TRUE);
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
 Java_com_rafambn_graphitesurface_engine_AndroidGraphiteNative_beginPath(
     JNIEnv*,
     jclass,
@@ -1518,5 +1636,75 @@ Java_com_rafambn_graphitesurface_engine_AndroidGraphiteNative_drawPath(
     jboolean antiAlias) {
     if (GraphiteEngine* engine = fromHandle(handle)) {
         engine->drawPath(static_cast<uint32_t>(color), antiAlias == JNI_TRUE);
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_rafambn_graphitesurface_engine_AndroidGraphiteNative_drawImmutablePath(
+    JNIEnv* env, jclass, jlong handle, jbyteArray verbs, jfloatArray points, jint color,
+    jboolean stroke, jfloat strokeWidth, jboolean antiAlias) {
+    if (verbs == nullptr || points == nullptr) return;
+    std::vector<uint8_t> nativeVerbs(static_cast<size_t>(env->GetArrayLength(verbs)));
+    std::vector<float> nativePoints(static_cast<size_t>(env->GetArrayLength(points)));
+    env->GetByteArrayRegion(
+            verbs, 0, static_cast<jsize>(nativeVerbs.size()),
+            reinterpret_cast<jbyte*>(nativeVerbs.data()));
+    env->GetFloatArrayRegion(points, 0, static_cast<jsize>(nativePoints.size()), nativePoints.data());
+    if (GraphiteEngine* engine = fromHandle(handle)) {
+        engine->drawImmutablePath(
+                nativeVerbs, nativePoints, static_cast<uint32_t>(color), stroke == JNI_TRUE,
+                strokeWidth, antiAlias == JNI_TRUE);
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_rafambn_graphitesurface_engine_AndroidGraphiteNative_drawRect(
+    JNIEnv*, jclass, jlong handle, jfloat left, jfloat top, jfloat right, jfloat bottom,
+    jint color, jboolean stroke, jfloat strokeWidth, jboolean antiAlias) {
+    if (GraphiteEngine* engine = fromHandle(handle)) {
+        engine->drawRect(left, top, right, bottom, static_cast<uint32_t>(color),
+                         stroke == JNI_TRUE, strokeWidth, antiAlias == JNI_TRUE);
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_rafambn_graphitesurface_engine_AndroidGraphiteNative_drawRoundRect(
+    JNIEnv*, jclass, jlong handle, jfloat left, jfloat top, jfloat right, jfloat bottom,
+    jfloat radiusX, jfloat radiusY, jint color, jboolean stroke, jfloat strokeWidth,
+    jboolean antiAlias) {
+    if (GraphiteEngine* engine = fromHandle(handle)) {
+        engine->drawRoundRect(left, top, right, bottom, radiusX, radiusY,
+                              static_cast<uint32_t>(color), stroke == JNI_TRUE,
+                              strokeWidth, antiAlias == JNI_TRUE);
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_rafambn_graphitesurface_engine_AndroidGraphiteNative_drawOval(
+    JNIEnv*, jclass, jlong handle, jfloat left, jfloat top, jfloat right, jfloat bottom,
+    jint color, jboolean stroke, jfloat strokeWidth, jboolean antiAlias) {
+    if (GraphiteEngine* engine = fromHandle(handle)) {
+        engine->drawOval(left, top, right, bottom, static_cast<uint32_t>(color),
+                         stroke == JNI_TRUE, strokeWidth, antiAlias == JNI_TRUE);
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_rafambn_graphitesurface_engine_AndroidGraphiteNative_drawCircle(
+    JNIEnv*, jclass, jlong handle, jfloat x, jfloat y, jfloat radius, jint color,
+    jboolean stroke, jfloat strokeWidth, jboolean antiAlias) {
+    if (GraphiteEngine* engine = fromHandle(handle)) {
+        engine->drawCircle(x, y, radius, static_cast<uint32_t>(color), stroke == JNI_TRUE,
+                           strokeWidth, antiAlias == JNI_TRUE);
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_rafambn_graphitesurface_engine_AndroidGraphiteNative_drawLine(
+    JNIEnv*, jclass, jlong handle, jfloat x0, jfloat y0, jfloat x1, jfloat y1,
+    jint color, jfloat strokeWidth, jboolean antiAlias) {
+    if (GraphiteEngine* engine = fromHandle(handle)) {
+        engine->drawLine(x0, y0, x1, y1, static_cast<uint32_t>(color), strokeWidth,
+                         antiAlias == JNI_TRUE);
     }
 }

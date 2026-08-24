@@ -5,19 +5,37 @@ import kotlin.test.assertEquals
 
 class GraphiteSurfaceApiTest {
     @Test
-    fun controllerForwardsRequestsToTheActiveSurface() {
-        val controller = GraphiteSurfaceController()
+    fun stateForwardsRequestsToTheActiveSurface() {
+        val state = GraphiteSurfaceState()
         var requestCount = 0
+        val handler = { requestCount += 1 }
 
-        controller.setRequestRenderHandler { requestCount += 1 }
-        controller.requestRender()
-        controller.requestRender()
+        state.setRequestFrameHandler(handler)
+        state.requestFrame()
+        state.requestFrame()
 
         assertEquals(2, requestCount)
 
-        controller.setRequestRenderHandler(null)
-        controller.requestRender()
+        state.clearRequestFrameHandler(handler)
+        state.requestFrame()
         assertEquals(2, requestCount)
+    }
+
+    @Test
+    fun staleSurfaceCannotClearTheActiveRequestHandler() {
+        val state = GraphiteSurfaceState()
+        var firstSurfaceRequests = 0
+        var secondSurfaceRequests = 0
+        val firstHandler = { firstSurfaceRequests += 1 }
+        val secondHandler = { secondSurfaceRequests += 1 }
+
+        state.setRequestFrameHandler(firstHandler)
+        state.setRequestFrameHandler(secondHandler)
+        state.clearRequestFrameHandler(firstHandler)
+        state.requestFrame()
+
+        assertEquals(0, firstSurfaceRequests)
+        assertEquals(1, secondSurfaceRequests)
     }
 
     @Test

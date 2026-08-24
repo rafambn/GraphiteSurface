@@ -7,6 +7,9 @@
 package com.rafambn.graphitesurface.engine
 
 import com.rafambn.graphitesurface.engine.api.GSFrameCallback
+import com.rafambn.graphitesurface.engine.api.GSFailureCallback
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlinx.cinterop.CValue
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.objcPtr
@@ -14,7 +17,9 @@ import kotlinx.cinterop.useContents
 import kotlinx.cinterop.usePinned
 import org.jetbrains.skia.ColorSpace
 import org.jetbrains.skia.Paint
+import org.jetbrains.skia.PaintMode
 import org.jetbrains.skia.PathBuilder
+import org.jetbrains.skia.Matrix44
 import org.jetbrains.skia.Surface
 import org.jetbrains.skia.gpu.graphite.BackendTexture
 import org.jetbrains.skia.gpu.graphite.GraphiteContext
@@ -40,9 +45,11 @@ import platform.darwin.dispatch_semaphore_create
 import platform.darwin.dispatch_semaphore_signal
 import platform.darwin.dispatch_semaphore_t
 import platform.darwin.dispatch_semaphore_wait
+import platform.darwin.dispatch_async
+import platform.darwin.dispatch_queue_create
 
-private const val GS_RENDER_MODE_CONTINUOUSLY = 0
-private const val GS_RENDER_MODE_WHEN_DIRTY = 1
+private const val GS_RENDER_MODE_CONTINUOUS = 0
+private const val GS_RENDER_MODE_ON_DEMAND = 1
 
 @Suppress("unused")
 public fun gsCreateView(renderMode: Int): UIView = GraphiteEngineView(renderMode)
@@ -53,8 +60,12 @@ public fun gsDisposeView(view: UIView) {
 }
 
 @Suppress("unused")
-public fun gsStartRendering(view: UIView, callback: GSFrameCallback) {
-    (view as? GraphiteEngineView)?.startRendering(callback)
+public fun gsStartRendering(
+    view: UIView,
+    callback: GSFrameCallback,
+    failureCallback: GSFailureCallback,
+) {
+    (view as? GraphiteEngineView)?.startRendering(callback, failureCallback)
 }
 
 @Suppress("unused")
@@ -92,6 +103,36 @@ public fun gsRotate(view: UIView, degrees: Float) {
     frameContextOf(view).canvas.rotate(degrees)
 }
 
+@Suppress("unused", "LongParameterList")
+public fun gsConcat(
+    view: UIView,
+    m0: Float, m1: Float, m2: Float, m3: Float,
+    m4: Float, m5: Float, m6: Float, m7: Float,
+    m8: Float, m9: Float, m10: Float, m11: Float,
+    m12: Float, m13: Float, m14: Float, m15: Float,
+) {
+    frameContextOf(view).canvas.concat(
+        Matrix44(
+            m0, m4, m8, m12,
+            m1, m5, m9, m13,
+            m2, m6, m10, m14,
+            m3, m7, m11, m15,
+        ),
+    )
+}
+
+@Suppress("unused")
+public fun gsClipRect(
+    view: UIView,
+    left: Float,
+    top: Float,
+    right: Float,
+    bottom: Float,
+    antiAlias: Int,
+) {
+    frameContextOf(view).canvas.clipRect(left, top, right, bottom, antiAlias != 0)
+}
+
 @Suppress("unused")
 public fun gsBeginPath(view: UIView) {
     frameContextOf(view).path = PathBuilder()
@@ -114,23 +155,132 @@ public fun gsClosePath(view: UIView) {
 
 @Suppress("unused")
 public fun gsDrawPath(view: UIView, color: UInt, antiAlias: Int) {
+    gsDrawStyledPath(view, color, 0, 1f, antiAlias)
+}
+
+@Suppress("unused")
+public fun gsDrawStyledPath(
+    view: UIView,
+    color: UInt,
+    stroke: Int,
+    strokeWidth: Float,
+    antiAlias: Int,
+) {
     val frame = frameContextOf(view)
     val path = frame.path.detach()
-    val paint = Paint().apply {
-        this.color = color.toInt()
-        isAntiAlias = antiAlias != 0
-    }
+    val paint = makePaint(color, stroke, strokeWidth, antiAlias)
     frame.canvas.drawPath(path, paint)
     path.close()
     paint.close()
 }
 
+@Suppress("unused", "LongParameterList")
+public fun gsDrawRect(
+    view: UIView,
+    left: Float,
+    top: Float,
+    right: Float,
+    bottom: Float,
+    color: UInt,
+    stroke: Int,
+    strokeWidth: Float,
+    antiAlias: Int,
+) {
+    makePaint(color, stroke, strokeWidth, antiAlias).use { paint ->
+        frameContextOf(view).canvas.drawRect(left, top, right, bottom, paint)
+    }
+}
+
+@Suppress("unused", "LongParameterList")
+public fun gsDrawRoundRect(
+    view: UIView,
+    left: Float,
+    top: Float,
+    right: Float,
+    bottom: Float,
+    radiusX: Float,
+    radiusY: Float,
+    color: UInt,
+    stroke: Int,
+    strokeWidth: Float,
+    antiAlias: Int,
+) {
+    makePaint(color, stroke, strokeWidth, antiAlias).use { paint ->
+        frameContextOf(view).canvas.drawRRect(
+            left,
+            top,
+            right,
+            bottom,
+            floatArrayOf(radiusX, radiusY, radiusX, radiusY, radiusX, radiusY, radiusX, radiusY),
+            paint,
+        )
+    }
+}
+
+@Suppress("unused", "LongParameterList")
+public fun gsDrawOval(
+    view: UIView,
+    left: Float,
+    top: Float,
+    right: Float,
+    bottom: Float,
+    color: UInt,
+    stroke: Int,
+    strokeWidth: Float,
+    antiAlias: Int,
+) {
+    makePaint(color, stroke, strokeWidth, antiAlias).use { paint ->
+        frameContextOf(view).canvas.drawOval(left, top, right, bottom, paint)
+    }
+}
+
+@Suppress("unused", "LongParameterList")
+public fun gsDrawCircle(
+    view: UIView,
+    x: Float,
+    y: Float,
+    radius: Float,
+    color: UInt,
+    stroke: Int,
+    strokeWidth: Float,
+    antiAlias: Int,
+) {
+    makePaint(color, stroke, strokeWidth, antiAlias).use { paint ->
+        frameContextOf(view).canvas.drawCircle(x, y, radius, paint)
+    }
+}
+
+@Suppress("unused", "LongParameterList")
+public fun gsDrawLine(
+    view: UIView,
+    x0: Float,
+    y0: Float,
+    x1: Float,
+    y1: Float,
+    color: UInt,
+    strokeWidth: Float,
+    antiAlias: Int,
+) {
+    makePaint(color, 1, strokeWidth, antiAlias).use { paint ->
+        frameContextOf(view).canvas.drawLine(x0, y0, x1, y1, paint)
+    }
+}
+
+private fun makePaint(color: UInt, stroke: Int, strokeWidth: Float, antiAlias: Int): Paint =
+    Paint().apply {
+        this.color = color.toInt()
+        mode = if (stroke != 0) PaintMode.STROKE else PaintMode.FILL
+        this.strokeWidth = strokeWidth
+        isAntiAlias = antiAlias != 0
+    }
+
+@OptIn(ExperimentalAtomicApi::class)
 private class GraphiteEngineView : UIView {
     companion object : UIViewMeta() {
         override fun layerClass() = CAMetalLayer
     }
 
-    private var renderMode: Int = GS_RENDER_MODE_CONTINUOUSLY
+    private var renderMode: Int = GS_RENDER_MODE_CONTINUOUS
     private val metalLayer: CAMetalLayer
         get() = layer as CAMetalLayer
 
@@ -141,14 +291,17 @@ private class GraphiteEngineView : UIView {
     private val queue = device.newCommandQueue()
         ?: error("Could not create a Metal command queue")
 
-    private val context = GraphiteContext.makeMetal(device.objcPtr(), queue.objcPtr())
-    private val recorder = context.makeRecorder()
+    private val renderQueue = dispatch_queue_create("com.rafambn.graphitesurface.render", null)
+    private var context: GraphiteContext? = null
+    private var recorder: org.jetbrains.skia.gpu.graphite.Recorder? = null
     private val inflightSemaphore =
         dispatch_semaphore_create(metalLayer.maximumDrawableCount.toLong())
     private var displayLink: CADisplayLink? = null
-    private var disposed = false
-    private var pendingRender = true
+    private val disposed = AtomicBoolean(false)
+    private val pendingRender = AtomicBoolean(true)
+    private val frameScheduled = AtomicBoolean(false)
     private var frameCallback: GSFrameCallback = null
+    private var failureCallback: GSFailureCallback = null
     internal var currentFrameContext: FrameContext? = null
 
     constructor(
@@ -157,7 +310,7 @@ private class GraphiteEngineView : UIView {
     ) : super(frame) {
         this.renderMode = renderMode
         configureMetalLayer()
-        if (renderMode == GS_RENDER_MODE_CONTINUOUSLY) {
+        if (renderMode == GS_RENDER_MODE_CONTINUOUS) {
             startDisplayLink()
         }
     }
@@ -168,31 +321,39 @@ private class GraphiteEngineView : UIView {
         error("init(coder:) is not supported")
     }
 
-    fun startRendering(callback: GSFrameCallback) {
-        frameCallback = callback
-        if (callback != null && pendingRender) {
-            draw()
+    fun startRendering(callback: GSFrameCallback, onFailure: GSFailureCallback) {
+        dispatch_async(renderQueue) {
+            if (disposed.load()) return@dispatch_async
+            frameCallback = callback
+            failureCallback = onFailure
+            if (callback != null && pendingRender.load()) scheduleDraw()
         }
     }
 
     fun stopRendering() {
-        frameCallback = null
+        dispatch_async(renderQueue) {
+            frameCallback = null
+            failureCallback = null
+        }
     }
 
     fun requestRender() {
-        if (disposed) return
-        pendingRender = true
-        draw()
+        if (disposed.load()) return
+        pendingRender.store(true)
+        scheduleDraw()
     }
 
     fun dispose() {
-        if (disposed) return
-        disposed = true
+        if (!disposed.compareAndSet(false, true)) return
         displayLink?.invalidate()
         displayLink = null
         stopRendering()
-        recorder.close()
-        context.close()
+        dispatch_async(renderQueue) {
+            recorder?.close()
+            recorder = null
+            context?.close()
+            context = null
+        }
     }
 
     override fun layoutSubviews() {
@@ -202,7 +363,7 @@ private class GraphiteEngineView : UIView {
         metalLayer.drawableSize = bounds.useContents {
             CGSizeMake(size.width * scale, size.height * scale)
         }
-        if (renderMode == GS_RENDER_MODE_WHEN_DIRTY) {
+        if (renderMode == GS_RENDER_MODE_ON_DEMAND) {
             requestRender()
         }
     }
@@ -222,17 +383,32 @@ private class GraphiteEngineView : UIView {
 
     private fun startDisplayLink() {
         val link = CADisplayLink.displayLinkWithTarget(
-            target = DisplayLinkProxy { draw() },
+            target = DisplayLinkProxy { requestRender() },
             selector = NSSelectorFromString(DisplayLinkProxy::handleDisplayLinkTick.name),
         )
         link.addToRunLoop(NSRunLoop.mainRunLoop, NSRunLoop.mainRunLoop.currentMode)
         displayLink = link
     }
 
-    private fun draw() {
-        if (disposed) return
-        if (renderMode == GS_RENDER_MODE_WHEN_DIRTY && !pendingRender) return
-        pendingRender = false
+    private fun scheduleDraw() {
+        if (disposed.load() || !frameScheduled.compareAndSet(false, true)) return
+        dispatch_async(renderQueue) {
+            try {
+                drawOnRenderQueue()
+            } catch (error: Throwable) {
+                pendingRender.store(false)
+                failureCallback?.invoke(error.message ?: error.toString())
+            } finally {
+                frameScheduled.store(false)
+                if (pendingRender.load() && !disposed.load()) scheduleDraw()
+            }
+        }
+    }
+
+    private fun drawOnRenderQueue() {
+        if (disposed.load()) return
+        if (renderMode == GS_RENDER_MODE_ON_DEMAND && !pendingRender.load()) return
+        pendingRender.store(false)
         if (frameCallback == null) return
 
         val (width, height) = metalLayer.drawableSize.useContents {
@@ -241,45 +417,48 @@ private class GraphiteEngineView : UIView {
         if (width <= 0 || height <= 0) return
         dispatch_semaphore_wait(inflightSemaphore, DISPATCH_TIME_FOREVER)
 
-        val drawable = metalLayer.nextDrawable()
-        if (drawable == null) {
-            dispatch_semaphore_signal(inflightSemaphore)
-            return
-        }
+        var completionOwnsSemaphore = false
+        try {
+            val drawable = metalLayer.nextDrawable() ?: return
+            val currentContext = context ?: GraphiteContext
+                .makeMetal(device.objcPtr(), queue.objcPtr())
+                .also { context = it }
+            val currentRecorder = recorder ?: currentContext.makeRecorder().also { recorder = it }
+            BackendTexture.makeMetal(width, height, drawable.texture.objcPtr()).use { backendTexture ->
+                val surface = Surface.wrapBackendTexture(
+                    recorder = currentRecorder,
+                    backendTexture = backendTexture,
+                    colorSpace = ColorSpace.sRGB,
+                ) ?: error("Could not wrap the current Metal drawable")
 
-        val backendTexture = BackendTexture.makeMetal(width, height, drawable.texture.objcPtr())
-        val surface = Surface.wrapBackendTexture(
-            recorder = recorder,
-            backendTexture = backendTexture,
-            colorSpace = ColorSpace.sRGB,
-        )
-        if (surface == null) {
-            dispatch_semaphore_signal(inflightSemaphore)
-            return
-        }
-
-        surface.use {
-            val callback = frameCallback
-            if (callback != null) {
-                currentFrameContext = FrameContext(it.canvas)
-                try {
-                    callback()
-                } finally {
-                    currentFrameContext = null
-                }
-                recorder.snap().use { recording ->
-                    context.insertRecording(recording)
-                    context.submit(syncCpu = true)
+                surface.use {
+                    val callback = frameCallback
+                    if (callback != null) {
+                        currentFrameContext = FrameContext(it.canvas)
+                        try {
+                            callback(width, height)
+                        } finally {
+                            currentFrameContext = null
+                        }
+                        currentRecorder.snap().use { recording ->
+                            currentContext.insertRecording(recording)
+                            currentContext.submit(syncCpu = true)
+                        }
+                    }
                 }
             }
-        }
 
-        val commandBuffer = queue.commandBuffer()!!
-        commandBuffer.presentDrawable(drawable)
-        commandBuffer.addCompletedHandler {
-            dispatch_semaphore_signal(inflightSemaphore)
+            val commandBuffer = queue.commandBuffer()
+                ?: error("Could not create a Metal presentation command buffer")
+            commandBuffer.presentDrawable(drawable)
+            commandBuffer.addCompletedHandler {
+                dispatch_semaphore_signal(inflightSemaphore)
+            }
+            commandBuffer.commit()
+            completionOwnsSemaphore = true
+        } finally {
+            if (!completionOwnsSemaphore) dispatch_semaphore_signal(inflightSemaphore)
         }
-        commandBuffer.commit()
     }
 }
 

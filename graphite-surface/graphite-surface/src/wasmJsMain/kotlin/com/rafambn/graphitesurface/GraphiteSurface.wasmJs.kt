@@ -9,14 +9,12 @@ public actual fun GraphiteSurface(
     renderer: GraphiteRenderer,
     modifier: Modifier,
     renderMode: GraphiteRenderMode,
-    controller: GraphiteSurfaceController?,
-    outputMode: GraphiteOutputMode,
+    state: GraphiteSurfaceState,
 ) {
     WebGraphiteSurface(
         renderer = renderer,
         modifier = modifier,
         renderMode = renderMode,
-        controller = controller,
-        outputMode = outputMode,
+        state = state,
     )
 }
