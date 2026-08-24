@@ -14,14 +14,31 @@ were implemented on 2026-08-24.
 - Display lists, recordings, frames, frame insertions, pending frames, and
   in-flight snapshots use explicit, idempotent retained handles.
 - Direct drawing and retained drawing are documented as separate choices.
-- `GraphiteSampleViewModel` owns runtime creation, scene resources, sequential
-  frame recording, generation replacement, failure state, and cleanup.
-- Renderer callbacks, native draw contexts, render modes, surface state, and
-  the renderer-based Compose overload are no longer public API.
+- The continuous, on-demand, and manual sample screens each have their own
+  ViewModel. Every ViewModel owns its runtime creation, scene resources,
+  renderer, frame recording, failure state, and cleanup.
+- Native draw contexts and surface state are no longer public API. A later
+  revision restored a user-owned renderer-based Compose overload with
+  `Continuous`, `OnDemand`, and `Manual` modes, without exposing platform
+  drawing objects.
 - Common tests exercise independent construction and limits, closed handles,
   nested-depth validation, malformed resource indices, cross-runtime reuse,
   per-worker publication caching, monotonic IDs, retained lifetimes, ViewModel
   initialization races, scene generation reuse, and cleanup.
+
+## Renderer scheduling revision
+
+The later renderer revision keeps the asynchronous recording and explicit
+presentation model while moving frame-clock plumbing out of applications.
+`GraphiteRendererTest` covers manual attachment checks and caller time,
+on-demand request conflation, mode validation, callback serialization, and
+discarding scheduled work after mode or presentation-generation changes. The
+sample now passes its renderer directly to `GraphiteSurface` and contains no
+frame-driving `LaunchedEffect`.
+
+The JVM library and sample tests, the public dependency-boundary check, and the
+Android, JS, Wasm, iOS device, and iOS simulator compilation matrix passed for
+this revision.
 
 ## Payload measurements
 

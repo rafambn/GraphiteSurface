@@ -7,6 +7,16 @@ changes and their acceptance criteria as the implementation record. The
 verification results are recorded in
 [`GRAPHITE_API_OPTIMIZATION_RESULTS.md`](GRAPHITE_API_OPTIMIZATION_RESULTS.md).
 
+The renderer-removal decision in sections 6 and 7 was superseded later on
+2026-08-24. The current API has a user-owned `GraphiteRenderer` with
+`Continuous`, `OnDemand`, and `Manual` modes; the authoritative contract is in
+[`SURFACE_AND_NATIVE_THREADS.md`](SURFACE_AND_NATIVE_THREADS.md). The original
+text below is retained as historical implementation context.
+
+The sample's single-ViewModel design in section 6 was also superseded. Each
+renderer demo now has its own ViewModel, runtime, scene, renderer, state, and
+cleanup so the three modes can be read as independent examples.
+
 The accepted ownership, worker, cancellation, and presentation contracts in
 [`SURFACE_AND_NATIVE_THREADS.md`](SURFACE_AND_NATIVE_THREADS.md) remain
 authoritative. If implementation evidence requires changing one of those

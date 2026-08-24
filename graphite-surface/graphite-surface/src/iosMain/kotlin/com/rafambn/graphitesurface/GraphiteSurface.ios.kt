@@ -14,7 +14,7 @@ import androidx.compose.ui.viewinterop.UIKitView
 @Composable
 @ExperimentalGraphiteSurfaceApi
 internal actual fun PlatformGraphiteSurface(
-    renderer: GraphiteRenderer,
+    renderer: GraphitePresentationRenderer,
     modifier: Modifier,
     renderMode: GraphiteRenderMode,
     state: GraphiteSurfaceState,

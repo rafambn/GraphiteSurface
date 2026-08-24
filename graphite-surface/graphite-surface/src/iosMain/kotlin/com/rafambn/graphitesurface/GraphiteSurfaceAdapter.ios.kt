@@ -9,7 +9,7 @@ import com.rafambn.graphitesurface.engine.GraphiteEngineGraphiteEngineView_iosKt
 import platform.UIKit.UIView
 
 internal class GraphiteSurfaceAdapter(
-    private val renderer: GraphiteRenderer,
+    private val renderer: GraphitePresentationRenderer,
     private val renderMode: GraphiteRenderMode,
 ) {
     private var engineView: UIView? = null

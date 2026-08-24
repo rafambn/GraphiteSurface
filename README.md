@@ -1,8 +1,8 @@
 # GraphiteSurface
 
 Asynchronous Skia Graphite runtime and Compose Multiplatform presentation host.
-Applications own the runtime and recorder workers; Compose owns only surface
-attachment.
+Applications own the runtime, renderer, and recorder workers; Compose owns the
+surface attachment and display-aligned scheduling mechanism.
 
 ## Layout
 
@@ -36,20 +36,61 @@ dedicated render Worker.
 
 ## Runtime API
 
-The common API uses explicit asynchronous recording and presentation:
+The common API can drive a user-owned renderer continuously, on demand, or
+manually:
 
 ```kotlin
 val runtime = GraphiteRuntime.create(GraphiteRuntimeConfig(recorderCount = 4))
-GraphiteSurface(runtime, Modifier.fillMaxSize())
+val renderer = GraphiteRenderer(
+    runtime = runtime,
+    renderMode = GraphiteRenderMode.Continuous,
+) { frameTimeNanos, presentation ->
+    renderFrame(frameTimeNanos, presentation)
+}
 
+GraphiteSurface(renderer, Modifier.fillMaxSize())
+```
+
+Change policy without rebuilding the surface:
+
+```kotlin
+renderer.renderMode = GraphiteRenderMode.OnDemand
+renderer.requestRender() // Coalesced and aligned to the next display frame.
+
+renderer.renderMode = GraphiteRenderMode.Manual
+renderer.render(frameTimeNanos) // Runs immediately with the caller's time.
+```
+
+The render callback is suspending, serialized, and invoked only while the
+runtime has an attached presentation target. The renderer does not own or
+close the runtime. `Continuous` applies backpressure by waiting for each
+callback to finish; `OnDemand` retains at most one pending request; `Manual`
+never schedules work automatically.
+
+Each callback still records and presents explicitly:
+
+```kotlin
 val recording = runtime.recorders[0].record(target) {
     draw(roads, transform = cameraMatrix)
 }
-runtime.present(runtime.createFrame(presentation) { insert(recording) })
+val frame = runtime.createFrame(presentation) { insert(recording) }
+try {
+    runtime.present(frame)
+} finally {
+    frame.close()
+    recording.close()
+}
+```
+
+Low-level callers that own scheduling themselves can attach only the runtime:
+
+```kotlin
+GraphiteSurface(runtime, Modifier.fillMaxSize())
 ```
 
 Recorder queues are bounded and suspending. Calls to distinct recorder handles
-can proceed in parallel. Presentation is explicit and latest-wins.
+can proceed in parallel. Presentation remains explicit and latest-wins in all
+three renderer modes.
 
 The current portable slice publishes validated immutable command programs from
 the recorder workers. The platform render worker replays those commands into

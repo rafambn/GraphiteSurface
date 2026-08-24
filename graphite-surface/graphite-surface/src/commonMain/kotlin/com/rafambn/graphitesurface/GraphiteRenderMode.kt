@@ -1,10 +1,13 @@
 package com.rafambn.graphitesurface
 
-/** Controls how often the native surface asks the renderer for a frame. */
-internal enum class GraphiteRenderMode {
-    /** Draws once per display frame. */
+/** Controls when a [GraphiteRenderer] produces frames. */
+public enum class GraphiteRenderMode {
+    /** Produces one frame for every available display frame. */
     Continuous,
 
-    /** Draws only after [GraphiteSurfaceState.requestFrame] or a surface change. */
+    /** Produces a frame after [GraphiteRenderer.requestRender] requests one. */
     OnDemand,
+
+    /** Produces frames only through [GraphiteRenderer.render]. */
+    Manual,
 }

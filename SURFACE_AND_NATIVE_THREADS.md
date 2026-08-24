@@ -52,6 +52,10 @@ ordering, cancellation, ownership, and failure semantics.
   state, frames, and logging. This is the implemented hybrid from Q17; moving
   the presentation worker object into a later standalone runtime module must
   not change observable behavior.
+- A user-owned `GraphiteRenderer` optionally produces frames through a
+  serialized suspending callback. `GraphiteSurface` supplies display-aligned
+  scheduling for `Continuous` and `OnDemand`; `Manual` is driven only by the
+  caller. The renderer owns neither the runtime nor the platform worker.
 - Cache limits are validated configuration placeholders in this slice. They
   are not enforced and `trimGpuCaches()` is not exposed. Metrics now report
   portable-resource registrations, publications, bytes, cache hits, and
@@ -101,6 +105,9 @@ ordering, cancellation, ownership, and failure semantics.
   metrics, and logging. The attached Compose surface currently owns the
   platform render worker and Graphite Context; detaching it does not destroy
   the runtime.
+- **GraphiteRenderer**: the optional user-owned frame producer associated with
+  one runtime. It selects continuous, on-demand, or manual scheduling and
+  receives only monotonic frame time and public presentation metadata.
 - **Recorder worker**: a dedicated native thread or Web Worker that validates
   and publishes one immutable command program at a time. Materializing native
   deferred Graphite Recordings here is a future native optimization, not a
@@ -200,14 +207,17 @@ public interface GraphitePresentationHost : AutoCloseable {
   Creation is suspending and completes only when initialization is ready. It
   throws a typed initialization exception if initialization fails.
 
-- Compose owns only presentation attachment:
+- Compose owns presentation attachment and the optional display-frame clock:
 
   ```kotlin
-  GraphiteSurface(
-      runtime = runtime,
-      modifier = Modifier,
-  )
+  val renderer = GraphiteRenderer(runtime) { frameTimeNanos, presentation ->
+      produceAndPresentFrame(frameTimeNanos, presentation)
+  }
+  GraphiteSurface(renderer, Modifier)
   ```
+
+  Low-level callers that own scheduling may instead use
+  `GraphiteSurface(runtime, Modifier)`.
 
 - A runtime may exist without a surface and may create recordings for local
   targets while detached. Display lists are runtime-independent CPU values and
@@ -223,12 +233,16 @@ public interface GraphitePresentationHost : AutoCloseable {
   heap, but their opaque handle namespaces remain separate.
 - Resource exhaustion while creating another runtime fails that creation with
   `GraphiteInitializationException`; it does not impose a global singleton.
-- The public API does not expose `GraphiteRenderer`, `GraphiteDrawContext`,
-  `GraphiteOutputMode`, `GraphiteRenderMode`, `GraphiteSurfaceState`, or a
-  renderer-controlled `GraphiteSurface` overload. These presentation bridge
-  types are internal implementation details.
-- Version 1 has no continuous mode. Calling `present(frame)` is the explicit
-  render request.
+- The public API exposes `GraphiteRenderer`, `GraphiteRenderMode`, and a
+  renderer-based `GraphiteSurface` overload. It does not expose
+  `GraphiteDrawContext`, `GraphiteOutputMode`, `GraphiteSurfaceState`, or any
+  native drawing context. The callback records through the normal runtime API.
+- `Continuous` requests one callback per available display frame and never
+  overlaps callbacks. `OnDemand` conflates requests and schedules them on the
+  display clock. `Manual` invokes the callback only from `render()` and uses
+  the caller-provided time when present.
+- `present(frame)` remains explicit and latest-wins in every scheduling mode.
+  Render mode controls when a frame is produced, not how it is submitted.
 
 ## Runtime lifecycle
 
@@ -1076,7 +1090,7 @@ KMaP owns:
 - scene, layer, and z-order planning;
 - camera state;
 - label candidates, collision, anchors, repetition, and visibility;
-- scheduling policy and explicit selection of Graphite recorders.
+- selection of render mode and explicit selection of Graphite recorders.
 
 GraphiteSurface owns:
 
@@ -1085,6 +1099,7 @@ GraphiteSurface owns:
 - recorder workers and bounded queues;
 - Graphite Context and render worker;
 - frame assembly contracts;
+- display-aligned execution of continuous and on-demand frame callbacks;
 - presentation and lifecycle metadata;
 - resource retirement and diagnostics.
 
@@ -1512,7 +1527,6 @@ Additional primary references:
 
 ## Deferred work
 
-- continuous render mode;
 - dirty regions and retained rendering;
 - ordered recorders;
 - automatic device-loss recovery;
@@ -1531,8 +1545,8 @@ explicit preservation mechanism, not by assuming swapchain contents survive.
 ## Rejected designs
 
 - A public `GraphiteOutputMode` selecting platform implementation details.
-- A renderer callback whose lifecycle is controlled by the surface.
-- A surface-owned runtime.
+- A surface-owned renderer callback or runtime. A user-owned renderer may be
+  attached and detached, but the surface does not own or close it.
 - Coroutines masquerading as native worker execution on web.
 - Sending arbitrary Kotlin lambdas to Web Workers.
 - An unbounded recorder or frame queue.

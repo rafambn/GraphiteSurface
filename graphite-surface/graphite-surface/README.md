@@ -1,35 +1,56 @@
 # GraphiteSurface Compose adapter
 
-The primary API is a user-owned asynchronous runtime and a Compose-owned
-presentation attachment:
+The primary API combines a user-owned asynchronous runtime and renderer with a
+Compose-owned presentation attachment:
 
 ```kotlin
 val runtime = GraphiteRuntime.create(
     GraphiteRuntimeConfig(recorderCount = 4),
 )
-
-GraphiteSurface(runtime, Modifier.fillMaxSize())
-
-val presentation = runtime.presentation
-    .filterIsInstance<GraphitePresentationState.Attached>()
-    .first()
-    .info
-val target = runtime.createRecordingTarget(presentation.pixelSize)
-val recording = runtime.recorders[0].record(target) {
-    draw(roads, transform = cameraMatrix)
-    drawPath(route, routePaint)
+val renderer = GraphiteRenderer(
+    runtime = runtime,
+    renderMode = GraphiteRenderMode.Continuous,
+) { frameTimeNanos, presentation ->
+    val target = targetFor(presentation)
+    val recording = runtime.recorders[0].record(target) {
+        draw(roads, transform = cameraAt(frameTimeNanos))
+        drawPath(route, routePaint)
+    }
+    val frame = runtime.createFrame(presentation, GraphiteColor.White) {
+        insert(recording)
+    }
+    try {
+        runtime.present(frame)
+    } finally {
+        frame.close()
+        recording.close()
+    }
 }
-val frame = runtime.createFrame(presentation, GraphiteColor.White) {
-    insert(recording)
-}
-runtime.present(frame)
+
+GraphiteSurface(renderer, Modifier.fillMaxSize())
 ```
 
 `record()` suspends for bounded queue capacity and completes asynchronously.
 Recorders have stable indices and independent native threads or Web Workers.
-`present()` uses a one-slot latest-wins mailbox and is the render request; the
-runtime has no implicit continuous mode. Public types contain no Skia, Skiko,
-WebGPU, or platform handles.
+`present()` uses a one-slot latest-wins mailbox. Public types contain no Skia,
+Skiko, WebGPU, or platform handles.
+
+`GraphiteRenderer` offers three scheduling policies:
+
+- `Continuous` invokes the serialized callback once per available display
+  frame. A slow callback naturally skips display opportunities instead of
+  overlapping work.
+- `OnDemand` invokes it after `requestRender()`. Requests are conflated and an
+  attached surface automatically requests its first frame.
+- `Manual` invokes it only through the suspending `render()` or
+  `render(frameTimeNanos)` functions. The call returns `false` if no target is
+  attached or the runtime is unavailable.
+
+Changing `renderer.renderMode` takes effect on the attached surface. The
+renderer callback runs only while attached and receives the matching
+`GraphitePresentationInfo`; the renderer never owns or closes its runtime.
+Low-level callers may continue using `GraphiteSurface(runtime)` and schedule
+their own calls to `present()`.
 
 In this first implementation, recorder workers validate and publish the
 immutable portable command program. The dedicated platform render worker owns
@@ -50,10 +71,6 @@ JS and Wasm share the same WebGPU/Dawn ownership model.
 The web POC requires Emscripten 4.0.7, the checked-out `skiko-fork`, and a
 browser with WebGPU enabled. It intentionally has no WebGL or Compose Canvas
 fallback.
-
-The older renderer callback overload remains temporarily for compatibility.
-New applications should use `GraphiteRuntime`; the callback overload and its
-continuous mode are not part of the intended version 1 runtime contract.
 
 Android, JS, Wasm, iOS, and supported JVM desktops have hosts behind the same
 runtime API. Android uses a `HandlerThread`, Apple a serial native dispatch

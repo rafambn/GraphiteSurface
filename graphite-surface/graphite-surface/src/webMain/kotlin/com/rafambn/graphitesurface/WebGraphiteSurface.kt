@@ -14,7 +14,7 @@ import androidx.compose.ui.viewinterop.HtmlElementView
 @Composable
 @ExperimentalGraphiteSurfaceApi
 internal fun WebGraphiteSurface(
-    renderer: GraphiteRenderer,
+    renderer: GraphitePresentationRenderer,
     modifier: Modifier,
     renderMode: GraphiteRenderMode,
     state: GraphiteSurfaceState,

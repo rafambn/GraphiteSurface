@@ -23,7 +23,7 @@ import javax.swing.SwingUtilities
 @Composable
 @ExperimentalGraphiteSurfaceApi
 internal actual fun PlatformGraphiteSurface(
-    renderer: GraphiteRenderer,
+    renderer: GraphitePresentationRenderer,
     modifier: Modifier,
     renderMode: GraphiteRenderMode,
     state: GraphiteSurfaceState,
@@ -73,7 +73,7 @@ internal actual fun PlatformGraphiteSurface(
 }
 
 private class JvmGraphiteSurfaceAdapter(
-    renderer: GraphiteRenderer,
+    renderer: GraphitePresentationRenderer,
 ) {
     private val surface = JvmGraphiteSurface(
         object : JvmGraphiteRenderer {

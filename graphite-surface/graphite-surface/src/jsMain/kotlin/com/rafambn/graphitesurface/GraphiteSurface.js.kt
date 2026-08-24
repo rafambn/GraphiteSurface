@@ -6,7 +6,7 @@ import androidx.compose.ui.Modifier
 @Composable
 @ExperimentalGraphiteSurfaceApi
 internal actual fun PlatformGraphiteSurface(
-    renderer: GraphiteRenderer,
+    renderer: GraphitePresentationRenderer,
     modifier: Modifier,
     renderMode: GraphiteRenderMode,
     state: GraphiteSurfaceState,

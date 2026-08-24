@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 @Composable
 @ExperimentalGraphiteSurfaceApi
 internal actual fun PlatformGraphiteSurface(
-    renderer: GraphiteRenderer,
+    renderer: GraphitePresentationRenderer,
     modifier: Modifier,
     renderMode: GraphiteRenderMode,
     state: GraphiteSurfaceState,
@@ -49,7 +49,7 @@ internal actual fun PlatformGraphiteSurface(
 }
 
 private class AndroidGraphiteSurfaceAdapter(
-    private val renderer: GraphiteRenderer,
+    private val renderer: GraphitePresentationRenderer,
     private val renderMode: GraphiteRenderMode,
 ) {
     private var view: GraphiteSurfaceView? = null
@@ -70,7 +70,7 @@ private class AndroidGraphiteSurfaceAdapter(
 
 private class GraphiteSurfaceView(
     context: Context,
-    private val renderer: GraphiteRenderer,
+    private val renderer: GraphitePresentationRenderer,
     private val renderMode: GraphiteRenderMode,
 ) : SurfaceView(context), SurfaceHolder.Callback, Choreographer.FrameCallback {
     private val renderThread = HandlerThread(

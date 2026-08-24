@@ -9,7 +9,7 @@ import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.HTMLDivElement
 
 internal class WebGraphiteSurfaceAdapter(
-    private val renderer: GraphiteRenderer,
+    private val renderer: GraphitePresentationRenderer,
     renderMode: GraphiteRenderMode,
 ) {
     private val engineContinuously = renderMode == GraphiteRenderMode.Continuous
