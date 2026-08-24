@@ -68,7 +68,7 @@ Make these changes:
 - Remove `GraphiteRuntime.createDisplayList`. The project is implementing the
   version 1 contract, so retaining a compatibility wrapper would preserve the
   wrong ownership model.
-- Keep `GraphiteRuntimeConfig.maxCommandBufferBytes` as the limit for one
+- Keep `GraphiteRuntime.maxCommandBufferBytes` as the limit for one
   recording command buffer only.
 - Use the builder parameter as the independent limit for one display list.
 - Update KDoc, the sample, tests, and the command-limit section of
@@ -253,26 +253,21 @@ internal sealed interface GraphiteSampleUiState {
 
 Implement the lifecycle as follows:
 
-- Create the runtime once from `viewModelScope` during ViewModel
-  initialization.
+- Construct the runtime once during ViewModel initialization.
 - Publish initialization, ready, and failure through a read-only `StateFlow`.
 - Keep the mutable runtime reference private to the ViewModel. The ready UI
   state exposes the same owned runtime only so `GraphiteSurface` can attach it.
 - Close the runtime and the current display list from `onCleared()`.
-- Handle cancellation racing with `GraphiteRuntime.create()`. If creation
-  completes after the ViewModel has cleared or its initialization coroutine has
-  cancelled, close that new runtime instead of publishing it.
 - Move presentation-generation tracking, display-list creation, recording
   target reuse, recording, frame construction, and presentation into a
   sequential suspend function on the ViewModel.
 - Build the triangle display list and recording target once per presentation
   generation. Replace and close them when the generation changes.
-- Keep terminal runtime failures in the UI state or the runtime's existing
-  observable state. Do not leave an exception uncaught in `viewModelScope`.
+- Keep constructor and terminal runtime failures in the UI state or the
+  runtime's existing observable state.
 
-`withFrameNanos` must remain in the composition because `viewModelScope` does
-not own Compose's `MonotonicFrameClock`. Reduce `App.kt` to one frame-driving
-effect:
+`withFrameNanos` must remain in the manual renderer composition because the
+ViewModel does not own Compose's `MonotonicFrameClock`:
 
 ```kotlin
 @Composable

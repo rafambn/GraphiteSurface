@@ -33,7 +33,7 @@ public class GraphiteDisplayList internal constructor(
          * Builds a runtime-independent reusable command program on the caller thread.
          *
          * [maxCommandBufferBytes] applies only to this display list; runtime recording limits are
-         * configured independently by [GraphiteRuntimeConfig.maxCommandBufferBytes].
+         * configured independently by [GraphiteRuntime.maxCommandBufferBytes].
          */
         public fun build(
             maxCommandBufferBytes: GraphiteCommandBufferLimit = GraphiteCommandBufferLimit.Default,

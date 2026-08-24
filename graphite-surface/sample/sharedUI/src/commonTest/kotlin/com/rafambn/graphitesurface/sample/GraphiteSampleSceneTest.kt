@@ -11,7 +11,7 @@ import kotlinx.coroutines.test.runTest
 class GraphiteSampleSceneTest {
     @Test
     fun reusesResourcesWithinAGenerationAndClosesTheReplacedList() = runTest {
-        val runtime = GraphiteRuntime.create()
+        val runtime = GraphiteRuntime()
         val scene = GraphiteSampleScene()
         try {
             val first = scene.prepare(runtime, generation = 1, pixelSize = GraphiteSize(100, 80))

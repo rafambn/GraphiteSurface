@@ -45,7 +45,7 @@ public class GraphiteRecorder internal constructor(
             val completedProgram = execution.withLock {
                 runtime.requireReady()
                 val job = currentCoroutineContext()[Job]
-                val writer = GraphiteCommandWriter(runtime.config.maxCommandBufferBytes.bytes)
+                val writer = GraphiteCommandWriter(runtime.maxCommandBufferBytes.bytes)
                 try {
                     GraphiteEncoderImpl(writer) { job?.ensureActive() }.block()
                     encoderBlockCompleted = true

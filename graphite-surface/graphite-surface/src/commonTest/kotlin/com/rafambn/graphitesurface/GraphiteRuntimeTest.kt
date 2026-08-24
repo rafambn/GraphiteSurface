@@ -13,8 +13,18 @@ import kotlinx.coroutines.test.runTest
 
 class GraphiteRuntimeTest {
     @Test
+    fun constructorRejectsInvalidWorkerAndSubmissionLimits() {
+        assertFailsWith<IllegalArgumentException> { GraphiteRuntime(recorderCount = 0) }
+        assertFailsWith<IllegalArgumentException> { GraphiteRuntime(recorderCount = 65) }
+        assertFailsWith<IllegalArgumentException> { GraphiteRuntime(recorderQueueCapacity = 0) }
+        assertFailsWith<IllegalArgumentException> { GraphiteRuntime(recorderQueueCapacity = 1025) }
+        assertFailsWith<IllegalArgumentException> { GraphiteRuntime(maxFramesInFlight = 0) }
+        assertFailsWith<IllegalArgumentException> { GraphiteRuntime(maxFramesInFlight = 9) }
+    }
+
+    @Test
     fun recorderBuildsReusableCommandsAsynchronously() = runTest {
-        val runtime = GraphiteRuntime.create(GraphiteRuntimeConfig(recorderCount = 2))
+        val runtime = GraphiteRuntime(recorderCount = 2)
         try {
             val target = runtime.createRecordingTarget(GraphiteSize(256, 256))
             val roads = GraphiteDisplayList.build {
@@ -45,7 +55,7 @@ class GraphiteRuntimeTest {
 
     @Test
     fun presentationMailboxKeepsOnlyTheNewestFrame() = runTest {
-        val runtime = GraphiteRuntime.create()
+        val runtime = GraphiteRuntime()
         try {
             var requests = 0
             val attachmentId = requireNotNull(runtime.attachPresentation { requests += 1 })
@@ -76,8 +86,8 @@ class GraphiteRuntimeTest {
         val displayList = GraphiteDisplayList.build {
             drawCircle(GraphitePoint(4f, 4f), 2f, GraphitePaint(GraphiteColor.White))
         }
-        val first = GraphiteRuntime.create()
-        val second = GraphiteRuntime.create()
+        val first = GraphiteRuntime()
+        val second = GraphiteRuntime()
         try {
             suspend fun recordTwice(runtime: GraphiteRuntime) {
                 val target = runtime.createRecordingTarget(GraphiteSize(8, 8))
@@ -111,7 +121,7 @@ class GraphiteRuntimeTest {
 
     @Test
     fun retainedWorkSurvivesClosingEveryCallerOwnedHandle() = runTest {
-        val runtime = GraphiteRuntime.create()
+        val runtime = GraphiteRuntime()
         try {
             val attachmentId = requireNotNull(runtime.attachPresentation {})
             val presentation = requireNotNull(
@@ -185,9 +195,7 @@ class GraphiteRuntimeTest {
 
     @Test
     fun cancellationDoesNotCorruptTheWorkerResourceCache() = runTest {
-        val runtime = GraphiteRuntime.create(
-            GraphiteRuntimeConfig(recorderQueueCapacity = 4),
-        )
+        val runtime = GraphiteRuntime(recorderQueueCapacity = 4)
         val displayList = GraphiteDisplayList.build {
             repeat(1_000) { index ->
                 drawCircle(
@@ -217,8 +225,8 @@ class GraphiteRuntimeTest {
 
     @Test
     fun runtimeIdentityIsValidatedBeforeRecording() = runTest {
-        val first = GraphiteRuntime.create()
-        val second = GraphiteRuntime.create()
+        val first = GraphiteRuntime()
+        val second = GraphiteRuntime()
         try {
             val foreignTarget = first.createRecordingTarget(GraphiteSize(1, 1))
             assertFailsWith<GraphitePresentationException> {
@@ -234,8 +242,8 @@ class GraphiteRuntimeTest {
 
     @Test
     fun commandLimitFailsOnlyTheEncodingOperation() = runTest {
-        val runtime = GraphiteRuntime.create(
-            GraphiteRuntimeConfig(maxCommandBufferBytes = GraphiteCommandBufferLimit(32)),
+        val runtime = GraphiteRuntime(
+            maxCommandBufferBytes = GraphiteCommandBufferLimit(32),
         )
         try {
             val target = runtime.createRecordingTarget(GraphiteSize(1, 1))
@@ -257,10 +265,8 @@ class GraphiteRuntimeTest {
     @Test
     fun runtimeDrainsArchivistDuringShutdown() = runTest {
         val entries = mutableListOf<Map<String, *>>()
-        val runtime = GraphiteRuntime.create(
-            GraphiteRuntimeConfig(
-                archivist = Archivist { entry -> entries += entry },
-            ),
+        val runtime = GraphiteRuntime(
+            archivist = Archivist { entry -> entries += entry },
         )
 
         runtime.close()

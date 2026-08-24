@@ -70,7 +70,7 @@ ordering, cancellation, ownership, and failure semantics.
   rectangles, ovals, lines, paths, and basic fill/stroke paint. Images,
   prepared glyph runs, gradients, effects, and blends remain work after this
   first usable runtime rather than silently accepted no-ops.
-- `GraphiteRuntime.create()` starts recorder workers but does not probe WebGPU
+- `GraphiteRuntime()` starts recorder workers but does not probe WebGPU
   while detached. Browser capability failure is currently reported through
   terminal runtime state when `GraphiteSurface` attaches.
 - Scribe 0.7.0 is consumed from Maven Central for all requested targets.
@@ -201,11 +201,11 @@ public interface GraphitePresentationHost : AutoCloseable {
 - The user creates and owns the runtime:
 
   ```kotlin
-  val runtime = GraphiteRuntime.create(config)
+  val runtime = GraphiteRuntime(recorderCount = 2)
   ```
 
-  Creation is suspending and completes only when initialization is ready. It
-  throws a typed initialization exception if initialization fails.
+  Construction validates its arguments before allocating workers. Platform
+  worker initialization failures throw `GraphiteInitializationException`.
 
 - Compose owns presentation attachment and the optional display-frame clock:
 
@@ -312,10 +312,10 @@ public interface GraphitePresentationHost : AutoCloseable {
 - No generic task scheduler, affinity abstraction, priority system, or load
   balancer is part of version 1. Advanced applications select a recorder
   explicitly, for example `runtime.recorders[index]`.
-- Initial public configuration is intentionally small:
+- The runtime constructor is intentionally small:
 
   ```kotlin
-  GraphiteRuntimeConfig(
+  GraphiteRuntime(
       recorderCount = 1,
       recorderQueueCapacity = 1,
       maxFramesInFlight = 2,
@@ -359,9 +359,8 @@ public interface GraphitePresentationHost : AutoCloseable {
   because Context and Recorders execute concurrently.
 - Each Recorder owns a separate image provider unless a future provider is
   explicitly thread-safe.
-- `GraphiteRuntime.create()` returns only after the Context and every Recorder
-  worker report readiness. The prototype includes a debug test for the
-  supported sequential ownership transfer across pthreads.
+- `GraphiteRuntime()` creates the recorder worker group. The presentation
+  adapter creates its rendering context when a surface attaches.
 
 ## Recorder API, queues, and cancellation
 
@@ -989,7 +988,7 @@ Primary references:
   configuration input.
 - GraphiteSurface depends on the published Scribe 0.7.0 artifact, including its
   JS and Wasm targets.
-- `GraphiteRuntimeConfig` accepts one optional `Archivist`. The runtime
+- `GraphiteRuntime` accepts one optional `Archivist`. The runtime
   passes it directly to its internally owned Scribe instance.
 - Runtime creation starts Scribe. Runtime shutdown retires it, and
   `awaitClosed()` waits for its queue to drain.
@@ -1024,7 +1023,7 @@ Primary references:
   resource and later command messages reference cached runtime-local IDs.
 - `GraphiteDisplayList` encapsulates commands but does not expose a stable
   binary format. Internal format changes do not create a persistence contract.
-- `GraphiteRuntimeConfig.maxCommandBufferBytes` limits one recording command
+- `GraphiteRuntime.maxCommandBufferBytes` limits one recording command
   buffer. `GraphiteDisplayList.build(maxCommandBufferBytes = ...)` independently
   limits one display-list command buffer.
 - Exceeding the limit throws
@@ -1123,12 +1122,11 @@ closures cannot be transferred to a Web Worker with common semantics.
   - shutdown, cancellation, and device loss.
 - Shared memory designs require `SharedArrayBuffer` and the browser security
   isolation headers COOP/COEP.
-- If WebGPU, real worker execution, or another mandatory prerequisite is
-  unavailable, `GraphiteRuntime.create()` throws a typed unsupported-platform
-  exception. It never falls back silently to main-thread rendering.
-- Version 1 has no separate `checkSupport()` call. The exception from
-  `create()` carries the support report because a reliable probe would already
-  perform most asynchronous GPU initialization and could race with creation.
+- If WebGPU or another presentation prerequisite is unavailable, surface
+  attachment moves the runtime to a terminal failure state. It never falls
+  back silently to main-thread rendering.
+- Version 1 has no separate `checkSupport()` call because a reliable probe
+  would perform most of the same GPU initialization as surface attachment.
 - No cross-platform promise about multiple Graphite recorders in browser
   workers is final until this prototype succeeds.
 - The browser prototype passes only when it proves:
@@ -1201,9 +1199,9 @@ Useful primary references:
   `PTHREAD_POOL_SIZE` because `recorderCount` is a runtime setting.
 - Runtime creation starts exactly one render pthread. After it creates the
   Context and Recorders, it starts exactly `recorderCount` recorder pthreads.
-- `GraphiteRuntime.create()` suspends and returns control to the browser event
-  loop while pthreads start. It returns only after asynchronous Context and
-  Recorder readiness acknowledgements.
+- `GraphiteRuntime()` creates recorder workers synchronously. Browser rendering
+  initialization remains attached to the surface lifecycle and reports its
+  result through runtime state.
 - The Emscripten main module, Graphite side module, and all participating C++
   objects compile and link with `-pthread`.
 - Browser builds use `ALLOW_BLOCKING_ON_MAIN_THREAD=0`. Browser-main code never
@@ -1226,7 +1224,7 @@ Useful primary references:
   corruption that damages the shared module. Version 1 documents this rather
   than duplicating the complete Skia module per runtime.
 - `INITIAL_MEMORY` and `MAXIMUM_MEMORY` are page-global build settings and are
-  not fields in `GraphiteRuntimeConfig`.
+  not `GraphiteRuntime` constructor parameters.
 - The prototype chooses their version 1 values. Metrics report memory growth
   and its duration. A separate web bootstrap configuration is deferred until
   real applications demonstrate a need for it.
@@ -1235,11 +1233,11 @@ Useful primary references:
 
 **Accepted**
 
-- Concurrent `GraphiteRuntime.create()` calls await the same module-loading
-  operation and never observe partial initialization.
+- Concurrent surface attachments share the same module-loading operation and
+  never observe partial initialization.
 - A network or asset-loading failure fails all current callers with
   `GraphiteInitializationException`. The loader performs no hidden retry.
-- A later explicit `create()` call may start a new loading attempt after such a
+- A later surface attachment may start a new loading attempt after such a
   transient failure.
 - Missing WebGPU, cross-origin isolation, Wasm thread support, or another
   required capability throws `GraphiteUnsupportedPlatformException` instead.

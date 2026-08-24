@@ -23,8 +23,8 @@ were implemented on 2026-08-24.
   drawing objects.
 - Common tests exercise independent construction and limits, closed handles,
   nested-depth validation, malformed resource indices, cross-runtime reuse,
-  per-worker publication caching, monotonic IDs, retained lifetimes, ViewModel
-  initialization races, scene generation reuse, and cleanup.
+  per-worker publication caching, monotonic IDs, retained lifetimes, runtime
+  constructor validation, scene generation reuse, and per-ViewModel cleanup.
 
 ## Renderer scheduling revision
 

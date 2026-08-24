@@ -1,73 +1,48 @@
 package com.rafambn.graphitesurface.sample.continuous
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.rafambn.graphitesurface.GraphiteColor
 import com.rafambn.graphitesurface.GraphitePresentResult
 import com.rafambn.graphitesurface.GraphitePresentationInfo
 import com.rafambn.graphitesurface.GraphiteRenderMode
 import com.rafambn.graphitesurface.GraphiteRenderer
 import com.rafambn.graphitesurface.GraphiteRuntime
-import com.rafambn.graphitesurface.GraphiteRuntimeConfig
 import com.rafambn.graphitesurface.GraphiteTransform
 import com.rafambn.graphitesurface.sample.GraphiteSampleScene
 import com.rafambn.graphitesurface.sample.components.RendererScreenState
 import com.rafambn.graphitesurface.sample.loopingRotationDegrees
-import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.coroutines.cancellation.CancellationException
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalAtomicApi::class)
-internal class ContinuousRendererViewModel(
-    private val runtimeFactory: suspend () -> GraphiteRuntime = {
-        GraphiteRuntime.create(GraphiteRuntimeConfig(recorderCount = 2))
-    },
-) : ViewModel() {
+internal class ContinuousRendererViewModel : ViewModel() {
     private val mutableUiState = MutableStateFlow<RendererScreenState>(
         RendererScreenState.Initializing,
     )
     internal val uiState: StateFlow<RendererScreenState> = mutableUiState.asStateFlow()
 
-    private val cleared = AtomicBoolean(false)
     private val animationStartNanos = AtomicLong(ANIMATION_NOT_STARTED)
     private val runtime = AtomicReference<GraphiteRuntime?>(null)
     private val scene = GraphiteSampleScene()
 
     init {
-        viewModelScope.launch {
-            var createdRuntime: GraphiteRuntime? = null
-            try {
-                createdRuntime = runtimeFactory()
-                coroutineContext.ensureActive()
-                if (!cleared.load() && runtime.compareAndSet(null, createdRuntime)) {
-                    if (cleared.load()) {
-                        runtime.compareAndSet(createdRuntime, null)
-                        createdRuntime.close()
-                    } else {
-                        mutableUiState.value = RendererScreenState.Ready(
-                            GraphiteRenderer(
-                                runtime = createdRuntime,
-                                renderMode = GraphiteRenderMode.Continuous,
-                                renderFrame = ::renderFrame,
-                            ),
-                        )
-                    }
-                    createdRuntime = null
-                }
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (error: Throwable) {
-                mutableUiState.value = RendererScreenState.Failed(error)
-            } finally {
-                createdRuntime?.close()
-            }
+        try {
+            val createdRuntime = GraphiteRuntime(recorderCount = 2)
+            runtime.store(createdRuntime)
+            mutableUiState.value = RendererScreenState.Ready(
+                GraphiteRenderer(
+                    runtime = createdRuntime,
+                    renderMode = GraphiteRenderMode.Continuous,
+                    renderFrame = ::renderFrame,
+                ),
+            )
+        } catch (error: Throwable) {
+            mutableUiState.value = RendererScreenState.Failed(error)
         }
     }
 
@@ -123,7 +98,6 @@ internal class ContinuousRendererViewModel(
     }
 
     public override fun onCleared() {
-        cleared.store(true)
         scene.close()
         runtime.exchange(null)?.close()
     }

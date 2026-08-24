@@ -2,6 +2,7 @@
 
 package com.rafambn.graphitesurface
 
+import com.rafambn.scribe.Archivist
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.AtomicReference
@@ -20,7 +21,26 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /** User-owned asynchronous Graphite engine and worker group. */
-public class GraphiteRuntime private constructor(public val config: GraphiteRuntimeConfig) : AutoCloseable {
+public class GraphiteRuntime(
+    /** Number of stable recorder queues and their dedicated workers. */
+    public val recorderCount: Int = 1,
+    /** Maximum number of calls waiting behind the active call of each recorder. */
+    public val recorderQueueCapacity: Int = 1,
+    /** Submission upper bound. Current backends conservatively keep at most one frame in flight. */
+    public val maxFramesInFlight: Int = 2,
+    /** Reserved cache policy. Current backends validate but do not enforce these limits. */
+    public val gpuCache: GraphiteGpuCacheConfig = GraphiteGpuCacheConfig.Default,
+    /** Maximum encoded bytes in one recording command program. */
+    public val maxCommandBufferBytes: GraphiteCommandBufferLimit = GraphiteCommandBufferLimit.Default,
+    /** Optional Scribe destination owned and retired by this runtime. */
+    public val archivist: Archivist? = null,
+) : AutoCloseable {
+    init {
+        require(recorderCount in 1..64) { "recorderCount must be in 1..64" }
+        require(recorderQueueCapacity in 1..1024) { "recorderQueueCapacity must be in 1..1024" }
+        require(maxFramesInFlight in 1..8) { "maxFramesInFlight must be in 1..8" }
+    }
+
     internal val token: Any = Any()
 
     private val closing: AtomicBoolean = AtomicBoolean(false)
@@ -48,10 +68,35 @@ public class GraphiteRuntime private constructor(public val config: GraphiteRunt
     public val state: StateFlow<GraphiteRuntimeState> = mutableState.asStateFlow()
     public val presentation: StateFlow<GraphitePresentationState> = mutablePresentation.asStateFlow()
     public val events: SharedFlow<GraphiteEvent> = mutableEvents.asSharedFlow()
-    public val recorders: List<GraphiteRecorder> = createRecorders()
-    private val logger: GraphiteRuntimeLogger = GraphiteRuntimeLogger(config.archivist) { error ->
-        archiveFailures.addAndFetch(1)
-        mutableEvents.tryEmit(GraphiteEvent.ArchiveFailure(error))
+    public val recorders: List<GraphiteRecorder> = try {
+        createRecorders()
+    } catch (error: Throwable) {
+        resources.close()
+        scope.cancel()
+        throw GraphiteInitializationException(GraphiteFailure.Stage.Initialization, error)
+    }
+    private val logger: GraphiteRuntimeLogger = try {
+        GraphiteRuntimeLogger(archivist) { error ->
+            archiveFailures.addAndFetch(1)
+            mutableEvents.tryEmit(GraphiteEvent.ArchiveFailure(error))
+        }
+    } catch (error: Throwable) {
+        recorders.forEach(GraphiteRecorder::close)
+        resources.close()
+        scope.cancel()
+        throw GraphiteInitializationException(GraphiteFailure.Stage.Initialization, error)
+    }
+
+    init {
+        logger.emit(
+            operation = "runtime_lifecycle",
+            outcome = "ready",
+            fields = mapOf(
+                "recorder_count" to recorderCount,
+                "recorder_queue_capacity" to recorderQueueCapacity,
+                "max_frames_in_flight" to maxFramesInFlight,
+            ),
+        )
     }
 
     public fun createRecordingTarget(pixelSize: GraphiteSize): GraphiteRecordingTarget {
@@ -330,14 +375,14 @@ public class GraphiteRuntime private constructor(public val config: GraphiteRunt
     private fun createRecorders(): List<GraphiteRecorder> {
         val createdWorkers = mutableListOf<PlatformRecorderWorker>()
         return try {
-            List(config.recorderCount) { index ->
+            List(recorderCount) { index ->
                 val worker = PlatformRecorderWorker(index)
                 createdWorkers += worker
                 GraphiteRecorder(
                     index = index,
                     runtime = this,
                     worker = worker,
-                    queueCapacity = config.recorderQueueCapacity,
+                    queueCapacity = recorderQueueCapacity,
                 )
             }
         } catch (error: Throwable) {
@@ -346,25 +391,7 @@ public class GraphiteRuntime private constructor(public val config: GraphiteRunt
         }
     }
 
-    public companion object {
+    private companion object {
         private const val EVENT_CAPACITY: Int = 64
-
-        public suspend fun create(
-            config: GraphiteRuntimeConfig = GraphiteRuntimeConfig(),
-        ): GraphiteRuntime = try {
-            GraphiteRuntime(config).also { runtime ->
-                runtime.logger.emit(
-                    operation = "runtime_lifecycle",
-                    outcome = "ready",
-                    fields = mapOf(
-                        "recorder_count" to config.recorderCount,
-                        "recorder_queue_capacity" to config.recorderQueueCapacity,
-                        "max_frames_in_flight" to config.maxFramesInFlight,
-                    ),
-                )
-            }
-        } catch (error: Throwable) {
-            throw GraphiteInitializationException(GraphiteFailure.Stage.Initialization, error)
-        }
     }
 }

@@ -13,7 +13,7 @@ import kotlinx.coroutines.yield
 class GraphiteRendererTest {
     @Test
     fun manualModeRendersWithTheCurrentPresentationAndCallerTime() = runTest {
-        val runtime = GraphiteRuntime.create()
+        val runtime = GraphiteRuntime()
         try {
             val attachmentId = requireNotNull(runtime.attachPresentation {})
             val presentation = requireNotNull(
@@ -37,7 +37,7 @@ class GraphiteRendererTest {
 
     @Test
     fun manualModeDoesNothingWhileDetached() = runTest {
-        val runtime = GraphiteRuntime.create()
+        val runtime = GraphiteRuntime()
         try {
             var renderCount = 0
             val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.Manual) { _, _ ->
@@ -54,7 +54,7 @@ class GraphiteRendererTest {
 
     @Test
     fun manualRenderRejectsOtherModesAndNegativeTime() = runTest {
-        val runtime = GraphiteRuntime.create()
+        val runtime = GraphiteRuntime()
         try {
             val renderer = GraphiteRenderer(runtime) { _, _ -> }
             assertFailsWith<IllegalStateException> { renderer.render(0L) }
@@ -69,7 +69,7 @@ class GraphiteRendererTest {
 
     @Test
     fun onDemandRequestsAreCoalescedAndIgnoredByOtherModes() = runTest {
-        val runtime = GraphiteRuntime.create()
+        val runtime = GraphiteRuntime()
         try {
             val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.OnDemand) { _, _ -> }
 
@@ -89,7 +89,7 @@ class GraphiteRendererTest {
 
     @Test
     fun renderCallbacksNeverOverlap() = runTest {
-        val runtime = GraphiteRuntime.create()
+        val runtime = GraphiteRuntime()
         try {
             val attachmentId = requireNotNull(runtime.attachPresentation {})
             runtime.updatePresentation(attachmentId, GraphiteSize(32, 32), density = 1f)
@@ -124,7 +124,7 @@ class GraphiteRendererTest {
 
     @Test
     fun scheduledFrameIsDiscardedAfterModeOrGenerationChanges() = runTest {
-        val runtime = GraphiteRuntime.create()
+        val runtime = GraphiteRuntime()
         try {
             val attachmentId = requireNotNull(runtime.attachPresentation {})
             val firstPresentation = requireNotNull(

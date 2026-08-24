@@ -4,9 +4,7 @@ The primary API combines a user-owned asynchronous runtime and renderer with a
 Compose-owned presentation attachment:
 
 ```kotlin
-val runtime = GraphiteRuntime.create(
-    GraphiteRuntimeConfig(recorderCount = 4),
-)
+val runtime = GraphiteRuntime(recorderCount = 4)
 val renderer = GraphiteRenderer(
     runtime = runtime,
     renderMode = GraphiteRenderMode.Continuous,
