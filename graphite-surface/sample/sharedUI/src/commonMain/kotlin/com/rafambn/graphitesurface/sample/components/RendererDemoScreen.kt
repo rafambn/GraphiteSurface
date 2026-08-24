@@ -14,6 +14,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,13 +25,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.rafambn.graphitesurface.GraphiteRenderer
 import com.rafambn.graphitesurface.GraphiteSurface
+import com.rafambn.graphitesurface.sample.DEFAULT_ROTATION_SPEED
 
 @Composable
 internal fun RendererDemoScreen(
     renderer: GraphiteRenderer,
     title: String,
     onBack: () -> Unit,
+    onRotationSpeedChange: (Float) -> Unit,
 ) {
+    var rotationSpeed by remember(renderer) { mutableFloatStateOf(DEFAULT_ROTATION_SPEED) }
+
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier
@@ -70,6 +78,13 @@ internal fun RendererDemoScreen(
                 pixelSize = 3.dp,
             )
         }
+        RotationSpeedSlider(
+            value = rotationSpeed,
+            onValueChange = { speed ->
+                rotationSpeed = speed
+                onRotationSpeedChange(speed)
+            },
+        )
         GraphiteSurface(
             renderer = renderer,
             modifier = Modifier

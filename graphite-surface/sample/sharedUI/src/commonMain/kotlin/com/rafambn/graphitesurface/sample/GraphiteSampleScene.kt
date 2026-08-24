@@ -10,15 +10,16 @@ import com.rafambn.graphitesurface.GraphiteSize
 import kotlin.math.min
 
 internal class GraphiteSampleScene : AutoCloseable {
-    internal var current: Resources? = null
+    internal var current: PreparedScene? = null
         private set
 
     internal fun prepare(
         runtime: GraphiteEngine,
-        generation: Long,
         pixelSize: GraphiteSize,
-    ): Resources {
-        current?.takeIf { it.generation == generation }?.let { return it }
+    ): PreparedScene {
+        current
+            ?.takeIf { it.runtime === runtime && it.pixelSize == pixelSize }
+            ?.let { return it }
         close()
         val extent = min(pixelSize.width, pixelSize.height).toFloat()
         val halfWidth = extent * 0.35f
@@ -34,8 +35,9 @@ internal class GraphiteSampleScene : AutoCloseable {
             )
         }
         return try {
-            Resources(
-                generation = generation,
+            PreparedScene(
+                runtime = runtime,
+                pixelSize = pixelSize,
                 target = runtime.createRecordingTarget(pixelSize),
                 displayList = displayList,
             ).also { current = it }
@@ -50,8 +52,9 @@ internal class GraphiteSampleScene : AutoCloseable {
         current = null
     }
 
-    internal data class Resources(
-        internal val generation: Long,
+    internal class PreparedScene(
+        internal val runtime: GraphiteEngine,
+        internal val pixelSize: GraphiteSize,
         internal val target: GraphiteRecordingTarget,
         internal val displayList: GraphiteDisplayList,
     )

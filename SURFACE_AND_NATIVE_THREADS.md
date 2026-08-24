@@ -66,6 +66,9 @@ ordering, cancellation, ownership, and failure semantics.
   first use, and each recorder worker receives a resource payload only once.
   Display lists, recordings, frames, and pending snapshots use retained
   closeable handles instead of copying nested command arrays.
+- Sample scenes cache prepared recording targets and display lists by runtime
+  identity and physical pixel size. Presentation generation binds frames; it
+  does not invalidate reusable scene inputs by itself.
 - The implemented encoder covers transforms, clips, reusable display lists,
   rectangles, ovals, lines, paths, and basic fill/stroke paint. Images,
   prepared glyph runs, gradients, effects, and blends remain work after this

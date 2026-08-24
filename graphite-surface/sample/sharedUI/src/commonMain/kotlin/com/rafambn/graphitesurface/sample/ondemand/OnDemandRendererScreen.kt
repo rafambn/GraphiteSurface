@@ -33,5 +33,6 @@ internal fun OnDemandRendererScreen(
         renderer = renderer,
         title = "On demand",
         onBack = onBack,
+        onRotationSpeedChange = viewModel::setRotationSpeed,
     )
 }

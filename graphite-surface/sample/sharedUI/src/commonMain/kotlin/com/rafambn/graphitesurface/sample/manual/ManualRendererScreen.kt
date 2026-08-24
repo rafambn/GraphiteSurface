@@ -33,5 +33,6 @@ internal fun ManualRendererScreen(
         renderer = renderer,
         title = "Manual",
         onBack = onBack,
+        onRotationSpeedChange = viewModel::setRotationSpeed,
     )
 }

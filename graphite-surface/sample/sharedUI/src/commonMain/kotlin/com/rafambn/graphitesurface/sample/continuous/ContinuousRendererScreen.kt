@@ -24,5 +24,6 @@ internal fun ContinuousRendererScreen(
         renderer = renderer,
         title = "Continuous",
         onBack = onBack,
+        onRotationSpeedChange = viewModel::setRotationSpeed,
     )
 }

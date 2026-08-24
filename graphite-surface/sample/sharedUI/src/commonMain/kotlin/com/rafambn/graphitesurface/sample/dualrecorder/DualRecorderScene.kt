@@ -13,20 +13,22 @@ import kotlin.math.max
 import kotlin.math.min
 
 internal class DualRecorderScene : AutoCloseable {
-    private var current: Resources? = null
+    private var current: PreparedScene? = null
 
     internal fun prepare(
         runtime: GraphiteEngine,
-        generation: Long,
         pixelSize: GraphiteSize,
-    ): Resources {
-        current?.takeIf { it.generation == generation }?.let { return it }
+    ): PreparedScene {
+        current
+            ?.takeIf { it.runtime === runtime && it.pixelSize == pixelSize }
+            ?.let { return it }
         close()
 
         val background = buildBackground(pixelSize)
         return try {
-            Resources(
-                generation = generation,
+            PreparedScene(
+                runtime = runtime,
+                pixelSize = pixelSize,
                 target = runtime.createRecordingTarget(pixelSize),
                 background = background,
                 foreground = buildForeground(pixelSize),
@@ -147,8 +149,9 @@ internal class DualRecorderScene : AutoCloseable {
         }
     }
 
-    internal data class Resources(
-        internal val generation: Long,
+    internal class PreparedScene(
+        internal val runtime: GraphiteEngine,
+        internal val pixelSize: GraphiteSize,
         internal val target: GraphiteRecordingTarget,
         internal val background: GraphiteDisplayList,
         internal val foreground: GraphiteDisplayList,

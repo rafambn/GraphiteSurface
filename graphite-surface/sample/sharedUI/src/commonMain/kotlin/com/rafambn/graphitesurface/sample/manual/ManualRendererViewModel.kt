@@ -9,6 +9,7 @@ import com.rafambn.graphitesurface.GraphiteRenderer
 import com.rafambn.graphitesurface.GraphiteEngine
 import com.rafambn.graphitesurface.GraphiteTransform
 import com.rafambn.graphitesurface.sample.GraphiteSampleScene
+import com.rafambn.graphitesurface.sample.RotationSpeed
 import com.rafambn.graphitesurface.sample.loopingRotationDegrees
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
@@ -23,6 +24,7 @@ internal class ManualRendererViewModel : ViewModel() {
     internal val error: StateFlow<Throwable?> = mutableError.asStateFlow()
 
     private val animationStartNanos = AtomicLong(ANIMATION_NOT_STARTED)
+    private val rotationSpeed = RotationSpeed()
     private val scene = GraphiteSampleScene()
 
     internal val renderer: GraphiteRenderer? = try {
@@ -34,6 +36,11 @@ internal class ManualRendererViewModel : ViewModel() {
     } catch (error: Throwable) {
         mutableError.value = error
         null
+    }
+
+    internal fun setRotationSpeed(speed: Float) {
+        rotationSpeed.update(speed)
+        renderer?.requestRender()
     }
 
     private suspend fun renderFrame(
@@ -56,20 +63,21 @@ internal class ManualRendererViewModel : ViewModel() {
         frameTimeNanos: Long,
         presentation: GraphitePresentationInfo,
     ) {
-        val resources = scene.prepare(
+        val prepared = scene.prepare(
             runtime = runtime,
-            generation = presentation.generation,
             pixelSize = presentation.pixelSize,
         )
         animationStartNanos.compareAndSet(ANIMATION_NOT_STARTED, frameTimeNanos)
         val elapsedNanos = (frameTimeNanos - animationStartNanos.load()).coerceAtLeast(0L)
-        val recording = runtime.recorders.first().record(resources.target) {
+        val recording = runtime.recorders.first().record(prepared.target) {
             draw(
-                resources.displayList,
+                prepared.displayList,
                 transform = GraphiteTransform.translation(
                     presentation.pixelSize.width / 2f,
                     presentation.pixelSize.height / 2f,
-                ) * GraphiteTransform.rotationDegrees(loopingRotationDegrees(elapsedNanos)),
+                ) * GraphiteTransform.rotationDegrees(
+                    loopingRotationDegrees(elapsedNanos, rotationSpeed.read()),
+                ),
             )
         }
         try {

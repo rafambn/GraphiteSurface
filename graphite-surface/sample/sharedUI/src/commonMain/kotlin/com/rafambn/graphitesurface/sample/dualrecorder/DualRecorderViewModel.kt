@@ -75,9 +75,8 @@ internal class DualRecorderViewModel : ViewModel() {
         frameTimeNanos: Long,
         presentation: GraphitePresentationInfo,
     ) {
-        val resources = scene.prepare(
+        val prepared = scene.prepare(
             runtime = runtime,
-            generation = presentation.generation,
             pixelSize = presentation.pixelSize,
         )
         animationStartNanos.compareAndSet(ANIMATION_NOT_STARTED, frameTimeNanos)
@@ -95,9 +94,9 @@ internal class DualRecorderViewModel : ViewModel() {
                 if (recorderEnabled[0].load()) {
                     launch {
                         recordings[0].store(
-                            runtime.recorders[0].record(resources.target) {
+                            runtime.recorders[0].record(prepared.target) {
                                 draw(
-                                    displayList = resources.background,
+                                    displayList = prepared.background,
                                     transform = GraphiteTransform.translation(centerX, centerY) *
                                         GraphiteTransform.rotationDegrees(-rotation * 0.08f) *
                                         GraphiteTransform.translation(-centerX, -centerY),
@@ -109,9 +108,9 @@ internal class DualRecorderViewModel : ViewModel() {
                 if (recorderEnabled[1].load()) {
                     launch {
                         recordings[1].store(
-                            runtime.recorders[1].record(resources.target) {
+                            runtime.recorders[1].record(prepared.target) {
                                 draw(
-                                    displayList = resources.foreground,
+                                    displayList = prepared.foreground,
                                     transform = GraphiteTransform.translation(centerX, centerY) *
                                         GraphiteTransform.rotationDegrees(rotation),
                                 )

@@ -10,28 +10,37 @@ import kotlinx.coroutines.test.runTest
 
 class GraphiteSampleSceneTest {
     @Test
-    fun reusesResourcesWithinAGenerationAndClosesTheReplacedList() = runTest {
-        val runtime = GraphiteEngine()
+    fun reusesPreparedSceneUntilItsRuntimeOrSizeChanges() = runTest {
+        val firstRuntime = GraphiteEngine()
+        val secondRuntime = GraphiteEngine()
         val scene = GraphiteSampleScene()
         try {
-            val first = scene.prepare(runtime, generation = 1, pixelSize = GraphiteSize(100, 80))
-            val reused = scene.prepare(runtime, generation = 1, pixelSize = GraphiteSize(100, 80))
+            val first = scene.prepare(firstRuntime, pixelSize = GraphiteSize(100, 80))
+            val reused = scene.prepare(firstRuntime, pixelSize = GraphiteSize(100, 80))
             assertSame(first, reused)
 
-            val replacement = scene.prepare(
-                runtime,
-                generation = 2,
+            val resized = scene.prepare(
+                firstRuntime,
                 pixelSize = GraphiteSize(200, 160),
             )
-            assertNotSame(first, replacement)
+            assertNotSame(first, resized)
             assertTrue(first.displayList.isClosed)
 
+            val newRuntime = scene.prepare(
+                secondRuntime,
+                pixelSize = GraphiteSize(200, 160),
+            )
+            assertNotSame(resized, newRuntime)
+            assertTrue(resized.displayList.isClosed)
+
             scene.close()
-            assertTrue(replacement.displayList.isClosed)
+            assertTrue(newRuntime.displayList.isClosed)
         } finally {
             scene.close()
-            runtime.close()
-            runtime.awaitClosed()
+            firstRuntime.close()
+            secondRuntime.close()
+            firstRuntime.awaitClosed()
+            secondRuntime.awaitClosed()
         }
     }
 }
