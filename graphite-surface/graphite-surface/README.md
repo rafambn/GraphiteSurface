@@ -8,17 +8,17 @@ val runtime = GraphiteRuntime(recorderCount = 4)
 val renderer = GraphiteRenderer(
     runtime = runtime,
     renderMode = GraphiteRenderMode.Continuous,
-) { frameTimeNanos, presentation ->
+) { activeRuntime, frameTimeNanos, presentation ->
     val target = targetFor(presentation)
-    val recording = runtime.recorders[0].record(target) {
+    val recording = activeRuntime.recorders[0].record(target) {
         draw(roads, transform = cameraAt(frameTimeNanos))
         drawPath(route, routePaint)
     }
-    val frame = runtime.createFrame(presentation, GraphiteColor.White) {
+    val frame = activeRuntime.createFrame(presentation, GraphiteColor.White) {
         insert(recording)
     }
     try {
-        runtime.present(frame)
+        activeRuntime.present(frame)
     } finally {
         frame.close()
         recording.close()
@@ -45,8 +45,8 @@ Skiko, WebGPU, or platform handles.
   attached or the runtime is unavailable.
 
 Changing `renderer.renderMode` takes effect on the attached surface. The
-renderer callback runs only while attached and receives the matching
-`GraphitePresentationInfo`; the renderer never owns or closes its runtime.
+renderer callback runs only while attached and receives its runtime and the
+matching `GraphitePresentationInfo`; the renderer never owns or closes its runtime.
 Low-level callers may continue using `GraphiteSurface(runtime)` and schedule
 their own calls to `present()`.
 

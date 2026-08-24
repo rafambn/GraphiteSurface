@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
@@ -19,14 +20,20 @@ class GraphiteRendererTest {
             val presentation = requireNotNull(
                 runtime.updatePresentation(attachmentId, GraphiteSize(640, 480), density = 2f),
             )
+            var observedRuntime: GraphiteRuntime? = null
             var observedTime = -1L
             var observedPresentation: GraphitePresentationInfo? = null
-            val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.Manual) { time, info ->
+            val renderer = GraphiteRenderer(
+                runtime = runtime,
+                renderMode = GraphiteRenderMode.Manual,
+            ) { callbackRuntime, time, info ->
+                observedRuntime = callbackRuntime
                 observedTime = time
                 observedPresentation = info
             }
 
             assertTrue(renderer.render(42L))
+            assertSame(runtime, observedRuntime)
             assertEquals(42L, observedTime)
             assertEquals(presentation, observedPresentation)
         } finally {
@@ -40,7 +47,7 @@ class GraphiteRendererTest {
         val runtime = GraphiteRuntime()
         try {
             var renderCount = 0
-            val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.Manual) { _, _ ->
+            val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.Manual) { _, _, _ ->
                 renderCount += 1
             }
 
@@ -56,7 +63,7 @@ class GraphiteRendererTest {
     fun manualRenderRejectsOtherModesAndNegativeTime() = runTest {
         val runtime = GraphiteRuntime()
         try {
-            val renderer = GraphiteRenderer(runtime) { _, _ -> }
+            val renderer = GraphiteRenderer(runtime) { _, _, _ -> }
             assertFailsWith<IllegalStateException> { renderer.render(0L) }
 
             renderer.renderMode = GraphiteRenderMode.Manual
@@ -71,7 +78,7 @@ class GraphiteRendererTest {
     fun onDemandRequestsAreCoalescedAndIgnoredByOtherModes() = runTest {
         val runtime = GraphiteRuntime()
         try {
-            val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.OnDemand) { _, _ -> }
+            val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.OnDemand) { _, _, _ -> }
 
             renderer.requestRender()
             renderer.requestRender()
@@ -97,7 +104,7 @@ class GraphiteRendererTest {
             val releaseFirst = CompletableDeferred<Unit>()
             var activeCallbacks = 0
             var maximumActiveCallbacks = 0
-            val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.Manual) { time, _ ->
+            val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.Manual) { _, time, _ ->
                 activeCallbacks += 1
                 maximumActiveCallbacks = maxOf(maximumActiveCallbacks, activeCallbacks)
                 if (time == 1L) {
@@ -131,7 +138,7 @@ class GraphiteRendererTest {
                 runtime.updatePresentation(attachmentId, GraphiteSize(32, 32), density = 1f),
             )
             var renderCount = 0
-            val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.Continuous) { _, _ ->
+            val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.Continuous) { _, _, _ ->
                 renderCount += 1
             }
 

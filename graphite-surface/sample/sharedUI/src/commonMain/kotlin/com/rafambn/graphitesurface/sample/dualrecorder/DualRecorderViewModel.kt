@@ -1,0 +1,185 @@
+package com.rafambn.graphitesurface.sample.dualrecorder
+
+import androidx.lifecycle.ViewModel
+import com.rafambn.graphitesurface.GraphiteColor
+import com.rafambn.graphitesurface.GraphiteMetricsSnapshot
+import com.rafambn.graphitesurface.GraphitePresentResult
+import com.rafambn.graphitesurface.GraphitePresentationInfo
+import com.rafambn.graphitesurface.GraphiteRecording
+import com.rafambn.graphitesurface.GraphiteRenderMode
+import com.rafambn.graphitesurface.GraphiteRenderer
+import com.rafambn.graphitesurface.GraphiteRuntime
+import com.rafambn.graphitesurface.GraphiteTransform
+import com.rafambn.graphitesurface.sample.loopingRotationDegrees
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.AtomicLong
+import kotlin.concurrent.atomics.AtomicReference
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+@OptIn(ExperimentalAtomicApi::class)
+internal class DualRecorderViewModel : ViewModel() {
+    private val mutableError = MutableStateFlow<Throwable?>(null)
+    internal val error: StateFlow<Throwable?> = mutableError.asStateFlow()
+
+    private val mutableUiState = MutableStateFlow(DualRecorderUiState())
+    internal val uiState: StateFlow<DualRecorderUiState> = mutableUiState.asStateFlow()
+
+    private val recorderEnabled = listOf(AtomicBoolean(true), AtomicBoolean(true))
+    private val animationStartNanos = AtomicLong(ANIMATION_NOT_STARTED)
+    private val renderedFrames = AtomicLong(0)
+    private val scene = DualRecorderScene()
+    private var runtime: GraphiteRuntime? = null
+
+    internal val renderer: GraphiteRenderer? = try {
+        val createdRuntime = GraphiteRuntime(
+            recorderCount = RECORDER_COUNT,
+            recorderQueueCapacity = 4,
+        )
+        runtime = createdRuntime
+        publishMetrics(createdRuntime)
+        GraphiteRenderer(
+            runtime = createdRuntime,
+            renderMode = GraphiteRenderMode.Continuous,
+            renderFrame = ::renderFrame,
+        )
+    } catch (error: Throwable) {
+        mutableError.value = error
+        null
+    }
+
+    internal fun toggleRecorder(index: Int) {
+        val enabled = recorderEnabled.getOrNull(index) ?: return
+        enabled.store(!enabled.load())
+        runtime?.let(::publishMetrics)
+    }
+
+    private suspend fun renderFrame(
+        runtime: GraphiteRuntime,
+        frameTimeNanos: Long,
+        presentation: GraphitePresentationInfo,
+    ) {
+        try {
+            renderFrameOrThrow(runtime, frameTimeNanos, presentation)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            scene.close()
+            mutableError.value = error
+        }
+    }
+
+    private suspend fun renderFrameOrThrow(
+        runtime: GraphiteRuntime,
+        frameTimeNanos: Long,
+        presentation: GraphitePresentationInfo,
+    ) {
+        val resources = scene.prepare(
+            runtime = runtime,
+            generation = presentation.generation,
+            pixelSize = presentation.pixelSize,
+        )
+        animationStartNanos.compareAndSet(ANIMATION_NOT_STARTED, frameTimeNanos)
+        val elapsedNanos = (frameTimeNanos - animationStartNanos.load()).coerceAtLeast(0L)
+        val rotation = loopingRotationDegrees(elapsedNanos)
+        val centerX = presentation.pixelSize.width / 2f
+        val centerY = presentation.pixelSize.height / 2f
+        val recordings = listOf(
+            AtomicReference<GraphiteRecording?>(null),
+            AtomicReference<GraphiteRecording?>(null),
+        )
+
+        try {
+            coroutineScope {
+                if (recorderEnabled[0].load()) {
+                    launch {
+                        recordings[0].store(
+                            runtime.recorders[0].record(resources.target) {
+                                draw(
+                                    displayList = resources.background,
+                                    transform = GraphiteTransform.translation(centerX, centerY) *
+                                        GraphiteTransform.rotationDegrees(-rotation * 0.08f) *
+                                        GraphiteTransform.translation(-centerX, -centerY),
+                                )
+                            },
+                        )
+                    }
+                }
+                if (recorderEnabled[1].load()) {
+                    launch {
+                        recordings[1].store(
+                            runtime.recorders[1].record(resources.target) {
+                                draw(
+                                    displayList = resources.foreground,
+                                    transform = GraphiteTransform.translation(centerX, centerY) *
+                                        GraphiteTransform.rotationDegrees(rotation),
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+
+            val frame = runtime.createFrame(
+                presentation = presentation,
+                clearColor = GraphiteColor.rgba(16, 17, 20),
+            ) {
+                recordings.forEach { slot -> slot.load()?.let(::insert) }
+            }
+            try {
+                if (runtime.present(frame) == GraphitePresentResult.StalePresentation) {
+                    scene.close()
+                }
+            } finally {
+                frame.close()
+            }
+        } finally {
+            recordings.forEach { slot -> slot.exchange(null)?.close() }
+        }
+
+        if (renderedFrames.addAndFetch(1) % METRICS_REFRESH_FRAMES == 0L) {
+            publishMetrics(runtime)
+        }
+    }
+
+    private fun publishMetrics(runtime: GraphiteRuntime) {
+        val snapshot = runtime.metricsSnapshot()
+        mutableUiState.value = DualRecorderUiState(
+            recorders = snapshot.recorders.map { metrics ->
+                metrics.toUiState(enabled = recorderEnabled[metrics.index].load())
+            },
+        )
+    }
+
+    public override fun onCleared() {
+        scene.close()
+        val runtimeToClose = runtime
+        runtime = null
+        runtimeToClose?.close()
+    }
+
+    private fun GraphiteMetricsSnapshot.Recorder.toUiState(
+        enabled: Boolean,
+    ): DualRecorderUiState.Recorder = DualRecorderUiState.Recorder(
+        index = index,
+        enabled = enabled,
+        queueDepth = queueDepth,
+        queueCapacity = queueCapacity,
+        completed = completed,
+        averageRecordingNanos = (completed + cancelled + failed).let { attempts ->
+            if (attempts == 0L) 0L else totalRecordingNanos / attempts
+        },
+        maximumRecordingNanos = maximumRecordingNanos,
+    )
+
+    private companion object {
+        const val RECORDER_COUNT: Int = 2
+        const val METRICS_REFRESH_FRAMES: Long = 12
+        const val ANIMATION_NOT_STARTED: Long = Long.MIN_VALUE
+    }
+}

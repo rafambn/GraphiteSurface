@@ -23,14 +23,11 @@ internal class OnDemandRendererViewModel : ViewModel() {
     internal val error: StateFlow<Throwable?> = mutableError.asStateFlow()
 
     private val animationStartNanos = AtomicLong(ANIMATION_NOT_STARTED)
-    private var runtime: GraphiteRuntime? = null
     private val scene = GraphiteSampleScene()
 
     internal val renderer: GraphiteRenderer? = try {
-        val createdRuntime = GraphiteRuntime(recorderCount = 2)
-        runtime = createdRuntime
         GraphiteRenderer(
-            runtime = createdRuntime,
+            runtime = GraphiteRuntime(recorderCount = 2),
             renderMode = GraphiteRenderMode.OnDemand,
             renderFrame = ::renderFrame,
         )
@@ -40,11 +37,12 @@ internal class OnDemandRendererViewModel : ViewModel() {
     }
 
     private suspend fun renderFrame(
+        runtime: GraphiteRuntime,
         frameTimeNanos: Long,
         presentation: GraphitePresentationInfo,
     ) {
         try {
-            renderFrameOrThrow(frameTimeNanos, presentation)
+            renderFrameOrThrow(runtime, frameTimeNanos, presentation)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Throwable) {
@@ -54,18 +52,18 @@ internal class OnDemandRendererViewModel : ViewModel() {
     }
 
     private suspend fun renderFrameOrThrow(
+        runtime: GraphiteRuntime,
         frameTimeNanos: Long,
         presentation: GraphitePresentationInfo,
     ) {
-        val activeRuntime = runtime ?: return
         val resources = scene.prepare(
-            runtime = activeRuntime,
+            runtime = runtime,
             generation = presentation.generation,
             pixelSize = presentation.pixelSize,
         )
         animationStartNanos.compareAndSet(ANIMATION_NOT_STARTED, frameTimeNanos)
         val elapsedNanos = (frameTimeNanos - animationStartNanos.load()).coerceAtLeast(0L)
-        val recording = activeRuntime.recorders.first().record(resources.target) {
+        val recording = runtime.recorders.first().record(resources.target) {
             draw(
                 resources.displayList,
                 transform = GraphiteTransform.translation(
@@ -75,11 +73,11 @@ internal class OnDemandRendererViewModel : ViewModel() {
             )
         }
         try {
-            val frame = activeRuntime.createFrame(presentation, GraphiteColor.White) {
+            val frame = runtime.createFrame(presentation, GraphiteColor.White) {
                 insert(recording)
             }
             try {
-                if (activeRuntime.present(frame) == GraphitePresentResult.StalePresentation) {
+                if (runtime.present(frame) == GraphitePresentResult.StalePresentation) {
                     scene.close()
                 }
             } finally {
@@ -92,9 +90,7 @@ internal class OnDemandRendererViewModel : ViewModel() {
 
     public override fun onCleared() {
         scene.close()
-        val runtimeToClose = runtime
-        runtime = null
-        runtimeToClose?.close()
+        renderer?.runtime?.close()
     }
 
     private companion object {

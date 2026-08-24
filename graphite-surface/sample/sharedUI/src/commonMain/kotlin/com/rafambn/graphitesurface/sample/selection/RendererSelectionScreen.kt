@@ -20,11 +20,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.rafambn.graphitesurface.GraphiteRenderMode
+import com.rafambn.graphitesurface.sample.SampleDestination
 import com.rafambn.graphitesurface.sample.components.PixelLabel
 
 @Composable
-internal fun RendererSelectionScreen(onSelect: (GraphiteRenderMode) -> Unit) {
+internal fun RendererSelectionScreen(onSelect: (SampleDestination) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -41,19 +41,25 @@ internal fun RendererSelectionScreen(onSelect: (GraphiteRenderMode) -> Unit) {
         RendererModeCard(
             title = "Continuous",
             color = Color(0xFF65D89A),
-            onClick = { onSelect(GraphiteRenderMode.Continuous) },
+            onClick = { onSelect(SampleDestination.Continuous) },
         )
         Spacer(modifier = Modifier.height(12.dp))
         RendererModeCard(
             title = "On demand",
             color = Color(0xFFF0B45B),
-            onClick = { onSelect(GraphiteRenderMode.OnDemand) },
+            onClick = { onSelect(SampleDestination.OnDemand) },
         )
         Spacer(modifier = Modifier.height(12.dp))
         RendererModeCard(
             title = "Manual",
             color = Color(0xFF6EA8FE),
-            onClick = { onSelect(GraphiteRenderMode.Manual) },
+            onClick = { onSelect(SampleDestination.Manual) },
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        RendererModeCard(
+            title = "Dual recorder",
+            color = Color(0xFFB58CFF),
+            onClick = { onSelect(SampleDestination.DualRecorder) },
         )
     }
 }

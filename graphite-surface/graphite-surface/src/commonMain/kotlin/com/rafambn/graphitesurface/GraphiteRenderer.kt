@@ -10,13 +10,14 @@ import kotlinx.coroutines.sync.withLock
 /**
  * User-owned frame producer for one [runtime].
  *
- * The renderer does not own or close the runtime. Its callback is serialized and runs only while
- * the runtime has an attached presentation target.
+ * The renderer does not own or close the runtime. Its callback receives that runtime, is
+ * serialized, and runs only while the runtime has an attached presentation target.
  */
 public class GraphiteRenderer(
     public val runtime: GraphiteRuntime,
     renderMode: GraphiteRenderMode = GraphiteRenderMode.Continuous,
     private val renderFrame: suspend (
+        runtime: GraphiteRuntime,
         frameTimeNanos: Long,
         presentation: GraphitePresentationInfo,
     ) -> Unit,
@@ -106,7 +107,7 @@ public class GraphiteRenderer(
         ) {
             return@withLock false
         }
-        renderFrame(frameTimeNanos, presentation)
+        renderFrame(runtime, frameTimeNanos, presentation)
         true
     }
 }
