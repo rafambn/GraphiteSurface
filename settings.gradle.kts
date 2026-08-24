@@ -24,16 +24,10 @@ includeBuild("skiko-fork/skiko/skiko") {
     }
 }
 
-val localScribe = file("../Scribe")
-if (localScribe.isDirectory) {
-    includeBuild(localScribe)
-}
-
 dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        mavenLocal()
         maven("https://redirector.kotlinlang.org/maven/compose-dev")
     }
 }

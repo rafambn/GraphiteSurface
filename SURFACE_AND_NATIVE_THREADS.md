@@ -62,9 +62,7 @@ ordering, cancellation, ownership, and failure semantics.
 - `GraphiteRuntime.create()` starts recorder workers but does not probe WebGPU
   while detached. Browser capability failure is currently reported through
   terminal runtime state when `GraphiteSurface` attaches.
-- Scribe 0.7.0 is consumed from the sibling composite build until that version
-  is published for all requested targets. The Android Gradle Plugin was aligned
-  to 9.3.1 so both composite builds use a compatible Android plugin line.
+- Scribe 0.7.0 is consumed from Maven Central for all requested targets.
 - Chrome for Testing 152.0.7977.54 validates both JS and Wasm builds with two
   recorder Workers and one render Worker. The animated sample presents through
   Graphite, canvas resize updates the physical backing size, animation produces
@@ -960,9 +958,8 @@ Primary references:
 - Scribe's `Archivist` is a `fun interface` with
   `suspend fun write(event: Entry)`, so an archivist lambda is a natural
   configuration input.
-- GraphiteSurface plans to depend on Scribe 0.7.0, which Rafael will publish
-  with JS and Wasm targets. This is a planning prerequisite, not a current
-  published dependency.
+- GraphiteSurface depends on the published Scribe 0.7.0 artifact, including its
+  JS and Wasm targets.
 - `GraphiteRuntimeConfig` accepts one optional `Archivist`. The runtime
   passes it directly to its internally owned Scribe instance.
 - Runtime creation starts Scribe. Runtime shutdown retires it, and
