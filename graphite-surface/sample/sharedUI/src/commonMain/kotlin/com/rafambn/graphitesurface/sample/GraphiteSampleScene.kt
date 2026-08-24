@@ -5,7 +5,7 @@ import com.rafambn.graphitesurface.GraphiteDisplayList
 import com.rafambn.graphitesurface.GraphitePaint
 import com.rafambn.graphitesurface.GraphitePath
 import com.rafambn.graphitesurface.GraphiteRecordingTarget
-import com.rafambn.graphitesurface.GraphiteRuntime
+import com.rafambn.graphitesurface.GraphiteEngine
 import com.rafambn.graphitesurface.GraphiteSize
 import kotlin.math.min
 
@@ -14,7 +14,7 @@ internal class GraphiteSampleScene : AutoCloseable {
         private set
 
     internal fun prepare(
-        runtime: GraphiteRuntime,
+        runtime: GraphiteEngine,
         generation: Long,
         pixelSize: GraphiteSize,
     ): Resources {

@@ -27,7 +27,7 @@ internal expect fun PlatformGraphiteSurface(
 @Composable
 @ExperimentalGraphiteSurfaceApi
 public fun GraphiteSurface(
-    runtime: GraphiteRuntime,
+    runtime: GraphiteEngine,
     modifier: Modifier = Modifier,
 ) {
     GraphiteSurfaceHost(runtime, frameRenderer = null, modifier)
@@ -46,13 +46,13 @@ public fun GraphiteSurface(
 @Composable
 @ExperimentalGraphiteSurfaceApi
 private fun GraphiteSurfaceHost(
-    runtime: GraphiteRuntime,
+    runtime: GraphiteEngine,
     frameRenderer: GraphiteRenderer?,
     modifier: Modifier,
 ) {
     val density = LocalDensity.current.density
     val surfaceState = rememberGraphiteSurfaceState()
-    val presentationRenderer = remember(runtime) { GraphiteRuntimeRenderer(runtime) }
+    val presentationRenderer = remember(runtime) { GraphiteEngineRenderer(runtime) }
     var ownsAttachment by remember(runtime) { mutableStateOf(false) }
 
     DisposableEffect(runtime, presentationRenderer, density) {

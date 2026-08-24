@@ -6,7 +6,7 @@ All eight points in [`GRAPHITE_API_OPTIMIZATION_PLAN.md`](GRAPHITE_API_OPTIMIZAT
 were implemented on 2026-08-24.
 
 - `GraphiteDisplayList.build` is runtime-independent and has its own buffer
-  limit. `GraphiteRuntime.createDisplayList` was removed.
+  limit. `GraphiteEngine.createDisplayList` was removed.
 - A command program owns command bytes plus a retained local resource table.
   `DrawDisplayList` contains a four-byte table index, never nested list bytes.
 - Each runtime assigns monotonic 64-bit IDs and publishes each immutable

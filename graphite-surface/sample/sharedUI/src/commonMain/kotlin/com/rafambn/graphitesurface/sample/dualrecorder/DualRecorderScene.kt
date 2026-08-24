@@ -7,7 +7,7 @@ import com.rafambn.graphitesurface.GraphitePath
 import com.rafambn.graphitesurface.GraphitePoint
 import com.rafambn.graphitesurface.GraphiteRecordingTarget
 import com.rafambn.graphitesurface.GraphiteRect
-import com.rafambn.graphitesurface.GraphiteRuntime
+import com.rafambn.graphitesurface.GraphiteEngine
 import com.rafambn.graphitesurface.GraphiteSize
 import kotlin.math.max
 import kotlin.math.min
@@ -16,7 +16,7 @@ internal class DualRecorderScene : AutoCloseable {
     private var current: Resources? = null
 
     internal fun prepare(
-        runtime: GraphiteRuntime,
+        runtime: GraphiteEngine,
         generation: Long,
         pixelSize: GraphiteSize,
     ): Resources {

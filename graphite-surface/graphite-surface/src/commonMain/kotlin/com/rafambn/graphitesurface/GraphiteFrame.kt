@@ -7,7 +7,7 @@ import kotlin.concurrent.atomics.AtomicBoolean
 /**
  * Immutable ordered content for one presentation generation.
  *
- * Close the caller-owned handle after [GraphiteRuntime.present]. The pending or in-flight
+ * Close the caller-owned handle after [GraphiteEngine.present]. The pending or in-flight
  * presentation retains its own snapshot.
  */
 public class GraphiteFrame internal constructor(

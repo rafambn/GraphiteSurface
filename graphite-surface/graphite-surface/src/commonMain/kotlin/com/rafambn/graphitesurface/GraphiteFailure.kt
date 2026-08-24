@@ -1,6 +1,6 @@
 package com.rafambn.graphitesurface
 
-/** Fatal runtime failure reported through [GraphiteRuntimeState.Failed]. */
+/** Fatal runtime failure reported through [GraphiteEngineState.Failed]. */
 public data class GraphiteFailure(
     public val kind: Kind,
     public val stage: Stage,

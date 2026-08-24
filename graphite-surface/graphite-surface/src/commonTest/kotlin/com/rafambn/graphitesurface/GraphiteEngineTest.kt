@@ -11,20 +11,20 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 
-class GraphiteRuntimeTest {
+class GraphiteEngineTest {
     @Test
     fun constructorRejectsInvalidWorkerAndSubmissionLimits() {
-        assertFailsWith<IllegalArgumentException> { GraphiteRuntime(recorderCount = 0) }
-        assertFailsWith<IllegalArgumentException> { GraphiteRuntime(recorderCount = 65) }
-        assertFailsWith<IllegalArgumentException> { GraphiteRuntime(recorderQueueCapacity = 0) }
-        assertFailsWith<IllegalArgumentException> { GraphiteRuntime(recorderQueueCapacity = 1025) }
-        assertFailsWith<IllegalArgumentException> { GraphiteRuntime(maxFramesInFlight = 0) }
-        assertFailsWith<IllegalArgumentException> { GraphiteRuntime(maxFramesInFlight = 9) }
+        assertFailsWith<IllegalArgumentException> { GraphiteEngine(recorderCount = 0) }
+        assertFailsWith<IllegalArgumentException> { GraphiteEngine(recorderCount = 65) }
+        assertFailsWith<IllegalArgumentException> { GraphiteEngine(recorderQueueCapacity = 0) }
+        assertFailsWith<IllegalArgumentException> { GraphiteEngine(recorderQueueCapacity = 1025) }
+        assertFailsWith<IllegalArgumentException> { GraphiteEngine(maxFramesInFlight = 0) }
+        assertFailsWith<IllegalArgumentException> { GraphiteEngine(maxFramesInFlight = 9) }
     }
 
     @Test
     fun recorderBuildsReusableCommandsAsynchronously() = runTest {
-        val runtime = GraphiteRuntime(recorderCount = 2)
+        val runtime = GraphiteEngine(recorderCount = 2)
         try {
             val target = runtime.createRecordingTarget(GraphiteSize(256, 256))
             val roads = GraphiteDisplayList.build {
@@ -50,12 +50,12 @@ class GraphiteRuntimeTest {
             runtime.close()
             runtime.awaitClosed()
         }
-        assertEquals(GraphiteRuntimeState.Closed, runtime.state.value)
+        assertEquals(GraphiteEngineState.Closed, runtime.state.value)
     }
 
     @Test
     fun presentationMailboxKeepsOnlyTheNewestFrame() = runTest {
-        val runtime = GraphiteRuntime()
+        val runtime = GraphiteEngine()
         try {
             var requests = 0
             val attachmentId = requireNotNull(runtime.attachPresentation { requests += 1 })
@@ -86,10 +86,10 @@ class GraphiteRuntimeTest {
         val displayList = GraphiteDisplayList.build {
             drawCircle(GraphitePoint(4f, 4f), 2f, GraphitePaint(GraphiteColor.White))
         }
-        val first = GraphiteRuntime()
-        val second = GraphiteRuntime()
+        val first = GraphiteEngine()
+        val second = GraphiteEngine()
         try {
-            suspend fun recordTwice(runtime: GraphiteRuntime) {
+            suspend fun recordTwice(runtime: GraphiteEngine) {
                 val target = runtime.createRecordingTarget(GraphiteSize(8, 8))
                 repeat(2) {
                     runtime.recorders.single().record(target) { draw(displayList) }.close()
@@ -121,7 +121,7 @@ class GraphiteRuntimeTest {
 
     @Test
     fun retainedWorkSurvivesClosingEveryCallerOwnedHandle() = runTest {
-        val runtime = GraphiteRuntime()
+        val runtime = GraphiteEngine()
         try {
             val attachmentId = requireNotNull(runtime.attachPresentation {})
             val presentation = requireNotNull(
@@ -195,7 +195,7 @@ class GraphiteRuntimeTest {
 
     @Test
     fun cancellationDoesNotCorruptTheWorkerResourceCache() = runTest {
-        val runtime = GraphiteRuntime(recorderQueueCapacity = 4)
+        val runtime = GraphiteEngine(recorderQueueCapacity = 4)
         val displayList = GraphiteDisplayList.build {
             repeat(1_000) { index ->
                 drawCircle(
@@ -215,7 +215,7 @@ class GraphiteRuntimeTest {
             jobs.forEach { it.cancelAndJoin() }
 
             runtime.recorders.single().record(target) { draw(displayList) }.close()
-            assertIs<GraphiteRuntimeState.Ready>(runtime.state.value)
+            assertIs<GraphiteEngineState.Ready>(runtime.state.value)
         } finally {
             displayList.close()
             runtime.close()
@@ -225,8 +225,8 @@ class GraphiteRuntimeTest {
 
     @Test
     fun runtimeIdentityIsValidatedBeforeRecording() = runTest {
-        val first = GraphiteRuntime()
-        val second = GraphiteRuntime()
+        val first = GraphiteEngine()
+        val second = GraphiteEngine()
         try {
             val foreignTarget = first.createRecordingTarget(GraphiteSize(1, 1))
             assertFailsWith<GraphitePresentationException> {
@@ -242,7 +242,7 @@ class GraphiteRuntimeTest {
 
     @Test
     fun commandLimitFailsOnlyTheEncodingOperation() = runTest {
-        val runtime = GraphiteRuntime(
+        val runtime = GraphiteEngine(
             maxCommandBufferBytes = GraphiteCommandBufferLimit(32),
         )
         try {
@@ -255,7 +255,7 @@ class GraphiteRuntimeTest {
                     )
                 }
             }
-            assertIs<GraphiteRuntimeState.Ready>(runtime.state.value)
+            assertIs<GraphiteEngineState.Ready>(runtime.state.value)
         } finally {
             runtime.close()
             runtime.awaitClosed()
@@ -265,7 +265,7 @@ class GraphiteRuntimeTest {
     @Test
     fun runtimeDrainsArchivistDuringShutdown() = runTest {
         val entries = mutableListOf<Map<String, *>>()
-        val runtime = GraphiteRuntime(
+        val runtime = GraphiteEngine(
             archivist = Archivist { entry -> entries += entry },
         )
 

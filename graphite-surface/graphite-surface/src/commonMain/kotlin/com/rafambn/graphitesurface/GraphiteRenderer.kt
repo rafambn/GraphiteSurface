@@ -14,10 +14,10 @@ import kotlinx.coroutines.sync.withLock
  * serialized, and runs only while the runtime has an attached presentation target.
  */
 public class GraphiteRenderer(
-    public val runtime: GraphiteRuntime,
+    public val runtime: GraphiteEngine,
     renderMode: GraphiteRenderMode = GraphiteRenderMode.Continuous,
     private val renderFrame: suspend (
-        runtime: GraphiteRuntime,
+        runtime: GraphiteEngine,
         frameTimeNanos: Long,
         presentation: GraphitePresentationInfo,
     ) -> Unit,
@@ -96,7 +96,7 @@ public class GraphiteRenderer(
         expectedMode: GraphiteRenderMode,
         expectedPresentation: GraphitePresentationInfo?,
     ): Boolean = renderMutex.withLock {
-        if (renderMode != expectedMode || runtime.state.value != GraphiteRuntimeState.Ready) {
+        if (renderMode != expectedMode || runtime.state.value != GraphiteEngineState.Ready) {
             return@withLock false
         }
         val attached = runtime.presentation.value as? GraphitePresentationState.Attached

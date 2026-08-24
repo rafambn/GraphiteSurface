@@ -5,7 +5,7 @@ package com.rafambn.graphitesurface
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.AtomicReference
 
-internal class GraphiteRuntimeRenderer(private val runtime: GraphiteRuntime) :
+internal class GraphiteEngineRenderer(private val runtime: GraphiteEngine) :
     GraphitePresentationRenderer {
     private val attachmentId: AtomicLong = AtomicLong(0)
     private val density: AtomicReference<Float> = AtomicReference(1f)

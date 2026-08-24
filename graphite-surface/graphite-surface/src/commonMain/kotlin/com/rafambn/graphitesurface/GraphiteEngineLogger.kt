@@ -6,7 +6,7 @@ import com.rafambn.scribe.seal
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.serialization.json.JsonPrimitive
 
-internal class GraphiteRuntimeLogger(
+internal class GraphiteEngineLogger(
     archivist: Archivist?,
     private val onArchiveFailure: (Throwable) -> Unit,
 ) {
@@ -16,7 +16,7 @@ internal class GraphiteRuntimeLogger(
             override val bufferCapacity: Int = 64
             override val bufferOverflow: BufferOverflow = BufferOverflow.DROP_OLDEST
             override val onArchiveFailure: ((Archivist, Map<String, kotlinx.serialization.json.JsonElement>, Throwable) -> Unit) =
-                { _, _, error -> this@GraphiteRuntimeLogger.onArchiveFailure(error) }
+                { _, _, error -> this@GraphiteEngineLogger.onArchiveFailure(error) }
         }.also(Scribe::hire)
     }
 

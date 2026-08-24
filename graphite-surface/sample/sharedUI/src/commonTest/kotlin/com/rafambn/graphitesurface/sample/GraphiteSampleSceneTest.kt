@@ -1,6 +1,6 @@
 package com.rafambn.graphitesurface.sample
 
-import com.rafambn.graphitesurface.GraphiteRuntime
+import com.rafambn.graphitesurface.GraphiteEngine
 import com.rafambn.graphitesurface.GraphiteSize
 import kotlin.test.Test
 import kotlin.test.assertNotSame
@@ -11,7 +11,7 @@ import kotlinx.coroutines.test.runTest
 class GraphiteSampleSceneTest {
     @Test
     fun reusesResourcesWithinAGenerationAndClosesTheReplacedList() = runTest {
-        val runtime = GraphiteRuntime()
+        val runtime = GraphiteEngine()
         val scene = GraphiteSampleScene()
         try {
             val first = scene.prepare(runtime, generation = 1, pixelSize = GraphiteSize(100, 80))

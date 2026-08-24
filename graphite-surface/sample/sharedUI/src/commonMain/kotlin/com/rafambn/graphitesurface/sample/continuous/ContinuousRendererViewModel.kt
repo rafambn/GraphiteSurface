@@ -6,7 +6,7 @@ import com.rafambn.graphitesurface.GraphitePresentResult
 import com.rafambn.graphitesurface.GraphitePresentationInfo
 import com.rafambn.graphitesurface.GraphiteRenderMode
 import com.rafambn.graphitesurface.GraphiteRenderer
-import com.rafambn.graphitesurface.GraphiteRuntime
+import com.rafambn.graphitesurface.GraphiteEngine
 import com.rafambn.graphitesurface.GraphiteTransform
 import com.rafambn.graphitesurface.sample.GraphiteSampleScene
 import com.rafambn.graphitesurface.sample.loopingRotationDegrees
@@ -27,7 +27,7 @@ internal class ContinuousRendererViewModel : ViewModel() {
 
     internal val renderer: GraphiteRenderer? = try {
         GraphiteRenderer(
-            runtime = GraphiteRuntime(recorderCount = 2),
+            runtime = GraphiteEngine(recorderCount = 2),
             renderMode = GraphiteRenderMode.Continuous,
             renderFrame = ::renderFrame,
         )
@@ -37,7 +37,7 @@ internal class ContinuousRendererViewModel : ViewModel() {
     }
 
     private suspend fun renderFrame(
-        runtime: GraphiteRuntime,
+        runtime: GraphiteEngine,
         frameTimeNanos: Long,
         presentation: GraphitePresentationInfo,
     ) {
@@ -52,7 +52,7 @@ internal class ContinuousRendererViewModel : ViewModel() {
     }
 
     private suspend fun renderFrameOrThrow(
-        runtime: GraphiteRuntime,
+        runtime: GraphiteEngine,
         frameTimeNanos: Long,
         presentation: GraphitePresentationInfo,
     ) {

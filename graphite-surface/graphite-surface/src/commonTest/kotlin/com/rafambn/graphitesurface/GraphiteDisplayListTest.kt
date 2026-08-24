@@ -9,7 +9,7 @@ import kotlinx.coroutines.test.runTest
 class GraphiteDisplayListTest {
     @Test
     fun buildsWithoutALiveRuntimeAndUsesAnIndependentLimit() = runTest {
-        val runtime = GraphiteRuntime()
+        val runtime = GraphiteEngine()
         runtime.close()
         runtime.awaitClosed()
 

@@ -8,7 +8,7 @@ import com.rafambn.graphitesurface.GraphitePresentationInfo
 import com.rafambn.graphitesurface.GraphiteRecording
 import com.rafambn.graphitesurface.GraphiteRenderMode
 import com.rafambn.graphitesurface.GraphiteRenderer
-import com.rafambn.graphitesurface.GraphiteRuntime
+import com.rafambn.graphitesurface.GraphiteEngine
 import com.rafambn.graphitesurface.GraphiteTransform
 import com.rafambn.graphitesurface.sample.loopingRotationDegrees
 import kotlin.concurrent.atomics.AtomicBoolean
@@ -34,20 +34,16 @@ internal class DualRecorderViewModel : ViewModel() {
     private val animationStartNanos = AtomicLong(ANIMATION_NOT_STARTED)
     private val renderedFrames = AtomicLong(0)
     private val scene = DualRecorderScene()
-    private var runtime: GraphiteRuntime? = null
 
     internal val renderer: GraphiteRenderer? = try {
-        val createdRuntime = GraphiteRuntime(
-            recorderCount = RECORDER_COUNT,
-            recorderQueueCapacity = 4,
-        )
-        runtime = createdRuntime
-        publishMetrics(createdRuntime)
         GraphiteRenderer(
-            runtime = createdRuntime,
+            runtime = GraphiteEngine(
+                recorderCount = RECORDER_COUNT,
+                recorderQueueCapacity = 4,
+            ),
             renderMode = GraphiteRenderMode.Continuous,
             renderFrame = ::renderFrame,
-        )
+        ).also { renderer -> publishMetrics(renderer.runtime) }
     } catch (error: Throwable) {
         mutableError.value = error
         null
@@ -56,11 +52,11 @@ internal class DualRecorderViewModel : ViewModel() {
     internal fun toggleRecorder(index: Int) {
         val enabled = recorderEnabled.getOrNull(index) ?: return
         enabled.store(!enabled.load())
-        runtime?.let(::publishMetrics)
+        renderer?.runtime?.let(::publishMetrics)
     }
 
     private suspend fun renderFrame(
-        runtime: GraphiteRuntime,
+        runtime: GraphiteEngine,
         frameTimeNanos: Long,
         presentation: GraphitePresentationInfo,
     ) {
@@ -75,7 +71,7 @@ internal class DualRecorderViewModel : ViewModel() {
     }
 
     private suspend fun renderFrameOrThrow(
-        runtime: GraphiteRuntime,
+        runtime: GraphiteEngine,
         frameTimeNanos: Long,
         presentation: GraphitePresentationInfo,
     ) {
@@ -147,7 +143,7 @@ internal class DualRecorderViewModel : ViewModel() {
         }
     }
 
-    private fun publishMetrics(runtime: GraphiteRuntime) {
+    private fun publishMetrics(runtime: GraphiteEngine) {
         val snapshot = runtime.metricsSnapshot()
         mutableUiState.value = DualRecorderUiState(
             recorders = snapshot.recorders.map { metrics ->
@@ -158,9 +154,7 @@ internal class DualRecorderViewModel : ViewModel() {
 
     public override fun onCleared() {
         scene.close()
-        val runtimeToClose = runtime
-        runtime = null
-        runtimeToClose?.close()
+        renderer?.runtime?.close()
     }
 
     private fun GraphiteMetricsSnapshot.Recorder.toUiState(

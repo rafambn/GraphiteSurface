@@ -14,7 +14,7 @@ ordering, cancellation, ownership, and failure semantics.
 
 ## Implementation checkpoint (2026-08-22)
 
-- `GraphiteRuntime`, explicit recorder handles, bounded suspending FIFO
+- `GraphiteEngine`, explicit recorder handles, bounded suspending FIFO
   admission, portable immutable command buffers, display lists, recordings,
   frames, latest-wins presentation, state flows, events, metrics, and Scribe
   integration now exist in the common API.
@@ -70,7 +70,7 @@ ordering, cancellation, ownership, and failure semantics.
   rectangles, ovals, lines, paths, and basic fill/stroke paint. Images,
   prepared glyph runs, gradients, effects, and blends remain work after this
   first usable runtime rather than silently accepted no-ops.
-- `GraphiteRuntime()` starts recorder workers but does not probe WebGPU
+- `GraphiteEngine()` starts recorder workers but does not probe WebGPU
   while detached. Browser capability failure is currently reported through
   terminal runtime state when `GraphiteSurface` attaches.
 - Scribe 0.7.0 is consumed from Maven Central for all requested targets.
@@ -100,7 +100,7 @@ ordering, cancellation, ownership, and failure semantics.
   browser canvas.
 - **GraphiteSurface**: the Compose host that owns attachment to that platform
   presentation target. It does not own the runtime.
-- **GraphiteRuntime**: the user-owned engine instance. It owns recorder
+- **GraphiteEngine**: the user-owned engine instance. It owns recorder
   workers, recorder queues, published recordings, frame admission, state,
   metrics, and logging. The attached Compose surface currently owns the
   platform render worker and Graphite Context; detaching it does not destroy
@@ -201,7 +201,7 @@ public interface GraphitePresentationHost : AutoCloseable {
 - The user creates and owns the runtime:
 
   ```kotlin
-  val runtime = GraphiteRuntime(recorderCount = 2)
+  val runtime = GraphiteEngine(recorderCount = 2)
   ```
 
   Construction validates its arguments before allocating workers. Platform
@@ -251,7 +251,7 @@ public interface GraphitePresentationHost : AutoCloseable {
 - The public lifecycle state is observable:
 
   ```kotlin
-  public val state: StateFlow<GraphiteRuntimeState>
+  public val state: StateFlow<GraphiteEngineState>
   public val presentation: StateFlow<GraphitePresentationState>
   ```
 
@@ -276,7 +276,7 @@ public interface GraphitePresentationHost : AutoCloseable {
 - Normal shutdown proceeds in this order:
   1. new `record()` calls are rejected;
   2. `present()` returns `RuntimeUnavailable`;
-  3. queued recording calls resume with `GraphiteRuntimeClosedException`;
+  3. queued recording calls resume with `GraphiteEngineClosedException`;
   4. running recordings receive cooperative cancellation and their results are
      discarded;
   5. pending frames are discarded;
@@ -315,7 +315,7 @@ public interface GraphitePresentationHost : AutoCloseable {
 - The runtime constructor is intentionally small:
 
   ```kotlin
-  GraphiteRuntime(
+  GraphiteEngine(
       recorderCount = 1,
       recorderQueueCapacity = 1,
       maxFramesInFlight = 2,
@@ -359,7 +359,7 @@ public interface GraphitePresentationHost : AutoCloseable {
   because Context and Recorders execute concurrently.
 - Each Recorder owns a separate image provider unless a future provider is
   explicitly thread-safe.
-- `GraphiteRuntime()` creates the recorder worker group. The presentation
+- `GraphiteEngine()` creates the recorder worker group. The presentation
   adapter creates its rendering context when a surface attaches.
 
 ## Recorder API, queues, and cancellation
@@ -492,7 +492,7 @@ belong at display-list replay time. A recording is already snapped GPU work.
   descriptor, creates no native resource, and does not require `close()`.
 - Target creation validates positive dimensions and requires runtime state
   `Ready`. Other runtime states throw
-  `GraphiteRuntimeUnavailableException`.
+  `GraphiteEngineUnavailableException`.
 - A recording target carries logical pixel dimensions and the runtime target
   profile. It does not refer to a concrete platform surface.
 - `GraphiteRecording` is public, immutable, closeable, and bound to the
@@ -735,7 +735,7 @@ Primary references:
   - WebGPU validation, out-of-memory, or internal error;
   - submission failure without confirmed device loss;
   - unexpected worker termination.
-- Confirmed device loss uses terminal `GraphiteRuntimeState.DeviceLost`
+- Confirmed device loss uses terminal `GraphiteEngineState.DeviceLost`
   instead of `Failed`.
 - Version 1 isolates a failure only when the library knows it happened before
   native state mutation. It performs no automatic retry of native recording or
@@ -884,7 +884,7 @@ Primary references:
 - Metrics expose limit, current budgeted bytes, and purgeable bytes for the
   Context and each Recorder.
 - Prototype measurements choose the version 1 default byte values.
-- `suspend GraphiteRuntime.trimGpuCaches()` schedules
+- `suspend GraphiteEngine.trimGpuCaches()` schedules
   `freeGpuResources()` on the render worker and every recorder worker, then
   returns after all have executed it.
 - Trimming is best-effort and retains resources used by frames or GPU work in
@@ -896,7 +896,7 @@ Primary references:
 
 **Accepted**
 
-- `GraphiteRuntime`, `GraphiteFontFace`, `GraphiteImage`,
+- `GraphiteEngine`, `GraphiteFontFace`, `GraphiteImage`,
   `GraphiteDisplayList`, `GraphiteRecording`, and `GraphiteFrame` require
   explicit, idempotent `close()`.
 - `GraphiteFont`, `GraphitePaint`, `GraphitePath`,
@@ -988,7 +988,7 @@ Primary references:
   configuration input.
 - GraphiteSurface depends on the published Scribe 0.7.0 artifact, including its
   JS and Wasm targets.
-- `GraphiteRuntime` accepts one optional `Archivist`. The runtime
+- `GraphiteEngine` accepts one optional `Archivist`. The runtime
   passes it directly to its internally owned Scribe instance.
 - Runtime creation starts Scribe. Runtime shutdown retires it, and
   `awaitClosed()` waits for its queue to drain.
@@ -1023,7 +1023,7 @@ Primary references:
   resource and later command messages reference cached runtime-local IDs.
 - `GraphiteDisplayList` encapsulates commands but does not expose a stable
   binary format. Internal format changes do not create a persistence contract.
-- `GraphiteRuntime.maxCommandBufferBytes` limits one recording command
+- `GraphiteEngine.maxCommandBufferBytes` limits one recording command
   buffer. `GraphiteDisplayList.build(maxCommandBufferBytes = ...)` independently
   limits one display-list command buffer.
 - Exceeding the limit throws
@@ -1040,7 +1040,7 @@ Primary references:
   queue provides the synchronization boundary.
 - An invalid internal command buffer indicates a Graphite bug, memory
   corruption, or broken invariant. It moves the entire runtime to
-  `GraphiteRuntimeState.Failed`; it is not isolated to one recording job.
+  `GraphiteEngineState.Failed`; it is not isolated to one recording job.
 ### Encoder block failure and cancellation
 
 **Accepted**
@@ -1199,7 +1199,7 @@ Useful primary references:
   `PTHREAD_POOL_SIZE` because `recorderCount` is a runtime setting.
 - Runtime creation starts exactly one render pthread. After it creates the
   Context and Recorders, it starts exactly `recorderCount` recorder pthreads.
-- `GraphiteRuntime()` creates recorder workers synchronously. Browser rendering
+- `GraphiteEngine()` creates recorder workers synchronously. Browser rendering
   initialization remains attached to the surface lifecycle and reports its
   result through runtime state.
 - The Emscripten main module, Graphite side module, and all participating C++
@@ -1224,7 +1224,7 @@ Useful primary references:
   corruption that damages the shared module. Version 1 documents this rather
   than duplicating the complete Skia module per runtime.
 - `INITIAL_MEMORY` and `MAXIMUM_MEMORY` are page-global build settings and are
-  not `GraphiteRuntime` constructor parameters.
+  not `GraphiteEngine` constructor parameters.
 - The prototype chooses their version 1 values. Metrics report memory growth
   and its duration. A separate web bootstrap configuration is deferred until
   real applications demonstrate a need for it.

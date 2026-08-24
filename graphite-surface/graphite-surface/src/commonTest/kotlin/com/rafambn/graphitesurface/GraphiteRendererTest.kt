@@ -14,13 +14,13 @@ import kotlinx.coroutines.yield
 class GraphiteRendererTest {
     @Test
     fun manualModeRendersWithTheCurrentPresentationAndCallerTime() = runTest {
-        val runtime = GraphiteRuntime()
+        val runtime = GraphiteEngine()
         try {
             val attachmentId = requireNotNull(runtime.attachPresentation {})
             val presentation = requireNotNull(
                 runtime.updatePresentation(attachmentId, GraphiteSize(640, 480), density = 2f),
             )
-            var observedRuntime: GraphiteRuntime? = null
+            var observedRuntime: GraphiteEngine? = null
             var observedTime = -1L
             var observedPresentation: GraphitePresentationInfo? = null
             val renderer = GraphiteRenderer(
@@ -44,7 +44,7 @@ class GraphiteRendererTest {
 
     @Test
     fun manualModeDoesNothingWhileDetached() = runTest {
-        val runtime = GraphiteRuntime()
+        val runtime = GraphiteEngine()
         try {
             var renderCount = 0
             val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.Manual) { _, _, _ ->
@@ -61,7 +61,7 @@ class GraphiteRendererTest {
 
     @Test
     fun manualRenderRejectsOtherModesAndNegativeTime() = runTest {
-        val runtime = GraphiteRuntime()
+        val runtime = GraphiteEngine()
         try {
             val renderer = GraphiteRenderer(runtime) { _, _, _ -> }
             assertFailsWith<IllegalStateException> { renderer.render(0L) }
@@ -76,7 +76,7 @@ class GraphiteRendererTest {
 
     @Test
     fun onDemandRequestsAreCoalescedAndIgnoredByOtherModes() = runTest {
-        val runtime = GraphiteRuntime()
+        val runtime = GraphiteEngine()
         try {
             val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.OnDemand) { _, _, _ -> }
 
@@ -96,7 +96,7 @@ class GraphiteRendererTest {
 
     @Test
     fun renderCallbacksNeverOverlap() = runTest {
-        val runtime = GraphiteRuntime()
+        val runtime = GraphiteEngine()
         try {
             val attachmentId = requireNotNull(runtime.attachPresentation {})
             runtime.updatePresentation(attachmentId, GraphiteSize(32, 32), density = 1f)
@@ -131,7 +131,7 @@ class GraphiteRendererTest {
 
     @Test
     fun scheduledFrameIsDiscardedAfterModeOrGenerationChanges() = runTest {
-        val runtime = GraphiteRuntime()
+        val runtime = GraphiteEngine()
         try {
             val attachmentId = requireNotNull(runtime.attachPresentation {})
             val firstPresentation = requireNotNull(

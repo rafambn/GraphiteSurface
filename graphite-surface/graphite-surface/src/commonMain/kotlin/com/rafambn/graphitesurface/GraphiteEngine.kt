@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /** User-owned asynchronous Graphite engine and worker group. */
-public class GraphiteRuntime(
+public class GraphiteEngine(
     /** Number of stable recorder queues and their dedicated workers. */
     public val recorderCount: Int = 1,
     /** Maximum number of calls waiting behind the active call of each recorder. */
@@ -56,8 +56,8 @@ public class GraphiteRuntime(
     private val closed: CompletableDeferred<Unit> = CompletableDeferred()
     internal val shutdownRequested: CompletableDeferred<Unit> = CompletableDeferred()
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val mutableState: MutableStateFlow<GraphiteRuntimeState> =
-        MutableStateFlow(GraphiteRuntimeState.Ready)
+    private val mutableState: MutableStateFlow<GraphiteEngineState> =
+        MutableStateFlow(GraphiteEngineState.Ready)
     private val mutablePresentation: MutableStateFlow<GraphitePresentationState> =
         MutableStateFlow(GraphitePresentationState.Detached)
     private val mutableEvents: MutableSharedFlow<GraphiteEvent> = MutableSharedFlow(
@@ -65,7 +65,7 @@ public class GraphiteRuntime(
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
 
-    public val state: StateFlow<GraphiteRuntimeState> = mutableState.asStateFlow()
+    public val state: StateFlow<GraphiteEngineState> = mutableState.asStateFlow()
     public val presentation: StateFlow<GraphitePresentationState> = mutablePresentation.asStateFlow()
     public val events: SharedFlow<GraphiteEvent> = mutableEvents.asSharedFlow()
     public val recorders: List<GraphiteRecorder> = try {
@@ -75,8 +75,8 @@ public class GraphiteRuntime(
         scope.cancel()
         throw GraphiteInitializationException(GraphiteFailure.Stage.Initialization, error)
     }
-    private val logger: GraphiteRuntimeLogger = try {
-        GraphiteRuntimeLogger(archivist) { error ->
+    private val logger: GraphiteEngineLogger = try {
+        GraphiteEngineLogger(archivist) { error ->
             archiveFailures.addAndFetch(1)
             mutableEvents.tryEmit(GraphiteEvent.ArchiveFailure(error))
         }
@@ -127,7 +127,7 @@ public class GraphiteRuntime(
     }
 
     public fun present(frame: GraphiteFrame): GraphitePresentResult {
-        if (mutableState.value != GraphiteRuntimeState.Ready) {
+        if (mutableState.value != GraphiteEngineState.Ready) {
             rejectedFrames.addAndFetch(1)
             return GraphitePresentResult.RuntimeUnavailable
         }
@@ -181,7 +181,7 @@ public class GraphiteRuntime(
     override fun close() {
         if (!closing.compareAndSet(false, true)) return
         shutdownRequested.complete(Unit)
-        mutableState.value = GraphiteRuntimeState.Closing
+        mutableState.value = GraphiteEngineState.Closing
         pendingFrame.exchange(null)?.close()
         attachment.store(null)
         mutablePresentation.value = GraphitePresentationState.Detached
@@ -193,7 +193,7 @@ public class GraphiteRuntime(
                 resources.close()
                 logger.emit("runtime_lifecycle", "closed")
                 logger.retire()
-                mutableState.value = GraphiteRuntimeState.Closed
+                mutableState.value = GraphiteEngineState.Closed
                 closed.complete(Unit)
             } catch (error: Throwable) {
                 val failure = GraphiteFailure(
@@ -202,7 +202,7 @@ public class GraphiteRuntime(
                     message = "worker shutdown failed",
                     cause = error,
                 )
-                mutableState.value = GraphiteRuntimeState.Failed(failure)
+                mutableState.value = GraphiteEngineState.Failed(failure)
                 mutableEvents.tryEmit(GraphiteEvent.FatalFailure(failure))
                 closed.complete(Unit)
             } finally {
@@ -217,11 +217,11 @@ public class GraphiteRuntime(
 
     internal fun requireReady() {
         val current = mutableState.value
-        if (current != GraphiteRuntimeState.Ready) {
-            if (current == GraphiteRuntimeState.Closing || current == GraphiteRuntimeState.Closed) {
-                throw GraphiteRuntimeClosedException()
+        if (current != GraphiteEngineState.Ready) {
+            if (current == GraphiteEngineState.Closing || current == GraphiteEngineState.Closed) {
+                throw GraphiteEngineClosedException()
             }
-            throw GraphiteRuntimeUnavailableException(current)
+            throw GraphiteEngineUnavailableException(current)
         }
     }
 
@@ -266,7 +266,7 @@ public class GraphiteRuntime(
     ) {
         if (!closing.compareAndSet(false, true)) return
         shutdownRequested.complete(Unit)
-        mutableState.value = GraphiteRuntimeState.Failed(failure)
+        mutableState.value = GraphiteEngineState.Failed(failure)
         mutableEvents.tryEmit(GraphiteEvent.FatalFailure(failure))
         logger.emit(
             operation = operation,

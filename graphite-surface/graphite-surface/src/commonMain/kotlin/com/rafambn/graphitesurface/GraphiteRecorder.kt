@@ -12,7 +12,7 @@ import kotlinx.coroutines.sync.withLock
 /** Stable handle for one asynchronous recording queue. */
 public class GraphiteRecorder internal constructor(
     public val index: Int,
-    private val runtime: GraphiteRuntime,
+    private val runtime: GraphiteEngine,
     private val worker: PlatformRecorderWorker,
     queueCapacity: Int,
 ) {
@@ -34,7 +34,7 @@ public class GraphiteRecorder internal constructor(
         val queuedAt = platformMonotonicNanos()
         select {
             admission.onReceive { }
-            runtime.shutdownRequested.onAwait { throw GraphiteRuntimeClosedException() }
+            runtime.shutdownRequested.onAwait { throw GraphiteEngineClosedException() }
         }
         val admittedAt = platformMonotonicNanos()
         metrics.admitted((admittedAt - queuedAt).coerceAtLeast(0))

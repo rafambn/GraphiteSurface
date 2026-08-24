@@ -1,7 +1,7 @@
 package com.rafambn.graphitesurface.sample.manual
 
 import com.rafambn.graphitesurface.GraphiteRenderMode
-import com.rafambn.graphitesurface.GraphiteRuntimeState
+import com.rafambn.graphitesurface.GraphiteEngineState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -19,7 +19,7 @@ class ManualRendererViewModelTest {
 
             viewModel.onCleared()
             renderer.runtime.awaitClosed()
-            assertEquals(GraphiteRuntimeState.Closed, renderer.runtime.state.value)
+            assertEquals(GraphiteEngineState.Closed, renderer.runtime.state.value)
         } finally {
             viewModel.onCleared()
             renderer.runtime.awaitClosed()

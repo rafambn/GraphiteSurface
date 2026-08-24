@@ -40,7 +40,7 @@ The common API can drive a user-owned renderer continuously, on demand, or
 manually:
 
 ```kotlin
-val runtime = GraphiteRuntime(recorderCount = 4)
+val runtime = GraphiteEngine(recorderCount = 4)
 val renderer = GraphiteRenderer(
     runtime = runtime,
     renderMode = GraphiteRenderMode.Continuous,

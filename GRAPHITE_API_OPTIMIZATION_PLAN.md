@@ -28,7 +28,7 @@ The API follows one ownership rule:
 | Value | Construction and ownership |
 | --- | --- |
 | Paths, paints, images, fonts, and display lists | Runtime-independent CPU values |
-| Recording targets, recordings, frames, and presentation | Bound to one `GraphiteRuntime` |
+| Recording targets, recordings, frames, and presentation | Bound to one `GraphiteEngine` |
 | Worker caches and GPU resources | Internal, registered when a runtime first uses a CPU value |
 
 ## 1. Decouple display-list construction from the runtime
@@ -64,12 +64,12 @@ public companion object {
 Make these changes:
 
 - Move `GraphiteCommandWriter` and `GraphiteEncoderImpl` construction from
-  `GraphiteRuntime.createDisplayList` into `GraphiteDisplayList.build`.
+  `GraphiteEngine.createDisplayList` into `GraphiteDisplayList.build`.
 - Remove the runtime readiness check from display-list construction.
-- Remove `GraphiteRuntime.createDisplayList`. The project is implementing the
+- Remove `GraphiteEngine.createDisplayList`. The project is implementing the
   version 1 contract, so retaining a compatibility wrapper would preserve the
   wrong ownership model.
-- Keep `GraphiteRuntime.maxCommandBufferBytes` as the limit for one
+- Keep `GraphiteEngine.maxCommandBufferBytes` as the limit for one
   recording command buffer only.
 - Use the builder parameter as the independent limit for one display list.
 - Update KDoc, the sample, tests, and the command-limit section of
@@ -227,7 +227,7 @@ Completion criteria:
 ## 6. Move the sample runtime and rendering work into a ViewModel
 
 Add `GraphiteSampleViewModel` under the sample's `commonMain`, in its own
-`GraphiteSampleViewModel.kt` file. The ViewModel owns the `GraphiteRuntime`,
+`GraphiteSampleViewModel.kt` file. The ViewModel owns the `GraphiteEngine`,
 animated-scene resources, recording work, and cleanup. `App.kt` observes state
 and hosts `GraphiteSurface`.
 
@@ -247,7 +247,7 @@ file:
 ```kotlin
 internal sealed interface GraphiteSampleUiState {
     data object Initializing : GraphiteSampleUiState
-    data class Ready(val runtime: GraphiteRuntime) : GraphiteSampleUiState
+    data class Ready(val runtime: GraphiteEngine) : GraphiteSampleUiState
     data class Failed(val error: Throwable) : GraphiteSampleUiState
 }
 ```
@@ -301,7 +301,7 @@ cancelable.
 
 Completion criteria:
 
-- `App.kt` contains no `mutableStateOf<GraphiteRuntime?>`, runtime creation, or
+- `App.kt` contains no `mutableStateOf<GraphiteEngine?>`, runtime creation, or
   runtime cleanup.
 - `App.kt` contains exactly one `LaunchedEffect` and no `DisposableEffect`.
 - Removing and recreating the composable under the same ViewModel owner does
