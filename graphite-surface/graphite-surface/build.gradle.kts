@@ -48,7 +48,7 @@ kotlin {
         }
 
         androidMain.dependencies {
-            implementation(project(":graphite-engine-android"))
+            implementation(project(":graphite-engine"))
         }
 
         jsMain.dependencies {

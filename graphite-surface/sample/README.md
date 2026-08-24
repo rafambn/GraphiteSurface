@@ -29,15 +29,15 @@ Vulkan backend. Both paths render the triangle through Graphite and do not fall
 back to Compose Canvas rendering. Linux requires a Vulkan driver and an X11
 display (including XWayland).
 
-The browser POCs use the same sample UI but expose separate Kotlin/JS and
-Kotlin/Wasm executables from `:sample:sharedUI`. They use the local Skiko fork
-to link Skia Graphite's Dawn backend into the WebGPU module; the HTML canvas is
-only the swapchain host.
+The browser POCs use the same sample UI through separate `:sample:jsApp` and
+`:sample:wasmApp` hosts. They use the local Skiko fork to link Skia Graphite's
+Dawn backend into the WebGPU module; the HTML canvas is only the swapchain
+host.
 
 ```bash
 source /path/to/emsdk/emsdk_env.sh   # Emscripten 4.0.7
-./gradlew :sample:sharedUI:jsBrowserDevelopmentWebpack
-./gradlew :sample:sharedUI:wasmJsBrowserDevelopmentWebpack
+./gradlew :sample:jsApp:jsBrowserDevelopmentWebpack
+./gradlew :sample:wasmApp:wasmJsBrowserDevelopmentWebpack
 ```
 
 The browser must support WebGPU. These targets do not fall back to WebGL or
@@ -49,5 +49,6 @@ headers. Both browser executables have been exercised in windowed Chrome for
 Testing 152 with WebGPU, two recorder Workers, the render Worker, animation,
 and physical canvas resize.
 
-To build and serve one directly, use its matching `jsBrowserDevelopmentRun` or
-`wasmJsBrowserDevelopmentRun` task.
+To build and serve one directly, use
+`:sample:jsApp:jsBrowserDevelopmentRun` or
+`:sample:wasmApp:wasmJsBrowserDevelopmentRun`.

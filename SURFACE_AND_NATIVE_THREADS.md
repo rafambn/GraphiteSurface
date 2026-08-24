@@ -120,7 +120,7 @@ The current dependency graph mixes the Compose host and the future runtime in
 ```text
 :sample -> :sharedUI -> :graphite-surface
                          -> :graphite-engine
-                         -> :graphite-engine-android
+                            -> skiko-graphite Android
                          -> GraphiteEngine.framework on Apple
 ```
 

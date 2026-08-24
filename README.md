@@ -7,11 +7,11 @@ attachment.
 ## Layout
 
 - `skiko-fork/skiko`: full Skiko fork tracked as a Git submodule. The upstream remote is `upstream`.
-- `skiko-fork/skiko/skiko/skiko-graphite`: Graphite bindings from Skiko.
+- `skiko-fork/skiko/skiko/skiko-graphite`: Graphite bindings and native runtimes,
+  including the Android Vulkan host.
 - `graphite-surface/graphite-surface`: public runtime, drawing DSL, and Compose Multiplatform adapter.
-- `graphite-surface/graphite-engine`: iOS and Web Graphite engines with private Skiko and Skia dependencies.
-- `graphite-surface/graphite-engine-android`: Android Vulkan/Graphite engine with its own pinned
-  Skia archive and JNI boundary.
+- `graphite-surface/graphite-engine`: Android, JVM, Apple, and Web engine adapters
+  with private Skiko and Skia dependencies.
 - `graphite-surface/sample`: platform samples.
 - `build-logic`: shared Gradle conventions.
 
@@ -80,9 +80,10 @@ Compose AndroidView -> SurfaceView -> ANativeWindow -> Vulkan swapchain
                     -> Skia Graphite -> SurfaceView presentation
 ```
 
-`graphite-engine-android` owns the Vulkan instance/device, swapchain, acquire
-and present semaphores, and the Skia Graphite context. The Compose adapter only
-depends on its small Java/JNI bridge; it does not import Skia or Skiko. The
+The Android target in our `skiko-graphite` fork owns the Vulkan instance/device,
+swapchain, acquire and present semaphores, Skia Graphite context, and JNI host.
+`graphite-engine` exposes the private adapter consumed by the Compose module,
+which still does not import Skia or Skiko. The
 Android renderer runs on a dedicated display-priority `HandlerThread`, keeps
 three recorders/frame slots in flight, submits Graphite with
 `SyncToCpu::kNo`, and uses a separate Vulkan completion fence for reuse
@@ -93,29 +94,29 @@ engine presents through a Vulkan swapchain. Its experimental AHardwareBuffer
 path remains an internal engine implementation while a portable zero-copy API
 is designed.
 
-It uses the engine-owned `m152-7bb45c7c26` Android debug Skia archive and
-currently packages `arm64-v8a`, which matches the attached emulator.
+The fork pins the `m152-7bb45c7c26` Android Skia archives. Its
+`skiko-graphite` AAR packages both the Skiko core and Graphite runtimes for
+`arm64-v8a` and `x86_64`.
 
-Install Android CMake 3.22.1 and Android NDK 27.1.12297006 through the SDK manager,
-then build and install the sample:
+Keep an Android SDK and NDK available, then build and install the sample:
 
 ```bash
 ./gradlew :sample:androidApp:assembleDebug
 adb install -r graphite-surface/sample/androidApp/build/outputs/apk/debug/androidApp-debug.apk
 ```
 
-The first engine build downloads the pinned Skia archive into the module build
-directory.
+The first fork build downloads the pinned Skia archives through Skiko's Gradle
+native toolchain.
 
 ## Web POCs
 
-The sample shared UI also builds as separate Kotlin/JS and Kotlin/Wasm browser
-executables:
+The Kotlin/JS and Kotlin/Wasm browser hosts are separate applications that
+depend on the shared sample UI:
 
 ```bash
 source /path/to/emsdk/emsdk_env.sh   # Emscripten 4.0.7
-./gradlew :sample:sharedUI:jsBrowserDevelopmentWebpack
-./gradlew :sample:sharedUI:wasmJsBrowserDevelopmentWebpack
+./gradlew :sample:jsApp:jsBrowserDevelopmentWebpack
+./gradlew :sample:wasmApp:wasmJsBrowserDevelopmentWebpack
 ```
 
 These are separate web implementations over the same browser engine. The HTML
@@ -137,11 +138,11 @@ a browser with WebGPU enabled. There is no WebGL or Compose Canvas fallback.
 - `graphiteEngineSkiko = 0.152.0-alpha01` controls Skiko and Skiko Graphite
   inside `:graphite-engine`.
 
-Compose `1.12.0-beta03` resolves Skiko `0.150.1` transitively. The iOS engine
-resolves Skiko `0.152.0-alpha01` in its own project and is loaded as a separate
-dynamic framework. The Android POC pins the native Skia archive independently
-inside `graphite-engine-android`; its JNI boundary means the Compose adapter
-does not inherit that engine implementation detail.
+Compose `1.12.0-beta03` resolves Skiko `0.150.1` transitively. The engine
+resolves our Skiko `0.152.0-alpha01` fork; Apple loads it through a separate
+dynamic framework, while Android consumes the fork's KMP/AAR variant. The
+private engine boundary prevents that implementation detail from leaking into
+the Compose adapter API.
 
 Run `./gradlew :verifyGraphiteSurfaceBoundary` to prevent Skiko or Skia from
 leaking back into the public adapter.

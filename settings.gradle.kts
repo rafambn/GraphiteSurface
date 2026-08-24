@@ -44,9 +44,6 @@ project(":graphite-surface").projectDir = file("graphite-surface/graphite-surfac
 include(":graphite-engine")
 project(":graphite-engine").projectDir = file("graphite-surface/graphite-engine")
 
-include(":graphite-engine-android")
-project(":graphite-engine-android").projectDir = file("graphite-surface/graphite-engine-android")
-
 include(":sample")
 project(":sample").projectDir = file("graphite-surface/sample")
 
@@ -58,6 +55,12 @@ project(":sample:desktopApp").projectDir = file("graphite-surface/sample/desktop
 
 include(":sample:androidApp")
 project(":sample:androidApp").projectDir = file("graphite-surface/sample/androidApp")
+
+include(":sample:jsApp")
+project(":sample:jsApp").projectDir = file("graphite-surface/sample/jsApp")
+
+include(":sample:wasmApp")
+project(":sample:wasmApp").projectDir = file("graphite-surface/sample/wasmApp")
 
 if (providers.gradleProperty("graphite.pthreadsExperiment").orNull == "true") {
     include(":experiments")

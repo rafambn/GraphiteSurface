@@ -1,7 +1,7 @@
 # GraphiteSurface workspace
 
-This workspace contains a Compose-facing adapter and separate platform
-Graphite engines. The adapter is intentionally independent from each engine's
+This workspace contains a Compose-facing adapter and a private multiplatform
+Graphite engine. The adapter is intentionally independent from the engine's
 Skiko/Skia version.
 
 ## Modules
@@ -10,11 +10,10 @@ Skiko/Skia version.
   multiplatform runtime plus the Compose adapter. It does not expose the
   engine's Skiko/Skia artifacts; all public drawing and ownership types belong
   to this library.
-- `graphite-surface/graphite-engine` owns the iOS, macOS JVM, and Web engines.
-  It keeps the Skiko/Skia dependency private and publishes the iOS engine as a
-  dynamic `GraphiteEngine.framework`.
-- `graphite-surface/graphite-engine-android` is the private Android engine. It
-  owns Vulkan, the native Skia Graphite archive, and the JNI bridge.
+- `graphite-surface/graphite-engine` owns the Android, JVM, Apple, and Web
+  engines. It keeps the Skiko/Skia dependency private and publishes the iOS
+  engine as a dynamic `GraphiteEngine.framework`. Android delegates to the
+  official Android target in our `skiko-graphite` fork.
 - `graphite-surface/sample` exercises asynchronous recorders and explicit
   latest-wins presentation on Android, JVM, iOS, JS, and Wasm.
 
