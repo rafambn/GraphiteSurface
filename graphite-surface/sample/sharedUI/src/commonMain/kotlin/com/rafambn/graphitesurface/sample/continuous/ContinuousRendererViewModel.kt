@@ -12,7 +12,6 @@ import com.rafambn.graphitesurface.sample.GraphiteSampleScene
 import com.rafambn.graphitesurface.sample.components.RendererScreenState
 import com.rafambn.graphitesurface.sample.loopingRotationDegrees
 import kotlin.concurrent.atomics.AtomicLong
-import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,13 +26,13 @@ internal class ContinuousRendererViewModel : ViewModel() {
     internal val uiState: StateFlow<RendererScreenState> = mutableUiState.asStateFlow()
 
     private val animationStartNanos = AtomicLong(ANIMATION_NOT_STARTED)
-    private val runtime = AtomicReference<GraphiteRuntime?>(null)
+    private var runtime: GraphiteRuntime? = null
     private val scene = GraphiteSampleScene()
 
     init {
         try {
             val createdRuntime = GraphiteRuntime(recorderCount = 2)
-            runtime.store(createdRuntime)
+            runtime = createdRuntime
             mutableUiState.value = RendererScreenState.Ready(
                 GraphiteRenderer(
                     runtime = createdRuntime,
@@ -64,7 +63,7 @@ internal class ContinuousRendererViewModel : ViewModel() {
         frameTimeNanos: Long,
         presentation: GraphitePresentationInfo,
     ) {
-        val activeRuntime = runtime.load() ?: return
+        val activeRuntime = runtime ?: return
         val resources = scene.prepare(
             runtime = activeRuntime,
             generation = presentation.generation,
@@ -99,7 +98,9 @@ internal class ContinuousRendererViewModel : ViewModel() {
 
     public override fun onCleared() {
         scene.close()
-        runtime.exchange(null)?.close()
+        val runtimeToClose = runtime
+        runtime = null
+        runtimeToClose?.close()
     }
 
     private companion object {
