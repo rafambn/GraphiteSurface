@@ -1,8 +1,6 @@
 rootProject.name = "GraphiteSurface"
 
 pluginManagement {
-    includeBuild("build-logic")
-
     repositories {
         google()
         gradlePluginPortal()
