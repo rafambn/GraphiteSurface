@@ -8,16 +8,16 @@ val runtime = GraphiteEngine(recorderCount = 4)
 val renderer = GraphiteRenderer(
     runtime = runtime,
     renderMode = GraphiteRenderMode.Continuous,
-) { activeRuntime, frameTimeNanos, presentation ->
-    val recording = activeRuntime.recorders[0].record {
+) { frameTimeNanos, presentation ->
+    val recording = recorders[0].record {
         draw(roads, transform = cameraAt(frameTimeNanos))
         drawPath(route, routePaint)
     }
-    val frame = activeRuntime.createFrame(presentation, GraphiteColor.White) {
+    val frame = createFrame(presentation, GraphiteColor.White) {
         insert(recording)
     }
     try {
-        activeRuntime.present(frame)
+        present(frame)
     } finally {
         frame.close()
         recording.close()

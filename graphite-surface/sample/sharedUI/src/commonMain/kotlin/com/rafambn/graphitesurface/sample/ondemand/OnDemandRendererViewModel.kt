@@ -24,7 +24,9 @@ internal class OnDemandRendererViewModel : ViewModel() {
         GraphiteRenderer(
             runtime = GraphiteEngine(recorderCount = 2),
             renderMode = GraphiteRenderMode.OnDemand,
-            renderFrame = ::renderFrame,
+            renderFrame = { frameTimeNanos, presentation ->
+                renderFrame(frameTimeNanos, presentation)
+            },
         )
     } catch (error: Throwable) {
         mutableError.value = error
@@ -36,14 +38,13 @@ internal class OnDemandRendererViewModel : ViewModel() {
         renderer?.requestRender()
     }
 
-    private suspend fun renderFrame(
-        runtime: GraphiteEngine,
+    private suspend fun GraphiteEngine.renderFrame(
         frameTimeNanos: Long,
         presentation: GraphitePresentationInfo,
     ) {
         try {
             val displayList = prepareGraphiteSampleScene(presentation.pixelSize)
-            val recording = runtime.recorders.first().record {
+            val recording = recorders.first().record {
                 draw(
                     displayList,
                     transform = GraphiteTransform.translation(
@@ -55,11 +56,11 @@ internal class OnDemandRendererViewModel : ViewModel() {
                 )
             }
             try {
-                val frame = runtime.createFrame(presentation, GraphiteColor.White) {
+                val frame = createFrame(presentation, GraphiteColor.White) {
                     insert(recording)
                 }
                 try {
-                    runtime.present(frame)
+                    present(frame)
                 } finally {
                     frame.close()
                 }

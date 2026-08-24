@@ -26,8 +26,8 @@ class GraphiteRendererTest {
             val renderer = GraphiteRenderer(
                 runtime = runtime,
                 renderMode = GraphiteRenderMode.Manual,
-            ) { callbackRuntime, time, info ->
-                observedRuntime = callbackRuntime
+            ) { time, info ->
+                observedRuntime = this
                 observedTime = time
                 observedPresentation = info
             }
@@ -47,7 +47,7 @@ class GraphiteRendererTest {
         val runtime = GraphiteEngine()
         try {
             var renderCount = 0
-            val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.Manual) { _, _, _ ->
+            val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.Manual) { _, _ ->
                 renderCount += 1
             }
 
@@ -63,7 +63,7 @@ class GraphiteRendererTest {
     fun manualRenderRejectsOtherModesAndNegativeTime() = runTest {
         val runtime = GraphiteEngine()
         try {
-            val renderer = GraphiteRenderer(runtime) { _, _, _ -> }
+            val renderer = GraphiteRenderer(runtime) { _, _ -> }
             assertFailsWith<IllegalStateException> { renderer.render(0L) }
 
             renderer.renderMode = GraphiteRenderMode.Manual
@@ -78,7 +78,7 @@ class GraphiteRendererTest {
     fun onDemandRequestsAreCoalescedAndIgnoredByOtherModes() = runTest {
         val runtime = GraphiteEngine()
         try {
-            val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.OnDemand) { _, _, _ -> }
+            val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.OnDemand) { _, _ -> }
 
             renderer.requestRender()
             renderer.requestRender()
@@ -104,7 +104,7 @@ class GraphiteRendererTest {
             val releaseFirst = CompletableDeferred<Unit>()
             var activeCallbacks = 0
             var maximumActiveCallbacks = 0
-            val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.Manual) { _, time, _ ->
+            val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.Manual) { time, _ ->
                 activeCallbacks += 1
                 maximumActiveCallbacks = maxOf(maximumActiveCallbacks, activeCallbacks)
                 if (time == 1L) {
@@ -138,7 +138,7 @@ class GraphiteRendererTest {
                 runtime.updatePresentation(attachmentId, GraphiteSize(32, 32), density = 1f),
             )
             var renderCount = 0
-            val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.Continuous) { _, _, _ ->
+            val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.Continuous) { _, _ ->
                 renderCount += 1
             }
 

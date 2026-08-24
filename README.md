@@ -44,8 +44,8 @@ val runtime = GraphiteEngine(recorderCount = 4)
 val renderer = GraphiteRenderer(
     runtime = runtime,
     renderMode = GraphiteRenderMode.Continuous,
-) { activeRuntime, frameTimeNanos, presentation ->
-    renderFrame(activeRuntime, frameTimeNanos, presentation)
+) { frameTimeNanos, presentation ->
+    renderFrame(frameTimeNanos, presentation)
 }
 
 GraphiteSurface(renderer, Modifier.fillMaxSize())
@@ -61,7 +61,7 @@ renderer.renderMode = GraphiteRenderMode.Manual
 renderer.render(frameTimeNanos) // Runs immediately with the caller's time.
 ```
 
-The render callback receives the runtime, is suspending and serialized, and is
+The render callback uses the runtime as its receiver, is suspending and serialized, and is
 invoked only while the runtime has an attached presentation target. The
 renderer does not own or close the runtime. `Continuous` applies backpressure
 by waiting for each callback to finish; `OnDemand` retains at most one pending

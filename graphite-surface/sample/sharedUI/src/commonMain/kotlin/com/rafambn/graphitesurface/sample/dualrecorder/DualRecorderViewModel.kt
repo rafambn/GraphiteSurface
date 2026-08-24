@@ -38,7 +38,9 @@ internal class DualRecorderViewModel : ViewModel() {
                 recorderQueueCapacity = 4,
             ),
             renderMode = GraphiteRenderMode.Continuous,
-            renderFrame = ::renderFrame,
+            renderFrame = { frameTimeNanos, presentation ->
+                renderFrame(frameTimeNanos, presentation)
+            },
         ).also { renderer -> publishMetrics(renderer.runtime) }
     } catch (error: Throwable) {
         mutableError.value = error
@@ -51,8 +53,7 @@ internal class DualRecorderViewModel : ViewModel() {
         renderer?.runtime?.let(::publishMetrics)
     }
 
-    private suspend fun renderFrame(
-        runtime: GraphiteEngine,
+    private suspend fun GraphiteEngine.renderFrame(
         frameTimeNanos: Long,
         presentation: GraphitePresentationInfo,
     ) {
@@ -73,7 +74,7 @@ internal class DualRecorderViewModel : ViewModel() {
                     if (recorderEnabled[0].load()) {
                         launch {
                             recordings[0].store(
-                                runtime.recorders[0].record {
+                                recorders[0].record {
                                     draw(
                                         displayList = prepared.background,
                                         transform = GraphiteTransform.translation(centerX, centerY) *
@@ -87,7 +88,7 @@ internal class DualRecorderViewModel : ViewModel() {
                     if (recorderEnabled[1].load()) {
                         launch {
                             recordings[1].store(
-                                runtime.recorders[1].record {
+                                recorders[1].record {
                                     draw(
                                         displayList = prepared.foreground,
                                         transform = GraphiteTransform.translation(centerX, centerY) *
@@ -99,14 +100,14 @@ internal class DualRecorderViewModel : ViewModel() {
                     }
                 }
 
-                val frame = runtime.createFrame(
+                val frame = createFrame(
                     presentation = presentation,
                     clearColor = GraphiteColor.rgba(16, 17, 20),
                 ) {
                     recordings.forEach { slot -> slot.load()?.let(::insert) }
                 }
                 try {
-                    runtime.present(frame)
+                    present(frame)
                 } finally {
                     frame.close()
                 }
@@ -115,7 +116,7 @@ internal class DualRecorderViewModel : ViewModel() {
             }
 
             if (renderedFrames.addAndFetch(1) % METRICS_REFRESH_FRAMES == 0L) {
-                publishMetrics(runtime)
+                publishMetrics(this)
             }
         } catch (cancelled: CancellationException) {
             throw cancelled

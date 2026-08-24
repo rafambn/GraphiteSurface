@@ -212,8 +212,8 @@ public interface GraphitePresentationHost : AutoCloseable {
 - Compose owns presentation attachment and the optional display-frame clock:
 
   ```kotlin
-  val renderer = GraphiteRenderer(runtime) { activeRuntime, frameTimeNanos, presentation ->
-      produceAndPresentFrame(activeRuntime, frameTimeNanos, presentation)
+  val renderer = GraphiteRenderer(runtime) { frameTimeNanos, presentation ->
+      produceAndPresentFrame(frameTimeNanos, presentation)
   }
   GraphiteSurface(renderer, Modifier)
   ```
