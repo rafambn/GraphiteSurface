@@ -9,6 +9,7 @@ public data class GraphiteMetricsSnapshot(
     public val rejectedFrames: Long,
     public val pendingFrames: Int,
     public val archiveFailures: Long,
+    public val resources: Resources,
 ) {
     public data class Recorder(
         public val index: Int,
@@ -22,5 +23,19 @@ public data class GraphiteMetricsSnapshot(
         public val maximumQueueWaitNanos: Long,
         public val totalRecordingNanos: Long,
         public val maximumRecordingNanos: Long,
+    )
+
+    public data class Resources(
+        public val registered: Long,
+        public val registeredBytes: Long,
+        public val publications: Long,
+        public val publishedBytes: Long,
+        public val cacheHits: Long,
+        public val released: Long,
+        public val workerMessageBytes: Long,
+        public val totalPreparationNanos: Long,
+        public val maximumPreparationNanos: Long,
+        public val totalValidationNanos: Long,
+        public val maximumValidationNanos: Long,
     )
 }

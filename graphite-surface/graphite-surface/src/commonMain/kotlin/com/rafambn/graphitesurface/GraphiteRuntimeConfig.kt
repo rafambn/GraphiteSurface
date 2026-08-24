@@ -12,7 +12,7 @@ public class GraphiteRuntimeConfig(
     public val maxFramesInFlight: Int = 2,
     /** Reserved cache policy. The first runtime slice validates but does not enforce these limits. */
     public val gpuCache: GraphiteGpuCacheConfig = GraphiteGpuCacheConfig.Default,
-    /** Maximum encoded bytes in one recording or display list. */
+    /** Maximum encoded bytes in one recording command program. */
     public val maxCommandBufferBytes: GraphiteCommandBufferLimit = GraphiteCommandBufferLimit.Default,
     /** Optional Scribe destination owned and retired by this runtime. */
     public val archivist: Archivist? = null,

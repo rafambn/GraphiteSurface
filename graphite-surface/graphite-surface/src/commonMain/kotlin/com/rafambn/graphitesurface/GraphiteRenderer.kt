@@ -4,7 +4,7 @@ package com.rafambn.graphitesurface
  * Owns the scene drawn by a [GraphiteSurface]. Callbacks run on the native
  * rendering callback, not during Compose recomposition.
  */
-public interface GraphiteRenderer {
+internal interface GraphiteRenderer {
     /** Creates resources that belong to this surface. */
     public fun onSurfaceCreated()
 

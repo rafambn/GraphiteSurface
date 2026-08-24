@@ -50,13 +50,15 @@ internal class GraphiteRuntimeRenderer(private val runtime: GraphiteRuntime) : G
                             antiAlias = false,
                         )
                     }
-                    context.executeGraphiteCommands(insertion.commands)
+                    context.executeGraphiteCommands(insertion.recording.value.program)
                 } finally {
                     context.restore()
                 }
             }
         } catch (error: Throwable) {
             runtime.failFromRenderWorker(error)
+        } finally {
+            frame.close()
         }
     }
 

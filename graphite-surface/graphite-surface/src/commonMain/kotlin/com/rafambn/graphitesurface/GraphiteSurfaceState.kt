@@ -7,7 +7,7 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 /** Controls frame requests for a [GraphiteSurface] using [GraphiteRenderMode.OnDemand]. */
 @Stable
 @OptIn(ExperimentalAtomicApi::class)
-public class GraphiteSurfaceState internal constructor() {
+internal class GraphiteSurfaceState {
     private val requestFrameHandler: AtomicReference<(() -> Unit)?> = AtomicReference(null)
 
     internal fun setRequestFrameHandler(handler: (() -> Unit)?) {
@@ -24,7 +24,7 @@ public class GraphiteSurfaceState internal constructor() {
      * This has no effect while the surface is not attached or renders continuously.
      * This method may be called from any thread.
      */
-    public fun requestFrame() {
+    internal fun requestFrame() {
         requestFrameHandler.load()?.invoke()
     }
 }

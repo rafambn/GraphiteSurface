@@ -53,8 +53,15 @@ ordering, cancellation, ownership, and failure semantics.
   the presentation worker object into a later standalone runtime module must
   not change observable behavior.
 - Cache limits are validated configuration placeholders in this slice. They
-  are not enforced, `trimGpuCaches()` is not exposed, and metrics do not yet
-  report native cache, resource, submission, or GPU-completion data.
+  are not enforced and `trimGpuCaches()` is not exposed. Metrics now report
+  portable-resource registrations, publications, bytes, cache hits, and
+  releases; native GPU-cache, submission, and GPU-completion metrics remain
+  future work.
+- Display lists are built without a runtime. Recordings store fixed-size local
+  resource-table indices, runtimes assign their own monotonic resource IDs on
+  first use, and each recorder worker receives a resource payload only once.
+  Display lists, recordings, frames, and pending snapshots use retained
+  closeable handles instead of copying nested command arrays.
 - The implemented encoder covers transforms, clips, reusable display lists,
   rectangles, ovals, lines, paths, and basic fill/stroke paint. Images,
   prepared glyph runs, gradients, effects, and blends remain work after this
@@ -202,8 +209,9 @@ public interface GraphitePresentationHost : AutoCloseable {
   )
   ```
 
-- A runtime may exist without a surface and may create display lists and
-  recordings for local targets while detached.
+- A runtime may exist without a surface and may create recordings for local
+  targets while detached. Display lists are runtime-independent CPU values and
+  may be built before a runtime exists or after one has closed.
 - Version 1 permits at most one attached presentation target per runtime. A
   second simultaneous attachment is rejected. Recreating the same host target
   after resize or lifecycle changes is supported.
@@ -215,9 +223,10 @@ public interface GraphitePresentationHost : AutoCloseable {
   heap, but their opaque handle namespaces remain separate.
 - Resource exhaustion while creating another runtime fails that creation with
   `GraphiteInitializationException`; it does not impose a global singleton.
-- The first architecture will not expose `GraphiteRenderer`,
-  `GraphiteOutputMode`, `GraphiteRenderMode`, or
-  `GraphiteSurfaceState`.
+- The public API does not expose `GraphiteRenderer`, `GraphiteDrawContext`,
+  `GraphiteOutputMode`, `GraphiteRenderMode`, `GraphiteSurfaceState`, or a
+  renderer-controlled `GraphiteSurface` overload. These presentation bridge
+  types are internal implementation details.
 - Version 1 has no continuous mode. Calling `present(frame)` is the explicit
   render request.
 
@@ -412,9 +421,15 @@ public interface GraphitePresentationHost : AutoCloseable {
 
 - `GraphiteDisplayList` is public, immutable, closeable,
   backend-independent, and transferable between workers and runtimes.
+- It is constructed with `GraphiteDisplayList.build { ... }`; construction
+  does not consult runtime state. Its builder has an independent command-buffer
+  limit.
 - Its internal representation is opaque and has no stable serialized format in
   version 1.
 - Direct recording and reusable display-list creation use the same drawing DSL.
+- Direct encoder commands are the normal choice for one-off or changing
+  content. Display lists are for immutable command groups reused across
+  recordings, transforms, workers, or runtimes.
 - A finalized display list may contain other finalized display lists. Cycles
   are impossible because only finalized immutable lists can be nested.
 - Display-list values are immutable. Replay-time variation is limited to
@@ -991,12 +1006,13 @@ Primary references:
 - Commands use an internal opcode, payload length, portable arguments, and
   resource IDs.
 - All targets use the same logical command format and parser.
-- Browser workers receive bytes plus references to registered immutable
-  resources in shared memory.
+- Browser workers receive one transferable publication payload per immutable
+  resource and later command messages reference cached runtime-local IDs.
 - `GraphiteDisplayList` encapsulates commands but does not expose a stable
   binary format. Internal format changes do not create a persistence contract.
-- `GraphiteRuntimeConfig.maxCommandBufferBytes` limits each recording command
-  buffer and each display-list command buffer.
+- `GraphiteRuntimeConfig.maxCommandBufferBytes` limits one recording command
+  buffer. `GraphiteDisplayList.build(maxCommandBufferBytes = ...)` independently
+  limits one display-list command buffer.
 - Exceeding the limit throws
   `GraphiteEncodingException.CommandBufferTooLarge` before publication. It
   releases the recorder queue slot and leaves the runtime `Ready`.

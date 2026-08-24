@@ -2,7 +2,7 @@ package com.rafambn.graphitesurface
 
 import kotlin.jvm.JvmInline
 
-/** Maximum encoded bytes accepted for one recording or display list. */
+/** Maximum encoded bytes accepted for one command program. */
 @JvmInline
 public value class GraphiteCommandBufferLimit(public val bytes: Int) {
     init {

@@ -1,8 +1,12 @@
 package com.rafambn.graphitesurface
 
-internal class GraphiteCommandWriter(private val limitBytes: Int) {
+internal class GraphiteCommandWriter(private val limitBytes: Int) : AutoCloseable {
     private var bytes: ByteArray = ByteArray(minOf(INITIAL_CAPACITY, limitBytes))
     private var size: Int = 0
+    private val resources: MutableList<GraphiteRetainedReference<GraphiteCommandProgram>> =
+        mutableListOf()
+    private val resourceIndices: MutableMap<Long, Int> = mutableMapOf()
+    private var finished: Boolean = false
 
     init {
         writeInt(GraphiteCommandBuffer.Magic)
@@ -66,7 +70,30 @@ internal class GraphiteCommandWriter(private val limitBytes: Int) {
         size += value.size
     }
 
-    internal fun finish(): ByteArray = bytes.copyOf(size)
+    internal fun addDisplayList(displayList: GraphiteDisplayList): Int {
+        val reference = displayList.retainProgram()
+        val existing = resourceIndices[reference.identity]
+        if (existing != null) {
+            reference.close()
+            return existing
+        }
+        val index = resources.size
+        resources += reference
+        resourceIndices[reference.identity] = index
+        return index
+    }
+
+    internal fun finish(): GraphiteCommandProgram {
+        check(!finished) { "command writer has already finished" }
+        finished = true
+        return GraphiteCommandProgram(bytes.copyOf(size), resources.toList())
+    }
+
+    override fun close() {
+        if (finished) return
+        finished = true
+        resources.forEach(GraphiteRetainedReference<GraphiteCommandProgram>::close)
+    }
 
     private fun setInt(offset: Int, value: Int) {
         repeat(Int.SIZE_BYTES) { index ->

@@ -3,16 +3,17 @@
 package com.rafambn.graphitesurface
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.withContext
 
 internal actual class PlatformRecorderWorker actual constructor(index: Int) {
+    private val resources = GraphiteWorkerResourceCache()
     private val dispatcher = newSingleThreadContext("GraphiteRecorder-$index")
     private val closed = CompletableDeferred<Unit>()
 
-    internal actual suspend fun process(commands: ByteArray): ByteArray = withContext(dispatcher) {
-        GraphiteCommandBuffer.validate(commands)
-        commands.copyOf()
+    internal actual suspend fun process(message: ByteArray): Unit = withContext(dispatcher + NonCancellable) {
+        resources.process(message)
     }
 
     internal actual fun close() {

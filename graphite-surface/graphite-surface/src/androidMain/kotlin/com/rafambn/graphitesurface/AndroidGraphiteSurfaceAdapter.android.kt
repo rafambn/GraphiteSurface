@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 @Composable
 @ExperimentalGraphiteSurfaceApi
-public actual fun GraphiteSurface(
+internal actual fun PlatformGraphiteSurface(
     renderer: GraphiteRenderer,
     modifier: Modifier,
     renderMode: GraphiteRenderMode,

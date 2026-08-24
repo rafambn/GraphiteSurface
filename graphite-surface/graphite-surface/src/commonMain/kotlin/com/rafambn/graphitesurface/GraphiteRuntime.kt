@@ -32,6 +32,7 @@ public class GraphiteRuntime private constructor(public val config: GraphiteRunt
     private val replacedFrames: AtomicLong = AtomicLong(0)
     private val rejectedFrames: AtomicLong = AtomicLong(0)
     private val archiveFailures: AtomicLong = AtomicLong(0)
+    private val resources: GraphiteResourceRegistry = GraphiteResourceRegistry()
     private val closed: CompletableDeferred<Unit> = CompletableDeferred()
     internal val shutdownRequested: CompletableDeferred<Unit> = CompletableDeferred()
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -61,13 +62,6 @@ public class GraphiteRuntime private constructor(public val config: GraphiteRunt
         return GraphiteRecordingTarget(pixelSize, token)
     }
 
-    public fun createDisplayList(block: GraphiteEncoder.() -> Unit): GraphiteDisplayList {
-        requireReady()
-        val writer = GraphiteCommandWriter(config.maxCommandBufferBytes.bytes)
-        GraphiteEncoderImpl(writer, cancellationProbe = {}).block()
-        return GraphiteDisplayList(writer.finish())
-    }
-
     public fun createFrame(
         presentation: GraphitePresentationInfo,
         clearColor: GraphiteColor = GraphiteColor.Transparent,
@@ -77,8 +71,14 @@ public class GraphiteRuntime private constructor(public val config: GraphiteRunt
         if (presentation.runtimeToken !== token) {
             throw GraphitePresentationException("presentation belongs to a different runtime")
         }
-        val builder = GraphiteFrameBuilder(token).apply(block)
-        return GraphiteFrame(presentation, clearColor, builder.build())
+        val builder = GraphiteFrameBuilder(token)
+        return try {
+            builder.apply(block)
+            GraphiteFrame(presentation, clearColor, builder.build())
+        } catch (error: Throwable) {
+            builder.close()
+            throw error
+        }
     }
 
     public fun present(frame: GraphiteFrame): GraphitePresentResult {
@@ -100,6 +100,7 @@ public class GraphiteRuntime private constructor(public val config: GraphiteRunt
         }
 
         val previous = pendingFrame.exchange(frame.snapshot())
+        previous?.close()
         val result = if (previous == null) {
             acceptedFrames.addAndFetch(1)
             GraphitePresentResult.Accepted
@@ -124,13 +125,19 @@ public class GraphiteRuntime private constructor(public val config: GraphiteRunt
         rejectedFrames = rejectedFrames.load(),
         pendingFrames = if (pendingFrame.load() == null) 0 else 1,
         archiveFailures = archiveFailures.load(),
+        resources = resources.snapshot(),
     )
+
+    internal suspend fun prepareRecording(
+        program: GraphiteCommandProgram,
+        workerIndex: Int,
+    ): ByteArray = resources.prepare(program, workerIndex)
 
     override fun close() {
         if (!closing.compareAndSet(false, true)) return
         shutdownRequested.complete(Unit)
         mutableState.value = GraphiteRuntimeState.Closing
-        pendingFrame.exchange(null)
+        pendingFrame.exchange(null)?.close()
         attachment.store(null)
         mutablePresentation.value = GraphitePresentationState.Detached
         logger.emit("runtime_lifecycle", "closing")
@@ -138,6 +145,7 @@ public class GraphiteRuntime private constructor(public val config: GraphiteRunt
         scope.launch {
             try {
                 recorders.forEach { it.awaitClosed() }
+                resources.close()
                 logger.emit("runtime_lifecycle", "closed")
                 logger.retire()
                 mutableState.value = GraphiteRuntimeState.Closed
@@ -223,12 +231,13 @@ public class GraphiteRuntime private constructor(public val config: GraphiteRunt
                 "error" to (failure.cause?.message ?: failure.cause ?: failure.message),
             ),
         )
-        pendingFrame.exchange(null)
+        pendingFrame.exchange(null)?.close()
         recorders.forEach(GraphiteRecorder::close)
         scope.launch {
             try {
                 recorders.forEach { it.awaitClosed() }
             } finally {
+                resources.close()
                 logger.retire()
                 closed.complete(Unit)
                 scope.cancel()
@@ -275,7 +284,7 @@ public class GraphiteRuntime private constructor(public val config: GraphiteRunt
             )
             val updated = GraphitePresentationAttachment(current.id, current.requestFrame, info)
             if (attachment.compareAndSet(current, updated)) {
-                pendingFrame.exchange(null)
+                pendingFrame.exchange(null)?.close()
                 mutablePresentation.value = GraphitePresentationState.Attached(info)
                 return info
             }
@@ -286,7 +295,7 @@ public class GraphiteRuntime private constructor(public val config: GraphiteRunt
         val current = attachment.load() ?: return
         if (current.id != attachmentId) return
         if (attachment.compareAndSet(current, null)) {
-            pendingFrame.exchange(null)
+            pendingFrame.exchange(null)?.close()
             mutablePresentation.value = GraphitePresentationState.Detached
         }
     }
@@ -294,9 +303,10 @@ public class GraphiteRuntime private constructor(public val config: GraphiteRunt
     internal fun takePendingFrame(attachmentId: Long): GraphiteFrameSnapshot? {
         val current = attachment.load() ?: return null
         if (current.id != attachmentId || current.info == null) return null
-        return pendingFrame.exchange(null)?.takeIf {
-            it.presentationGeneration == current.info.generation
-        }
+        val frame = pendingFrame.exchange(null) ?: return null
+        if (frame.presentationGeneration == current.info.generation) return frame
+        frame.close()
+        return null
     }
 
     private fun detachPresentationTarget(attachmentId: Long) {
@@ -305,7 +315,7 @@ public class GraphiteRuntime private constructor(public val config: GraphiteRunt
             if (current.id != attachmentId) return
             val updated = GraphitePresentationAttachment(current.id, current.requestFrame, info = null)
             if (attachment.compareAndSet(current, updated)) {
-                pendingFrame.exchange(null)
+                pendingFrame.exchange(null)?.close()
                 mutablePresentation.value = GraphitePresentationState.Detached
                 return
             }

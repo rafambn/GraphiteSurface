@@ -4,21 +4,27 @@ package com.rafambn.graphitesurface
 
 import kotlin.concurrent.atomics.AtomicBoolean
 
-/** Immutable recorder result that may be inserted into more than one frame. */
+/**
+ * Immutable recorder result that may be inserted into more than one frame.
+ *
+ * Close the caller-owned handle after inserting it. Every frame retains its own reference.
+ */
 public class GraphiteRecording internal constructor(
     public val target: GraphiteRecordingTarget,
-    private val commands: ByteArray,
+    program: GraphiteCommandProgram,
 ) : AutoCloseable {
     private val closed: AtomicBoolean = AtomicBoolean(false)
+    private val retainedContent: GraphiteReferenceCounted<GraphiteRecordingContent> =
+        GraphiteReferenceCounted(GraphiteRecordingContent(program))
 
     public val isClosed: Boolean get() = closed.load()
 
     override fun close() {
-        closed.store(true)
+        if (closed.compareAndSet(false, true)) retainedContent.release()
     }
 
-    internal fun snapshotCommands(): ByteArray {
+    internal fun retainContent(): GraphiteRetainedReference<GraphiteRecordingContent> {
         if (closed.load()) throw GraphiteEncodingException.ClosedResource("recording")
-        return commands
+        return retainedContent.retain()
     }
 }

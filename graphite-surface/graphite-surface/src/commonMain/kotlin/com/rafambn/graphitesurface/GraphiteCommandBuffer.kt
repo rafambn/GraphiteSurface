@@ -6,8 +6,8 @@ internal object GraphiteCommandBuffer {
     private const val HeaderBytes: Int = Int.SIZE_BYTES * 2
     private const val CommandHeaderBytes: Int = 1 + Int.SIZE_BYTES
 
-    internal fun validate(bytes: ByteArray, maximumDepth: Int = 64) {
-        require(maximumDepth > 0) { "display-list nesting exceeds 64 levels" }
+    internal fun validate(bytes: ByteArray, resourceCount: Int = 0) {
+        require(resourceCount >= 0) { "resource count must be non-negative" }
         if (bytes.size < HeaderBytes) error("command buffer is truncated")
         if (readInt(bytes, 0) != Magic) error("invalid command-buffer magic")
         if (readInt(bytes, Int.SIZE_BYTES) != Version) error("unsupported command-buffer version")
@@ -32,8 +32,8 @@ internal object GraphiteCommandBuffer {
                     saveDepth -= 1
                 }
                 GraphiteCommandOpcode.DrawDisplayList -> {
-                    val nestedSize = payload.readInt()
-                    validate(payload.readBytes(nestedSize), maximumDepth - 1)
+                    val index = payload.readInt()
+                    if (index !in 0 until resourceCount) error("invalid display-list resource index")
                 }
                 GraphiteCommandOpcode.Transform -> payload.readTransform()
                 GraphiteCommandOpcode.ClipRect -> {

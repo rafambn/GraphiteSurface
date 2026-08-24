@@ -7,17 +7,18 @@ import kotlin.coroutines.resumeWithException
 
 internal actual class PlatformRecorderWorker actual constructor(index: Int) {
     private val worker = WebValidationWorker(index)
+    private val resources = GraphiteWorkerResourceCache()
     private val closed = CompletableDeferred<Unit>()
 
-    internal actual suspend fun process(commands: ByteArray): ByteArray =
+    internal actual suspend fun process(message: ByteArray): Unit =
         suspendCancellableCoroutine { continuation ->
             worker.process(
-                commands = commands,
+                commands = message,
                 onSuccess = { result ->
                     if (continuation.isActive) {
                         try {
-                            GraphiteCommandBuffer.validate(result)
-                            continuation.resume(result)
+                            resources.process(result)
+                            continuation.resume(Unit)
                         } catch (error: Throwable) {
                             continuation.resumeWithException(error)
                         }

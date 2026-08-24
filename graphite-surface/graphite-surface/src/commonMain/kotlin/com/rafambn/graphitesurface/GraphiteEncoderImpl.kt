@@ -99,10 +99,9 @@ internal class GraphiteEncoderImpl(
     }
 
     private fun writeDisplayList(displayList: GraphiteDisplayList) {
-        val commands = displayList.commandBytes()
+        val resourceIndex = writer.addDisplayList(displayList)
         writer.command(GraphiteCommandOpcode.DrawDisplayList) {
-            writeInt(commands.size)
-            writeBytes(commands)
+            writeInt(resourceIndex)
         }
     }
 }

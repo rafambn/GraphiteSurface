@@ -40,19 +40,29 @@ public class GraphiteRecorder internal constructor(
         metrics.admitted((admittedAt - queuedAt).coerceAtLeast(0))
         var encoderBlockCompleted = false
         var submittedToWorker = false
+        var program: GraphiteCommandProgram? = null
         try {
-            val validated = execution.withLock {
+            val completedProgram = execution.withLock {
                 runtime.requireReady()
                 val job = currentCoroutineContext()[Job]
                 val writer = GraphiteCommandWriter(runtime.config.maxCommandBufferBytes.bytes)
-                GraphiteEncoderImpl(writer) { job?.ensureActive() }.block()
-                encoderBlockCompleted = true
-                val encoded = writer.finish()
-                submittedToWorker = true
-                worker.process(encoded)
+                try {
+                    GraphiteEncoderImpl(writer) { job?.ensureActive() }.block()
+                    encoderBlockCompleted = true
+                    writer.finish().also { encoded ->
+                        program = encoded
+                        val message = runtime.prepareRecording(encoded, index)
+                        submittedToWorker = true
+                        worker.process(message)
+                    }
+                } catch (error: Throwable) {
+                    writer.close()
+                    throw error
+                }
             }
             metrics.succeeded(elapsedSince(admittedAt))
-            return GraphiteRecording(target, validated)
+            program = null
+            return GraphiteRecording(target, completedProgram)
         } catch (cancelled: CancellationException) {
             metrics.cancelled(elapsedSince(admittedAt))
             throw cancelled
@@ -65,6 +75,7 @@ public class GraphiteRecorder internal constructor(
             }
             throw error
         } finally {
+            program?.close()
             check(admission.trySend(Unit).isSuccess) { "recorder admission accounting is corrupted" }
         }
     }

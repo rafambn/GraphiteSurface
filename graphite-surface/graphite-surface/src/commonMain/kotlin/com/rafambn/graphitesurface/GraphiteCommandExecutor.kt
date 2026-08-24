@@ -1,8 +1,12 @@
 package com.rafambn.graphitesurface
 
-internal fun GraphiteDrawContext.executeGraphiteCommands(commands: ByteArray) {
-    GraphiteCommandBuffer.validate(commands)
-    val reader = GraphiteCommandReader(commands)
+internal fun GraphiteDrawContext.executeGraphiteCommands(
+    program: GraphiteCommandProgram,
+    maximumDepth: Int = 64,
+) {
+    require(maximumDepth > 0) { "display-list nesting exceeds 64 levels" }
+    GraphiteCommandBuffer.validate(program.commands, program.resources.size)
+    val reader = GraphiteCommandReader(program.commands)
     check(reader.readInt() == GraphiteCommandBuffer.Magic)
     check(reader.readInt() == GraphiteCommandBuffer.Version)
 
@@ -22,8 +26,8 @@ internal fun GraphiteDrawContext.executeGraphiteCommands(commands: ByteArray) {
                 clipRect(rect, antiAlias)
             }
             GraphiteCommandOpcode.DrawDisplayList -> {
-                val size = payload.readInt()
-                executeGraphiteCommands(payload.readBytes(size))
+                val index = payload.readInt()
+                executeGraphiteCommands(program.resources[index].value, maximumDepth - 1)
             }
             GraphiteCommandOpcode.DrawRect -> drawRect(payload.readRect(), payload.readPaint())
             GraphiteCommandOpcode.DrawRoundRect -> {

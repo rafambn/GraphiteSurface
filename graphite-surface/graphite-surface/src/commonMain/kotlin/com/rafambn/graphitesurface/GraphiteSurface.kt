@@ -6,10 +6,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 
-/** Hosts the platform GPU surface inside Compose. */
+/** Internal Compose bridge to the platform GPU host. */
 @Composable
 @ExperimentalGraphiteSurfaceApi
-public expect fun GraphiteSurface(
+internal expect fun PlatformGraphiteSurface(
     renderer: GraphiteRenderer,
     modifier: Modifier = Modifier,
     renderMode: GraphiteRenderMode = GraphiteRenderMode.Continuous,
@@ -39,7 +39,7 @@ public fun GraphiteSurface(
         }
     }
 
-    GraphiteSurface(
+    PlatformGraphiteSurface(
         renderer = renderer,
         modifier = modifier,
         renderMode = GraphiteRenderMode.OnDemand,

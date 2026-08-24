@@ -22,6 +22,15 @@ internal class GraphiteCommandReader(
         return value
     }
 
+    internal fun readLong(): Long {
+        requireAvailable(Long.SIZE_BYTES)
+        var value = 0L
+        repeat(Long.SIZE_BYTES) { index ->
+            value = value or ((bytes[position++].toLong() and 0xFFL) shl (index * 8))
+        }
+        return value
+    }
+
     internal fun readFloat(): Float = Float.fromBits(readInt()).also {
         if (!it.isFinite()) error("command contains a non-finite value")
     }

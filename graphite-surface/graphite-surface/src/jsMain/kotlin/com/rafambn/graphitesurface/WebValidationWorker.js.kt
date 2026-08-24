@@ -31,11 +31,8 @@ private fun createWorker(index: Int): JsAny = js(
     """
     (function(index) {
       const source = `
-        const validate = function(bytes, depth) {
-          if (!(bytes instanceof Int8Array) && !(bytes instanceof Uint8Array)) {
-            throw new Error('Graphite commands are not a byte array');
-          }
-          if (depth <= 0) throw new Error('Graphite display-list nesting is too deep');
+        const resources = new Map();
+        const validateCommands = function(bytes, resourceCount) {
           const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
           const readInt = function(offset) {
             if (offset < 0 || offset + 4 > view.byteLength) {
@@ -63,22 +60,84 @@ private fun createWorker(index: Int): JsAny = js(
               saveDepth -= 1;
             }
             if (opcode === 5) {
-              if (payloadSize < 4) throw new Error('truncated Graphite display list');
-              const nestedSize = readInt(payloadOffset);
-              if (nestedSize < 0 || nestedSize + 4 !== payloadSize) {
-                throw new Error('invalid Graphite display-list payload');
+              if (payloadSize !== 4) throw new Error('invalid Graphite display-list payload');
+              const resourceIndex = readInt(payloadOffset);
+              if (resourceIndex < 0 || resourceIndex >= resourceCount) {
+                throw new Error('invalid Graphite display-list resource index');
               }
-              validate(new Int8Array(bytes.buffer, bytes.byteOffset + payloadOffset + 4, nestedSize), depth - 1);
             }
             offset = nextOffset;
           }
           if (saveDepth !== 0) throw new Error('unbalanced Graphite save and restore commands');
         };
+        const processMessage = function(bytes) {
+          if (!(bytes instanceof Int8Array) && !(bytes instanceof Uint8Array)) {
+            throw new Error('Graphite worker message is not a byte array');
+          }
+          const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+          let offset = 0;
+          const requireBytes = function(size) {
+            if (size < 0 || offset + size > view.byteLength) {
+              throw new Error('Graphite worker message is truncated');
+            }
+          };
+          const readInt = function() {
+            requireBytes(4);
+            const value = view.getInt32(offset, true);
+            offset += 4;
+            return value;
+          };
+          const readCount = function() {
+            const value = readInt();
+            if (value < 0) throw new Error('negative Graphite worker-message count');
+            return value;
+          };
+          const readId = function() {
+            requireBytes(8);
+            const low = view.getUint32(offset, true);
+            const high = view.getUint32(offset + 4, true);
+            offset += 8;
+            if (low === 0 && high === 0) throw new Error('invalid Graphite resource ID');
+            return high + ':' + low;
+          };
+          if (readInt() !== 0x47535731 || readInt() !== 1) {
+            throw new Error('invalid Graphite worker-message header');
+          }
+          const publicationCount = readCount();
+          for (let publication = 0; publication < publicationCount; publication += 1) {
+            const resourceId = readId();
+            if (resources.has(resourceId)) throw new Error('Graphite resource was published twice');
+            const dependencyCount = readCount();
+            for (let dependency = 0; dependency < dependencyCount; dependency += 1) {
+              if (!resources.has(readId())) throw new Error('Graphite resource dependency is missing');
+            }
+            const commandSize = readCount();
+            requireBytes(commandSize);
+            validateCommands(
+              new Int8Array(bytes.buffer, bytes.byteOffset + offset, commandSize),
+              dependencyCount,
+            );
+            offset += commandSize;
+            resources.set(resourceId, true);
+          }
+          const rootResourceCount = readCount();
+          for (let resource = 0; resource < rootResourceCount; resource += 1) {
+            if (!resources.has(readId())) throw new Error('Graphite root resource is missing');
+          }
+          const rootCommandSize = readCount();
+          requireBytes(rootCommandSize);
+          validateCommands(
+            new Int8Array(bytes.buffer, bytes.byteOffset + offset, rootCommandSize),
+            rootResourceCount,
+          );
+          offset += rootCommandSize;
+          if (offset !== view.byteLength) throw new Error('Graphite worker message has trailing bytes');
+        };
         self.onmessage = function(event) {
           const id = event.data.id;
           try {
             const bytes = event.data.bytes;
-            validate(bytes, 64);
+            processMessage(bytes);
             self.postMessage({ id: id, bytes: bytes }, [bytes.buffer]);
           } catch (error) {
             self.postMessage({ id: id, error: String(error && error.message || error) });

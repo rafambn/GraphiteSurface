@@ -5,6 +5,7 @@ agp = "9.3.1"
 composeAdapter = "1.12.0-beta03"
 composeCompiler = "2.4.10"
 androidxActivity = "1.12.2"
+androidxLifecycle = "2.11.0-beta02"
 kotlinxBrowser = "0.5.0"
 # The engine owns this Skiko/Graphite version independently from the adapter.
 graphiteEngineSkiko = "0.152.0-alpha01"
@@ -17,6 +18,8 @@ compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.re
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeAdapter" }
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "composeAdapter" }
 androidx-activity = { module = "androidx.activity:activity", version.ref = "androidxActivity" }
+androidx-lifecycle-runtime-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidxLifecycle" }
+androidx-lifecycle-viewmodel-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidxLifecycle" }
 kotlinx-browser = { module = "org.jetbrains.kotlinx:kotlinx-browser", version.ref = "kotlinxBrowser" }
 engine-skiko = { module = "org.jetbrains.skiko:skiko", version.ref = "graphiteEngineSkiko" }
 engine-skiko-graphite = { module = "org.jetbrains.skiko:skiko-graphite", version.ref = "graphiteEngineSkiko" }

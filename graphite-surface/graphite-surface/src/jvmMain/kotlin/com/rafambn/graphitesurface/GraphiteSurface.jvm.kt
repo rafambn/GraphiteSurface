@@ -22,7 +22,7 @@ import javax.swing.SwingUtilities
 
 @Composable
 @ExperimentalGraphiteSurfaceApi
-public actual fun GraphiteSurface(
+internal actual fun PlatformGraphiteSurface(
     renderer: GraphiteRenderer,
     modifier: Modifier,
     renderMode: GraphiteRenderMode,

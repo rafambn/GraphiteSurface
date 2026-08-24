@@ -6,7 +6,7 @@ package com.rafambn.graphitesurface
  * The implementation is provided by the platform engine. No renderer or
  * consumer code needs to depend on Skia, Skiko, or a platform GPU API.
  */
-public interface GraphiteDrawContext {
+internal interface GraphiteDrawContext {
     /** Fills the whole surface with [color] in 0xAARRGGBB format. */
     public fun clear(color: Long)
 
