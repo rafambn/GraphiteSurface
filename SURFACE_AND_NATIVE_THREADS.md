@@ -66,9 +66,8 @@ ordering, cancellation, ownership, and failure semantics.
   first use, and each recorder worker receives a resource payload only once.
   Display lists are immutable command graphs managed by the garbage collector.
   Recordings, frames, and pending snapshots retain closeable handles.
-- Sample scenes cache prepared recording targets and display lists by runtime
-  identity and physical pixel size. Presentation generation binds frames; it
-  does not invalidate reusable scene inputs by itself.
+- Sample scenes compile display lists for each frame. The runtime deduplicates
+  equivalent command programs by content.
 - The implemented encoder covers transforms, clips, reusable display lists,
   rectangles, ovals, lines, paths, and basic fill/stroke paint. Images,
   prepared glyph runs, gradients, effects, and blends remain work after this
@@ -373,7 +372,6 @@ public interface GraphitePresentationHost : AutoCloseable {
 
   ```kotlin
   suspend fun GraphiteRecorder.record(
-      target: GraphiteRecordingTarget,
       block: GraphiteEncoder.() -> Unit,
   ): GraphiteRecording
   ```
@@ -411,7 +409,7 @@ public interface GraphitePresentationHost : AutoCloseable {
 
 **Accepted**
 
-- Target dimensions are integer physical pixels.
+- Presentation dimensions are integer physical pixels.
 - Encoder coordinates are local `Float` units. They are not implicitly dp and
   are not necessarily pixels.
 - Density is explicit metadata and helper conversion APIs may be supplied.
@@ -488,16 +486,9 @@ belong at display-list replay time. A recording is already snapped GPU work.
 - A runtime establishes one non-mipmapped SDR sRGB target profile with a fixed
   sample count and backend-specific compatibility information.
 - Version 1 fixes the sample count at 1.
-- `runtime.createRecordingTarget(pixelSize)` creates an immutable,
-  runtime-bound logical target and works while no presentation surface is
-  attached.
-- Recording-target creation is synchronous. The target is a cheap reusable
-  descriptor, creates no native resource, and does not require `close()`.
-- Target creation validates positive dimensions and requires runtime state
-  `Ready`. Other runtime states throw
-  `GraphiteEngineUnavailableException`.
-- A recording target carries logical pixel dimensions and the runtime target
-  profile. It does not refer to a concrete platform surface.
+- A recorder can produce commands while no presentation surface is attached.
+- Recording has no logical target or pixel dimensions. Those belong to the
+  presentation that receives the completed recording.
 - `GraphiteRecording` is public, immutable, closeable, and bound to the
   runtime/device that created it.
 - A different runtime rejects it.
@@ -508,8 +499,8 @@ belong at display-list replay time. A recording is already snapped GPU work.
 - After snapping, only integer target translation and clip are supported.
   Arbitrary scale, rotation, skew, or perspective must be applied while
   replaying a display list into a recorder.
-- A recording carries its logical target metadata and compatibility profile.
-  It is not bound to a presentation generation.
+- A recording carries its runtime identity and compatibility profile. It is
+  not bound to a presentation generation.
 - Resize does not automatically throw away or fail an old-generation
   recording. The user may skip it, rebuild it, or reuse it in a new-generation
   frame when technically compatible.

@@ -9,8 +9,7 @@ val renderer = GraphiteRenderer(
     runtime = runtime,
     renderMode = GraphiteRenderMode.Continuous,
 ) { activeRuntime, frameTimeNanos, presentation ->
-    val target = targetFor(presentation)
-    val recording = activeRuntime.recorders[0].record(target) {
+    val recording = activeRuntime.recorders[0].record {
         draw(roads, transform = cameraAt(frameTimeNanos))
         drawPath(route, routePaint)
     }

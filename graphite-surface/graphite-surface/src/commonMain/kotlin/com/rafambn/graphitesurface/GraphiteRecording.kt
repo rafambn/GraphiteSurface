@@ -10,7 +10,7 @@ import kotlin.concurrent.atomics.AtomicBoolean
  * Close the caller-owned handle after inserting it. Every frame retains its own reference.
  */
 public class GraphiteRecording internal constructor(
-    public val target: GraphiteRecordingTarget,
+    internal val runtimeToken: Any,
     program: GraphiteCommandProgram,
 ) : AutoCloseable {
     private val closed: AtomicBoolean = AtomicBoolean(false)

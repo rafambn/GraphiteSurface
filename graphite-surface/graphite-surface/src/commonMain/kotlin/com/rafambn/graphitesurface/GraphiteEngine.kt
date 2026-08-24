@@ -99,14 +99,6 @@ public class GraphiteEngine(
         )
     }
 
-    public fun createRecordingTarget(pixelSize: GraphiteSize): GraphiteRecordingTarget {
-        requireReady()
-        require(pixelSize.width > 0 && pixelSize.height > 0) {
-            "recording target dimensions must be positive"
-        }
-        return GraphiteRecordingTarget(pixelSize, token)
-    }
-
     public fun createFrame(
         presentation: GraphitePresentationInfo,
         clearColor: GraphiteColor = GraphiteColor.Transparent,

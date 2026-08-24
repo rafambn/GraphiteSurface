@@ -70,7 +70,7 @@ request; `Manual` never schedules work automatically.
 Each callback still records and presents explicitly:
 
 ```kotlin
-val recording = runtime.recorders[0].record(target) {
+val recording = runtime.recorders[0].record {
     draw(roads, transform = cameraMatrix)
 }
 val frame = runtime.createFrame(presentation) { insert(recording) }

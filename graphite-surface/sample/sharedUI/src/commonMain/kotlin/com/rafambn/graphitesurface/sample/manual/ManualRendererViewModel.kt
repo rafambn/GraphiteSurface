@@ -46,13 +46,10 @@ internal class ManualRendererViewModel : ViewModel() {
         presentation: GraphitePresentationInfo,
     ) {
         try {
-            val (target, displayList) = prepareGraphiteSampleScene(
-                runtime = runtime,
-                pixelSize = presentation.pixelSize,
-            )
+            val displayList = prepareGraphiteSampleScene(presentation.pixelSize)
             animationStartNanos.compareAndSet(ANIMATION_NOT_STARTED, frameTimeNanos)
             val elapsedNanos = (frameTimeNanos - animationStartNanos.load()).coerceAtLeast(0L)
-            val recording = runtime.recorders.first().record(target) {
+            val recording = runtime.recorders.first().record {
                 draw(
                     displayList,
                     transform = GraphiteTransform.translation(

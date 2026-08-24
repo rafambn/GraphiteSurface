@@ -26,7 +26,6 @@ class GraphiteEngineTest {
     fun recorderBuildsReusableCommandsAsynchronously() = runTest {
         val runtime = GraphiteEngine(recorderCount = 2)
         try {
-            val target = runtime.createRecordingTarget(GraphiteSize(256, 256))
             val roads = GraphiteDisplayList.build {
                 drawPath(
                     GraphitePath.build {
@@ -37,12 +36,11 @@ class GraphiteEngineTest {
                 )
             }
 
-            val recording = runtime.recorders[1].record(target) {
+            val recording = runtime.recorders[1].record {
                 draw(roads, GraphiteTransform.translation(8f, 12f))
                 drawCircle(GraphitePoint(20f, 30f), 5f, GraphitePaint(GraphiteColor.Black))
             }
 
-            assertEquals(GraphiteSize(256, 256), recording.target.pixelSize)
             assertEquals(1, runtime.metricsSnapshot().recorders[1].completed)
             recording.close()
         } finally {
@@ -86,7 +84,6 @@ class GraphiteEngineTest {
         val second = GraphiteEngine()
         try {
             suspend fun recordTwice(runtime: GraphiteEngine) {
-                val target = runtime.createRecordingTarget(GraphiteSize(8, 8))
                 repeat(2) {
                     val displayList = GraphiteDisplayList.build {
                         drawCircle(
@@ -95,7 +92,7 @@ class GraphiteEngineTest {
                             GraphitePaint(GraphiteColor.White),
                         )
                     }
-                    runtime.recorders.single().record(target) { draw(displayList) }.close()
+                    runtime.recorders.single().record { draw(displayList) }.close()
                 }
             }
 
@@ -129,11 +126,10 @@ class GraphiteEngineTest {
             val presentation = requireNotNull(
                 runtime.updatePresentation(attachmentId, GraphiteSize(16, 16), density = 1f),
             )
-            val target = runtime.createRecordingTarget(presentation.pixelSize)
             val displayList = GraphiteDisplayList.build {
                 drawRect(GraphiteRect(0f, 0f, 8f, 8f), GraphitePaint(GraphiteColor.White))
             }
-            val recording = runtime.recorders.single().record(target) {
+            val recording = runtime.recorders.single().record {
                 draw(displayList)
             }
             val frame = runtime.createFrame(presentation) { insert(recording) }
@@ -146,7 +142,6 @@ class GraphiteEngineTest {
             try {
                 val insertion = pending.insertions.single()
                 insertion.recording.value.program.validate()
-                assertEquals(target.pixelSize, insertion.targetSize)
             } finally {
                 pending.close()
             }
@@ -200,15 +195,14 @@ class GraphiteEngineTest {
             }
         }
         try {
-            val target = runtime.createRecordingTarget(GraphiteSize(8, 8))
             val jobs = List(32) {
                 launch {
-                    runtime.recorders.single().record(target) { draw(displayList) }.close()
+                    runtime.recorders.single().record { draw(displayList) }.close()
                 }
             }
             jobs.forEach { it.cancelAndJoin() }
 
-            runtime.recorders.single().record(target) { draw(displayList) }.close()
+            runtime.recorders.single().record { draw(displayList) }.close()
             assertIs<GraphiteEngineState.Ready>(runtime.state.value)
         } finally {
             runtime.close()
@@ -217,13 +211,21 @@ class GraphiteEngineTest {
     }
 
     @Test
-    fun runtimeIdentityIsValidatedBeforeRecording() = runTest {
+    fun runtimeIdentityIsValidatedBeforeFrameInsertion() = runTest {
         val first = GraphiteEngine()
         val second = GraphiteEngine()
         try {
-            val foreignTarget = first.createRecordingTarget(GraphiteSize(1, 1))
-            assertFailsWith<GraphitePresentationException> {
-                second.recorders.single().record(foreignTarget) { }
+            val attachmentId = requireNotNull(second.attachPresentation {})
+            val presentation = requireNotNull(
+                second.updatePresentation(attachmentId, GraphiteSize(1, 1), density = 1f),
+            )
+            val recording = first.recorders.single().record { }
+            try {
+                assertFailsWith<GraphitePresentationException> {
+                    second.createFrame(presentation) { insert(recording) }
+                }
+            } finally {
+                recording.close()
             }
         } finally {
             first.close()
@@ -239,9 +241,8 @@ class GraphiteEngineTest {
             maxCommandBufferBytes = GraphiteCommandBufferLimit(32),
         )
         try {
-            val target = runtime.createRecordingTarget(GraphiteSize(1, 1))
             assertFailsWith<GraphiteEncodingException.CommandBufferTooLarge> {
-                runtime.recorders.single().record(target) {
+                runtime.recorders.single().record {
                     drawRect(
                         GraphiteRect(0f, 0f, 1f, 1f),
                         GraphitePaint(GraphiteColor.White),

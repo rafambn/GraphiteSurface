@@ -59,7 +59,6 @@ internal class DualRecorderViewModel : ViewModel() {
     ) {
         try {
             val prepared = DualRecorderScene.prepare(
-                runtime = runtime,
                 pixelSize = presentation.pixelSize,
             )
             animationStartNanos.compareAndSet(ANIMATION_NOT_STARTED, frameTimeNanos)
@@ -77,7 +76,7 @@ internal class DualRecorderViewModel : ViewModel() {
                     if (recorderEnabled[0].load()) {
                         launch {
                             recordings[0].store(
-                                runtime.recorders[0].record(prepared.target) {
+                                runtime.recorders[0].record {
                                     draw(
                                         displayList = prepared.background,
                                         transform = GraphiteTransform.translation(centerX, centerY) *
@@ -91,7 +90,7 @@ internal class DualRecorderViewModel : ViewModel() {
                     if (recorderEnabled[1].load()) {
                         launch {
                             recordings[1].store(
-                                runtime.recorders[1].record(prepared.target) {
+                                runtime.recorders[1].record {
                                     draw(
                                         displayList = prepared.foreground,
                                         transform = GraphiteTransform.translation(centerX, centerY) *

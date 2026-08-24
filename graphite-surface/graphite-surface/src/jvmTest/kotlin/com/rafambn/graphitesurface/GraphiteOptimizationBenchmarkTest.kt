@@ -42,14 +42,13 @@ class GraphiteOptimizationBenchmarkTest {
         val repeatedRoot = encode { repeat(100) { draw(displayList) } }
         val runtime = GraphiteEngine()
         try {
-            val target = runtime.createRecordingTarget(GraphiteSize(8, 8))
             val firstStarted = System.nanoTime()
-            runtime.recorders.single().record(target) { draw(displayList) }.close()
+            runtime.recorders.single().record { draw(displayList) }.close()
             val firstUseNanos = System.nanoTime() - firstStarted
             val firstMetrics = runtime.metricsSnapshot().resources
 
             val cachedStarted = System.nanoTime()
-            runtime.recorders.single().record(target) { draw(displayList) }.close()
+            runtime.recorders.single().record { draw(displayList) }.close()
             val cachedUseNanos = System.nanoTime() - cachedStarted
             val cachedMetrics = runtime.metricsSnapshot().resources
 

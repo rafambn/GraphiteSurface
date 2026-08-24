@@ -5,21 +5,17 @@ import com.rafambn.graphitesurface.GraphiteDisplayList
 import com.rafambn.graphitesurface.GraphitePaint
 import com.rafambn.graphitesurface.GraphitePath
 import com.rafambn.graphitesurface.GraphitePoint
-import com.rafambn.graphitesurface.GraphiteRecordingTarget
 import com.rafambn.graphitesurface.GraphiteRect
-import com.rafambn.graphitesurface.GraphiteEngine
 import com.rafambn.graphitesurface.GraphiteSize
 import kotlin.math.max
 import kotlin.math.min
 
 internal object DualRecorderScene {
     internal fun prepare(
-        runtime: GraphiteEngine,
         pixelSize: GraphiteSize,
     ): PreparedScene {
         val background = buildBackground(pixelSize)
         return PreparedScene(
-            target = runtime.createRecordingTarget(pixelSize),
             background = background,
             foreground = buildForeground(pixelSize),
         )
@@ -130,7 +126,6 @@ internal object DualRecorderScene {
     }
 
     internal class PreparedScene(
-        internal val target: GraphiteRecordingTarget,
         internal val background: GraphiteDisplayList,
         internal val foreground: GraphiteDisplayList,
     )

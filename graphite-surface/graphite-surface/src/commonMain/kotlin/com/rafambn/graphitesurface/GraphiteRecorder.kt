@@ -22,14 +22,8 @@ public class GraphiteRecorder internal constructor(
     private val execution: Mutex = Mutex()
     private val metrics: GraphiteRecorderMetrics = GraphiteRecorderMetrics(queueCapacity)
 
-    public suspend fun record(
-        target: GraphiteRecordingTarget,
-        block: GraphiteEncoder.() -> Unit,
-    ): GraphiteRecording {
+    public suspend fun record(block: GraphiteEncoder.() -> Unit): GraphiteRecording {
         runtime.requireReady()
-        if (target.runtimeToken !== runtime.token) {
-            throw GraphitePresentationException("recording target belongs to a different runtime")
-        }
 
         val queuedAt = platformMonotonicNanos()
         select {
@@ -54,7 +48,7 @@ public class GraphiteRecorder internal constructor(
                 }
             }
             metrics.succeeded(elapsedSince(admittedAt))
-            return GraphiteRecording(target, completedProgram)
+            return GraphiteRecording(runtime.token, completedProgram)
         } catch (cancelled: CancellationException) {
             metrics.cancelled(elapsedSince(admittedAt))
             throw cancelled

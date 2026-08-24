@@ -28,7 +28,7 @@ The API follows one ownership rule:
 | Value | Construction and ownership |
 | --- | --- |
 | Paths, paints, images, fonts, and display lists | Runtime-independent CPU values |
-| Recording targets, recordings, frames, and presentation | Bound to one `GraphiteEngine` |
+| Recordings, frames, and presentation | Bound to one `GraphiteEngine` |
 | Worker caches and GPU resources | Internal, registered when a runtime first uses a CPU value |
 
 ## 1. Decouple display-list construction from the runtime
@@ -201,13 +201,13 @@ Completion criteria:
 Keep direct drawing and retained drawing as two clear choices:
 
 ```kotlin
-recorder.record(target) {
+recorder.record {
     drawPath(dynamicPath, paint)
 }
 ```
 
 ```kotlin
-recorder.record(target) {
+recorder.record {
     draw(staticDisplayList, transform = cameraTransform)
 }
 ```
@@ -261,11 +261,11 @@ Implement the lifecycle as follows:
   state exposes the same owned runtime only so `GraphiteSurface` can attach it.
 - Close the runtime and clear the current display-list reference from
   `onCleared()`.
-- Move presentation-generation tracking, display-list creation, recording
-  target reuse, recording, frame construction, and presentation into a
-  sequential suspend function on the ViewModel.
-- Build the triangle display list and recording target once per presentation
-  generation. Replace their references when the generation changes.
+- Move presentation-generation tracking, display-list creation, recording,
+  frame construction, and presentation into a sequential suspend function on
+  the ViewModel.
+- Build the triangle display list for each frame. Equivalent command programs
+  are deduplicated structurally by the runtime.
 - Keep constructor and terminal runtime failures in the UI state or the
   runtime's existing observable state.
 

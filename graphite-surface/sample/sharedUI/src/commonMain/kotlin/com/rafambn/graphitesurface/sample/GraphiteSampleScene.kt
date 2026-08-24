@@ -4,18 +4,15 @@ import com.rafambn.graphitesurface.GraphiteColor
 import com.rafambn.graphitesurface.GraphiteDisplayList
 import com.rafambn.graphitesurface.GraphitePaint
 import com.rafambn.graphitesurface.GraphitePath
-import com.rafambn.graphitesurface.GraphiteRecordingTarget
-import com.rafambn.graphitesurface.GraphiteEngine
 import com.rafambn.graphitesurface.GraphiteSize
 import kotlin.math.min
 
 internal fun prepareGraphiteSampleScene(
-    runtime: GraphiteEngine,
     pixelSize: GraphiteSize,
-): Pair<GraphiteRecordingTarget, GraphiteDisplayList> {
+): GraphiteDisplayList {
     val extent = min(pixelSize.width, pixelSize.height).toFloat()
     val halfWidth = extent * 0.35f
-    val displayList = GraphiteDisplayList.build {
+    return GraphiteDisplayList.build {
         drawPath(
             GraphitePath.build {
                 moveTo(0f, -halfWidth * 4f / 3f)
@@ -26,5 +23,4 @@ internal fun prepareGraphiteSampleScene(
             GraphitePaint(GraphiteColor.Red),
         )
     }
-    return runtime.createRecordingTarget(pixelSize) to displayList
 }

@@ -10,7 +10,7 @@ public class GraphiteFrameBuilder internal constructor(private val runtimeToken:
         translation: GraphiteIntOffset = GraphiteIntOffset.Zero,
         clip: GraphiteIntRect? = null,
     ) {
-        if (recording.target.runtimeToken !== runtimeToken) {
+        if (recording.runtimeToken !== runtimeToken) {
             throw GraphitePresentationException("recording belongs to a different runtime")
         }
         check(!built) { "frame builder has already finished" }
@@ -18,7 +18,6 @@ public class GraphiteFrameBuilder internal constructor(private val runtimeToken:
         try {
             insertions += GraphiteFrameInsertion(
                 recording = retained,
-                targetSize = recording.target.pixelSize,
                 translation = translation,
                 clip = clip,
             )
