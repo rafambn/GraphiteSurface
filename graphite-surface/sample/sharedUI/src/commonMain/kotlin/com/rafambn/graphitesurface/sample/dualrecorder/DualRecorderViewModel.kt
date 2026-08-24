@@ -30,7 +30,6 @@ internal class DualRecorderViewModel : ViewModel() {
     internal val uiState: StateFlow<DualRecorderUiState> = mutableUiState.asStateFlow()
 
     private val recorderEnabled = listOf(AtomicBoolean(true), AtomicBoolean(true))
-    private val animationStartNanos = AtomicLong(ANIMATION_NOT_STARTED)
     private val renderedFrames = AtomicLong(0)
     internal val renderer: GraphiteRenderer? = try {
         GraphiteRenderer(
@@ -61,9 +60,7 @@ internal class DualRecorderViewModel : ViewModel() {
             val prepared = DualRecorderScene.prepare(
                 pixelSize = presentation.pixelSize,
             )
-            animationStartNanos.compareAndSet(ANIMATION_NOT_STARTED, frameTimeNanos)
-            val elapsedNanos = (frameTimeNanos - animationStartNanos.load()).coerceAtLeast(0L)
-            val rotation = loopingRotationDegrees(elapsedNanos)
+            val rotation = loopingRotationDegrees(frameTimeNanos)
             val centerX = presentation.pixelSize.width / 2f
             val centerY = presentation.pixelSize.height / 2f
             val recordings = listOf(
@@ -157,6 +154,5 @@ internal class DualRecorderViewModel : ViewModel() {
     private companion object {
         const val RECORDER_COUNT: Int = 2
         const val METRICS_REFRESH_FRAMES: Long = 12
-        const val ANIMATION_NOT_STARTED: Long = Long.MIN_VALUE
     }
 }

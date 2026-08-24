@@ -10,19 +10,15 @@ import com.rafambn.graphitesurface.GraphiteTransform
 import com.rafambn.graphitesurface.sample.RotationSpeed
 import com.rafambn.graphitesurface.sample.loopingRotationDegrees
 import com.rafambn.graphitesurface.sample.prepareGraphiteSampleScene
-import kotlin.concurrent.atomics.AtomicLong
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-@OptIn(ExperimentalAtomicApi::class)
 internal class ContinuousRendererViewModel : ViewModel() {
     private val mutableError = MutableStateFlow<Throwable?>(null)
     internal val error: StateFlow<Throwable?> = mutableError.asStateFlow()
 
-    private val animationStartNanos = AtomicLong(ANIMATION_NOT_STARTED)
     private val rotationSpeed = RotationSpeed()
     internal val renderer: GraphiteRenderer? = try {
         GraphiteRenderer(
@@ -47,8 +43,6 @@ internal class ContinuousRendererViewModel : ViewModel() {
     ) {
         try {
             val displayList = prepareGraphiteSampleScene(presentation.pixelSize)
-            animationStartNanos.compareAndSet(ANIMATION_NOT_STARTED, frameTimeNanos)
-            val elapsedNanos = (frameTimeNanos - animationStartNanos.load()).coerceAtLeast(0L)
             val recording = runtime.recorders.first().record {
                 draw(
                     displayList,
@@ -56,7 +50,7 @@ internal class ContinuousRendererViewModel : ViewModel() {
                         presentation.pixelSize.width / 2f,
                         presentation.pixelSize.height / 2f,
                     ) * GraphiteTransform.rotationDegrees(
-                        loopingRotationDegrees(elapsedNanos, rotationSpeed.read()),
+                        loopingRotationDegrees(frameTimeNanos, rotationSpeed.read()),
                     ),
                 )
             }
@@ -81,9 +75,5 @@ internal class ContinuousRendererViewModel : ViewModel() {
 
     public override fun onCleared() {
         renderer?.runtime?.close()
-    }
-
-    private companion object {
-        const val ANIMATION_NOT_STARTED: Long = Long.MIN_VALUE
     }
 }
