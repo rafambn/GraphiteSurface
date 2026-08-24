@@ -47,7 +47,7 @@ public class GraphiteEngine(
     private val attachmentIds: AtomicLong = AtomicLong(0)
     private val generations: AtomicLong = AtomicLong(0)
     private val attachment: AtomicReference<GraphitePresentationAttachment?> = AtomicReference(null)
-    private val pendingFrame: AtomicReference<GraphiteFrameSnapshot?> = AtomicReference(null)
+    private val pendingFrame: AtomicReference<GraphiteFrame?> = AtomicReference(null)
     private val acceptedFrames: AtomicLong = AtomicLong(0)
     private val replacedFrames: AtomicLong = AtomicLong(0)
     private val rejectedFrames: AtomicLong = AtomicLong(0)
@@ -130,8 +130,7 @@ public class GraphiteEngine(
             return GraphitePresentResult.StalePresentation
         }
 
-        val previous = pendingFrame.exchange(frame.snapshot())
-        previous?.close()
+        val previous = pendingFrame.exchange(frame)
         val result = if (previous == null) {
             acceptedFrames.addAndFetch(1)
             GraphitePresentResult.Accepted
@@ -168,7 +167,7 @@ public class GraphiteEngine(
         if (!closing.compareAndSet(false, true)) return
         shutdownRequested.complete(Unit)
         mutableState.value = GraphiteEngineState.Closing
-        pendingFrame.exchange(null)?.close()
+        pendingFrame.store(null)
         attachment.store(null)
         mutablePresentation.value = GraphitePresentationState.Detached
         logger.emit("runtime_lifecycle", "closing")
@@ -262,7 +261,7 @@ public class GraphiteEngine(
                 "error" to (failure.cause?.message ?: failure.cause ?: failure.message),
             ),
         )
-        pendingFrame.exchange(null)?.close()
+        pendingFrame.store(null)
         recorders.forEach(GraphiteRecorder::close)
         scope.launch {
             try {
@@ -315,7 +314,7 @@ public class GraphiteEngine(
             )
             val updated = GraphitePresentationAttachment(current.id, current.requestFrame, info)
             if (attachment.compareAndSet(current, updated)) {
-                pendingFrame.exchange(null)?.close()
+                pendingFrame.store(null)
                 mutablePresentation.value = GraphitePresentationState.Attached(info)
                 return info
             }
@@ -326,17 +325,16 @@ public class GraphiteEngine(
         val current = attachment.load() ?: return
         if (current.id != attachmentId) return
         if (attachment.compareAndSet(current, null)) {
-            pendingFrame.exchange(null)?.close()
+            pendingFrame.store(null)
             mutablePresentation.value = GraphitePresentationState.Detached
         }
     }
 
-    internal fun takePendingFrame(attachmentId: Long): GraphiteFrameSnapshot? {
+    internal fun takePendingFrame(attachmentId: Long): GraphiteFrame? {
         val current = attachment.load() ?: return null
         if (current.id != attachmentId || current.info == null) return null
         val frame = pendingFrame.exchange(null) ?: return null
-        if (frame.presentationGeneration == current.info.generation) return frame
-        frame.close()
+        if (frame.presentation.generation == current.info.generation) return frame
         return null
     }
 
@@ -351,7 +349,7 @@ public class GraphiteEngine(
             if (current.id != attachmentId) return
             val updated = GraphitePresentationAttachment(current.id, current.requestFrame, info = null)
             if (attachment.compareAndSet(current, updated)) {
-                pendingFrame.exchange(null)?.close()
+                pendingFrame.store(null)
                 mutablePresentation.value = GraphitePresentationState.Detached
                 return
             }

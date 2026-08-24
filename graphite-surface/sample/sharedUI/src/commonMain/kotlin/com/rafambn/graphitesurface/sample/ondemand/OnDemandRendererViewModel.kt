@@ -58,11 +58,7 @@ internal class OnDemandRendererViewModel : ViewModel() {
             val frame = createFrame(presentation, GraphiteColor.White) {
                 insert(recording)
             }
-            try {
-                present(frame)
-            } finally {
-                frame.close()
-            }
+            present(frame)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Throwable) {

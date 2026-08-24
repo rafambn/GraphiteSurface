@@ -105,11 +105,7 @@ internal class DualRecorderViewModel : ViewModel() {
             ) {
                 recordings.forEach { slot -> slot.load()?.let(::insert) }
             }
-            try {
-                present(frame)
-            } finally {
-                frame.close()
-            }
+            present(frame)
 
             if (renderedFrames.addAndFetch(1) % METRICS_REFRESH_FRAMES == 0L) {
                 publishMetrics(this)

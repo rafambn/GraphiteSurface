@@ -68,7 +68,6 @@ class GraphiteEngineTest {
             assertEquals(GraphitePresentResult.ReplacedPending, runtime.present(second))
             val pending = runtime.takePendingFrame(attachmentId)
             assertEquals(GraphiteColor.White, pending?.clearColor)
-            pending?.close()
             assertFalse(runtime.hasPendingFrame(attachmentId))
             assertEquals(2, requests)
             assertEquals(0, runtime.metricsSnapshot().pendingFrames)
@@ -119,7 +118,7 @@ class GraphiteEngineTest {
     }
 
     @Test
-    fun frameSnapshotKeepsImmutableRecordingCommands() = runTest {
+    fun pendingFrameKeepsImmutableRecordingCommands() = runTest {
         val runtime = GraphiteEngine()
         try {
             val attachmentId = requireNotNull(runtime.attachPresentation {})
@@ -135,16 +134,10 @@ class GraphiteEngineTest {
             val frame = runtime.createFrame(presentation) { insert(recording) }
 
             assertEquals(GraphitePresentResult.Accepted, runtime.present(frame))
-            frame.close()
 
             val pending = requireNotNull(runtime.takePendingFrame(attachmentId))
-            try {
-                val insertion = pending.insertions.single()
-                insertion.program.validate()
-            } finally {
-                pending.close()
-            }
-            assertTrue(frame.isClosed)
+            val insertion = pending.insertions.single()
+            insertion.program.validate()
         } finally {
             runtime.close()
             runtime.awaitClosed()

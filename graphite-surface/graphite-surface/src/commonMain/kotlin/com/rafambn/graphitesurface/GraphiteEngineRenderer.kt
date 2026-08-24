@@ -63,8 +63,6 @@ internal class GraphiteEngineRenderer(private val runtime: GraphiteEngine) :
             }
         } catch (error: Throwable) {
             runtime.failFromRenderWorker(error)
-        } finally {
-            frame.close()
         }
     }
 

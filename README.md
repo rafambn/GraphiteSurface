@@ -74,11 +74,7 @@ val recording = recorders[0].record {
     draw(roads, transform = cameraMatrix)
 }
 val frame = createFrame(presentation) { insert(recording) }
-try {
-    present(frame)
-} finally {
-    frame.close()
-}
+present(frame)
 ```
 
 Low-level callers that own scheduling themselves can attach only the runtime:

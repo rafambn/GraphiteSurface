@@ -16,11 +16,7 @@ val renderer = GraphiteRenderer(
     val frame = createFrame(presentation, GraphiteColor.White) {
         insert(recording)
     }
-    try {
-        present(frame)
-    } finally {
-        frame.close()
-    }
+    present(frame)
 }
 
 GraphiteSurface(renderer, Modifier.fillMaxSize())
