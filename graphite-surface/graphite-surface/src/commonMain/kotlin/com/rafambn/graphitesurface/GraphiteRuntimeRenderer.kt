@@ -26,6 +26,11 @@ internal class GraphiteRuntimeRenderer(private val runtime: GraphiteRuntime) : G
         if (id != 0L) runtime.updatePresentation(id, size, density.load())
     }
 
+    override fun hasPendingFrame(): Boolean {
+        val id = attachmentId.load()
+        return id != 0L && runtime.hasPendingFrame(id)
+    }
+
     override fun onDrawFrame(context: GraphiteDrawContext) {
         val id = attachmentId.load()
         if (id == 0L) return

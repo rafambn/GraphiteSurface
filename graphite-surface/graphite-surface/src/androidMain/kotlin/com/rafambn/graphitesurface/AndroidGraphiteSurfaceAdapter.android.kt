@@ -166,9 +166,17 @@ private class GraphiteSurfaceView(
 
     override fun doFrame(frameTimeNanos: Long) {
         frameScheduled = false
+        drawFrame(frameTimeNanos)
+    }
+
+    private fun drawFrame(frameTimeNanos: Long) {
         if (disposed || !surfaceReady) return
 
         if (renderMode == GraphiteRenderMode.OnDemand && !pendingRender) return
+        if (renderMode == GraphiteRenderMode.OnDemand && !renderer.hasPendingFrame()) {
+            pendingRender = false
+            return
+        }
         AndroidGraphiteNative.setFrameTimeNanos(engineHandle, frameTimeNanos)
         if (AndroidGraphiteNative.beginFrame(engineHandle)) {
             pendingRender = false
@@ -193,7 +201,11 @@ private class GraphiteSurfaceView(
         renderHandler.post {
             if (disposed) return@post
             pendingRender = true
-            scheduleFrame()
+            if (renderMode == GraphiteRenderMode.OnDemand) {
+                drawFrame(System.nanoTime())
+            } else {
+                scheduleFrame()
+            }
         }
     }
 

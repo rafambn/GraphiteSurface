@@ -11,6 +11,9 @@ internal interface GraphiteRenderer {
     /** Receives the pixel size before the next frame is drawn. */
     public fun onSurfaceChanged(size: GraphiteSize)
 
+    /** Returns whether an on-demand presentation has content ready to draw. */
+    public fun hasPendingFrame(): Boolean
+
     /** Records one frame using the library-owned drawing context. */
     public fun onDrawFrame(context: GraphiteDrawContext)
 

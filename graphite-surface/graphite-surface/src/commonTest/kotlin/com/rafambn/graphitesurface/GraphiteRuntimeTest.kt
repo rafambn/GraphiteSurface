@@ -3,6 +3,7 @@ package com.rafambn.graphitesurface
 import com.rafambn.scribe.Archivist
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
@@ -54,11 +55,14 @@ class GraphiteRuntimeTest {
             val first = runtime.createFrame(presentation, GraphiteColor.Black)
             val second = runtime.createFrame(presentation, GraphiteColor.White)
 
+            assertFalse(runtime.hasPendingFrame(attachmentId))
             assertEquals(GraphitePresentResult.Accepted, runtime.present(first))
+            assertTrue(runtime.hasPendingFrame(attachmentId))
             assertEquals(GraphitePresentResult.ReplacedPending, runtime.present(second))
             val pending = runtime.takePendingFrame(attachmentId)
             assertEquals(GraphiteColor.White, pending?.clearColor)
             pending?.close()
+            assertFalse(runtime.hasPendingFrame(attachmentId))
             assertEquals(2, requests)
             assertEquals(0, runtime.metricsSnapshot().pendingFrames)
         } finally {

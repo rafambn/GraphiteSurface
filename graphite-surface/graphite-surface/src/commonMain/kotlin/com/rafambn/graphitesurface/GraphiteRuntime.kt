@@ -309,6 +309,11 @@ public class GraphiteRuntime private constructor(public val config: GraphiteRunt
         return null
     }
 
+    internal fun hasPendingFrame(attachmentId: Long): Boolean {
+        val current = attachment.load() ?: return false
+        return current.id == attachmentId && current.info != null && pendingFrame.load() != null
+    }
+
     private fun detachPresentationTarget(attachmentId: Long) {
         while (true) {
             val current = attachment.load() ?: return
