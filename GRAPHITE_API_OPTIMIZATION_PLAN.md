@@ -14,8 +14,9 @@ The renderer-removal decision in sections 6 and 7 was superseded later on
 text below is retained as historical implementation context.
 
 The sample's single-ViewModel design in section 6 was also superseded. Each
-renderer demo now has its own ViewModel, runtime, scene, renderer, state, and
-cleanup so the three modes can be read as independent examples.
+renderer demo now has its own ViewModel, runtime, scene, stable renderer,
+reactive error, and cleanup so the three modes can be read as independent
+examples.
 
 The accepted ownership, worker, cancellation, and presentation contracts in
 [`SURFACE_AND_NATIVE_THREADS.md`](SURFACE_AND_NATIVE_THREADS.md) remain

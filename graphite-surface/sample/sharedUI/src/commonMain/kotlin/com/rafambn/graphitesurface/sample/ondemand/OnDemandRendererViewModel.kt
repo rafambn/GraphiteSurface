@@ -9,7 +9,6 @@ import com.rafambn.graphitesurface.GraphiteRenderer
 import com.rafambn.graphitesurface.GraphiteRuntime
 import com.rafambn.graphitesurface.GraphiteTransform
 import com.rafambn.graphitesurface.sample.GraphiteSampleScene
-import com.rafambn.graphitesurface.sample.components.RendererScreenState
 import com.rafambn.graphitesurface.sample.loopingRotationDegrees
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
@@ -20,29 +19,24 @@ import kotlinx.coroutines.flow.asStateFlow
 
 @OptIn(ExperimentalAtomicApi::class)
 internal class OnDemandRendererViewModel : ViewModel() {
-    private val mutableUiState = MutableStateFlow<RendererScreenState>(
-        RendererScreenState.Initializing,
-    )
-    internal val uiState: StateFlow<RendererScreenState> = mutableUiState.asStateFlow()
+    private val mutableError = MutableStateFlow<Throwable?>(null)
+    internal val error: StateFlow<Throwable?> = mutableError.asStateFlow()
 
     private val animationStartNanos = AtomicLong(ANIMATION_NOT_STARTED)
     private var runtime: GraphiteRuntime? = null
     private val scene = GraphiteSampleScene()
 
-    init {
-        try {
-            val createdRuntime = GraphiteRuntime(recorderCount = 2)
-            runtime = createdRuntime
-            mutableUiState.value = RendererScreenState.Ready(
-                GraphiteRenderer(
-                    runtime = createdRuntime,
-                    renderMode = GraphiteRenderMode.OnDemand,
-                    renderFrame = ::renderFrame,
-                ),
-            )
-        } catch (error: Throwable) {
-            mutableUiState.value = RendererScreenState.Failed(error)
-        }
+    internal val renderer: GraphiteRenderer? = try {
+        val createdRuntime = GraphiteRuntime(recorderCount = 2)
+        runtime = createdRuntime
+        GraphiteRenderer(
+            runtime = createdRuntime,
+            renderMode = GraphiteRenderMode.OnDemand,
+            renderFrame = ::renderFrame,
+        )
+    } catch (error: Throwable) {
+        mutableError.value = error
+        null
     }
 
     private suspend fun renderFrame(
@@ -55,7 +49,7 @@ internal class OnDemandRendererViewModel : ViewModel() {
             throw cancelled
         } catch (error: Throwable) {
             scene.close()
-            mutableUiState.value = RendererScreenState.Failed(error)
+            mutableError.value = error
         }
     }
 

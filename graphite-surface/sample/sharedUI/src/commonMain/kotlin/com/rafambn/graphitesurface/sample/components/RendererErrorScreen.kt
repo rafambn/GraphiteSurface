@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 @Composable
-internal fun RendererStatusScreen(failed: Boolean = false) {
+internal fun RendererErrorScreen() {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -18,9 +18,9 @@ internal fun RendererStatusScreen(failed: Boolean = false) {
         contentAlignment = Alignment.Center,
     ) {
         PixelLabel(
-            text = if (failed) "ERROR" else "LOADING",
-            color = if (failed) Color(0xFFFF6B6B) else Color.White,
-            pixelSize = if (failed) 5.dp else 4.dp,
+            text = "ERROR",
+            color = Color(0xFFFF6B6B),
+            pixelSize = 5.dp,
         )
     }
 }

@@ -16,7 +16,7 @@ were implemented on 2026-08-24.
 - Direct drawing and retained drawing are documented as separate choices.
 - The continuous, on-demand, and manual sample screens each have their own
   ViewModel. Every ViewModel owns its runtime creation, scene resources,
-  renderer, frame recording, failure state, and cleanup.
+  stable renderer, frame recording, reactive error, and cleanup.
 - Native draw contexts and surface state are no longer public API. A later
   revision restored a user-owned renderer-based Compose overload with
   `Continuous`, `OnDemand`, and `Manual` modes, without exposing platform
@@ -112,8 +112,8 @@ and Compose/Skiko version alignment are outside this API change.
 
 Observed outcomes on 2026-08-24:
 
-- JVM library and sample tests passed, including the ViewModel cancellation
-  race and retained-lifetime tests.
+- JVM library and sample tests passed, including runtime constructor validation,
+  per-ViewModel cleanup, and retained-lifetime tests.
 - Android, Kotlin/JS, and Kotlin/Wasm library and shared sample targets compiled.
 - JS and Wasm development distributions bundled successfully.
 - The JS browser test suite passed. The Wasm Karma suite compiled but its

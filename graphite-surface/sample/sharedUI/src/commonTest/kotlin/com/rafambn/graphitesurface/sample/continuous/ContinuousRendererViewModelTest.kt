@@ -2,26 +2,27 @@ package com.rafambn.graphitesurface.sample.continuous
 
 import com.rafambn.graphitesurface.GraphiteRenderMode
 import com.rafambn.graphitesurface.GraphiteRuntimeState
-import com.rafambn.graphitesurface.sample.components.RendererScreenState
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
 
 class ContinuousRendererViewModelTest {
     @Test
     fun publishesContinuousRendererAndClosesItsRuntime() = runTest {
         val viewModel = ContinuousRendererViewModel()
-        val ready = assertIs<RendererScreenState.Ready>(viewModel.uiState.value)
+        val renderer = assertNotNull(viewModel.renderer)
         try {
-            assertEquals(GraphiteRenderMode.Continuous, ready.renderer.renderMode)
+            assertNull(viewModel.error.value)
+            assertEquals(GraphiteRenderMode.Continuous, renderer.renderMode)
 
             viewModel.onCleared()
-            ready.renderer.runtime.awaitClosed()
-            assertEquals(GraphiteRuntimeState.Closed, ready.renderer.runtime.state.value)
+            renderer.runtime.awaitClosed()
+            assertEquals(GraphiteRuntimeState.Closed, renderer.runtime.state.value)
         } finally {
             viewModel.onCleared()
-            ready.renderer.runtime.awaitClosed()
+            renderer.runtime.awaitClosed()
         }
     }
 }

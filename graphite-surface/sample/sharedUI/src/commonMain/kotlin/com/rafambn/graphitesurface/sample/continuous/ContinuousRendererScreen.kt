@@ -5,23 +5,24 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rafambn.graphitesurface.sample.components.RendererDemoScreen
-import com.rafambn.graphitesurface.sample.components.RendererScreenState
-import com.rafambn.graphitesurface.sample.components.RendererStatusScreen
+import com.rafambn.graphitesurface.sample.components.RendererErrorScreen
 
 @Composable
 internal fun ContinuousRendererScreen(
     onBack: () -> Unit,
 ) {
     val viewModel = viewModel { ContinuousRendererViewModel() }
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val error by viewModel.error.collectAsStateWithLifecycle()
+    val renderer = viewModel.renderer
 
-    when (val state = uiState) {
-        RendererScreenState.Initializing -> RendererStatusScreen()
-        is RendererScreenState.Failed -> RendererStatusScreen(failed = true)
-        is RendererScreenState.Ready -> RendererDemoScreen(
-            renderer = state.renderer,
-            title = "Continuous",
-            onBack = onBack,
-        )
+    if (error != null || renderer == null) {
+        RendererErrorScreen()
+        return
     }
+
+    RendererDemoScreen(
+        renderer = renderer,
+        title = "Continuous",
+        onBack = onBack,
+    )
 }

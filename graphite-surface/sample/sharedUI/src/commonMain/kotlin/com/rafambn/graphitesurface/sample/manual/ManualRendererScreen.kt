@@ -7,8 +7,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rafambn.graphitesurface.sample.components.RendererDemoScreen
-import com.rafambn.graphitesurface.sample.components.RendererScreenState
-import com.rafambn.graphitesurface.sample.components.RendererStatusScreen
+import com.rafambn.graphitesurface.sample.components.RendererErrorScreen
 import kotlinx.coroutines.isActive
 
 @Composable
@@ -16,23 +15,23 @@ internal fun ManualRendererScreen(
     onBack: () -> Unit,
 ) {
     val viewModel = viewModel { ManualRendererViewModel() }
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val error by viewModel.error.collectAsStateWithLifecycle()
+    val renderer = viewModel.renderer
 
-    when (val state = uiState) {
-        RendererScreenState.Initializing -> RendererStatusScreen()
-        is RendererScreenState.Failed -> RendererStatusScreen(failed = true)
-        is RendererScreenState.Ready -> {
-            LaunchedEffect(state.renderer) {
-                while (isActive) {
-                    val frameTimeNanos = withFrameNanos { it }
-                    state.renderer.render(frameTimeNanos)
-                }
-            }
-            RendererDemoScreen(
-                renderer = state.renderer,
-                title = "Manual",
-                onBack = onBack,
-            )
+    if (error != null || renderer == null) {
+        RendererErrorScreen()
+        return
+    }
+
+    LaunchedEffect(renderer) {
+        while (isActive) {
+            val frameTimeNanos = withFrameNanos { it }
+            renderer.render(frameTimeNanos)
         }
     }
+    RendererDemoScreen(
+        renderer = renderer,
+        title = "Manual",
+        onBack = onBack,
+    )
 }

@@ -6,8 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rafambn.graphitesurface.sample.components.RendererDemoScreen
-import com.rafambn.graphitesurface.sample.components.RendererScreenState
-import com.rafambn.graphitesurface.sample.components.RendererStatusScreen
+import com.rafambn.graphitesurface.sample.components.RendererErrorScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -16,23 +15,23 @@ internal fun OnDemandRendererScreen(
     onBack: () -> Unit,
 ) {
     val viewModel = viewModel { OnDemandRendererViewModel() }
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val error by viewModel.error.collectAsStateWithLifecycle()
+    val renderer = viewModel.renderer
 
-    when (val state = uiState) {
-        RendererScreenState.Initializing -> RendererStatusScreen()
-        is RendererScreenState.Failed -> RendererStatusScreen(failed = true)
-        is RendererScreenState.Ready -> {
-            LaunchedEffect(state.renderer) {
-                while (isActive) {
-                    state.renderer.requestRender()
-                    delay(250L)
-                }
-            }
-            RendererDemoScreen(
-                renderer = state.renderer,
-                title = "On demand",
-                onBack = onBack,
-            )
+    if (error != null || renderer == null) {
+        RendererErrorScreen()
+        return
+    }
+
+    LaunchedEffect(renderer) {
+        while (isActive) {
+            renderer.requestRender()
+            delay(250L)
         }
     }
+    RendererDemoScreen(
+        renderer = renderer,
+        title = "On demand",
+        onBack = onBack,
+    )
 }
