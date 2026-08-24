@@ -45,7 +45,6 @@ class GraphiteEngineTest {
             assertEquals(GraphiteSize(256, 256), recording.target.pixelSize)
             assertEquals(1, runtime.metricsSnapshot().recorders[1].completed)
             recording.close()
-            roads.close()
         } finally {
             runtime.close()
             runtime.awaitClosed()
@@ -82,16 +81,20 @@ class GraphiteEngineTest {
     }
 
     @Test
-    fun sameDisplayListRegistersIndependentlyAndPublishesOncePerRuntimeWorker() = runTest {
-        val displayList = GraphiteDisplayList.build {
-            drawCircle(GraphitePoint(4f, 4f), 2f, GraphitePaint(GraphiteColor.White))
-        }
+    fun equivalentDisplayListsRegisterOncePerRuntimeWorker() = runTest {
         val first = GraphiteEngine()
         val second = GraphiteEngine()
         try {
             suspend fun recordTwice(runtime: GraphiteEngine) {
                 val target = runtime.createRecordingTarget(GraphiteSize(8, 8))
                 repeat(2) {
+                    val displayList = GraphiteDisplayList.build {
+                        drawCircle(
+                            GraphitePoint(4f, 4f),
+                            2f,
+                            GraphitePaint(GraphiteColor.White),
+                        )
+                    }
                     runtime.recorders.single().record(target) { draw(displayList) }.close()
                 }
             }
@@ -109,7 +112,6 @@ class GraphiteEngineTest {
             assertEquals(1, secondMetrics.publications)
             assertEquals(1, secondMetrics.cacheHits)
         } finally {
-            displayList.close()
             first.close()
             second.close()
             first.awaitClosed()
@@ -120,7 +122,7 @@ class GraphiteEngineTest {
     }
 
     @Test
-    fun retainedWorkSurvivesClosingEveryCallerOwnedHandle() = runTest {
+    fun retainedWorkSurvivesClosingRecordingAndFrameHandles() = runTest {
         val runtime = GraphiteEngine()
         try {
             val attachmentId = requireNotNull(runtime.attachPresentation {})
@@ -133,7 +135,6 @@ class GraphiteEngineTest {
             }
             val recording = runtime.recorders.single().record(target) {
                 draw(displayList)
-                displayList.close()
             }
             val frame = runtime.createFrame(presentation) { insert(recording) }
             recording.close()
@@ -149,7 +150,6 @@ class GraphiteEngineTest {
             } finally {
                 pending.close()
             }
-            assertTrue(displayList.isClosed)
             assertTrue(recording.isClosed)
             assertTrue(frame.isClosed)
         } finally {
@@ -161,18 +161,15 @@ class GraphiteEngineTest {
     @Test
     fun runtimeResourceIdsAreMonotonicWithinOneNamespace() = runTest {
         val first = GraphiteDisplayList.build {}
-        val second = GraphiteDisplayList.build {}
-        val rootWriter = GraphiteCommandWriter(GraphiteCommandBufferLimit.Default.bytes)
-        val root = try {
-            GraphiteEncoderImpl(rootWriter, cancellationProbe = {}).apply {
-                draw(first)
-                draw(second)
-            }
-            rootWriter.finish()
-        } catch (error: Throwable) {
-            rootWriter.close()
-            throw error
+        val second = GraphiteDisplayList.build {
+            drawCircle(GraphitePoint(4f, 4f), 2f, GraphitePaint(GraphiteColor.White))
         }
+        val rootWriter = GraphiteCommandWriter(GraphiteCommandBufferLimit.Default.bytes)
+        GraphiteEncoderImpl(rootWriter, cancellationProbe = {}).apply {
+            draw(first)
+            draw(second)
+        }
+        val root = rootWriter.finish()
         val registry = GraphiteResourceRegistry()
         try {
             val message = registry.prepare(root, workerIndex = 0)
@@ -187,9 +184,6 @@ class GraphiteEngineTest {
             assertTrue(secondId > firstId)
         } finally {
             registry.close()
-            root.close()
-            first.close()
-            second.close()
         }
     }
 
@@ -217,7 +211,6 @@ class GraphiteEngineTest {
             runtime.recorders.single().record(target) { draw(displayList) }.close()
             assertIs<GraphiteEngineState.Ready>(runtime.state.value)
         } finally {
-            displayList.close()
             runtime.close()
             runtime.awaitClosed()
         }

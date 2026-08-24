@@ -3,6 +3,8 @@ package com.rafambn.graphitesurface
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
@@ -13,7 +15,7 @@ class GraphiteDisplayListTest {
         runtime.close()
         runtime.awaitClosed()
 
-        GraphiteDisplayList.build {}.close()
+        GraphiteDisplayList.build {}
 
         assertFailsWith<GraphiteEncodingException.CommandBufferTooLarge> {
             GraphiteDisplayList.build(GraphiteCommandBufferLimit(Int.SIZE_BYTES * 2)) {
@@ -23,13 +25,39 @@ class GraphiteDisplayListTest {
     }
 
     @Test
-    fun closedDisplayListCannotBeUsedForNewWork() {
+    fun displayListCanBeReusedForNewWork() {
         val displayList = GraphiteDisplayList.build {}
-        displayList.close()
+        val first = programDrawing(displayList)
+        val second = programDrawing(displayList)
 
-        assertFailsWith<GraphiteEncodingException.ClosedResource> {
-            GraphiteDisplayList.build { draw(displayList) }
+        assertSame(displayList.program, first.resources.single())
+        assertSame(displayList.program, second.resources.single())
+    }
+
+    @Test
+    fun equivalentDisplayListsShareOneResourceReference() {
+        val first = GraphiteDisplayList.build {
+            drawCircle(GraphitePoint(4f, 4f), 2f, GraphitePaint(GraphiteColor.White))
         }
+        val second = GraphiteDisplayList.build {
+            drawCircle(GraphitePoint(4f, 4f), 2f, GraphitePaint(GraphiteColor.White))
+        }
+        val writer = GraphiteCommandWriter(GraphiteCommandBufferLimit.Default.bytes)
+        GraphiteEncoderImpl(writer, cancellationProbe = {}).apply {
+            draw(first)
+            draw(second)
+        }
+
+        assertEquals(1, writer.finish().resources.size)
+    }
+
+    @Test
+    fun hashCollisionDoesNotMakeDifferentProgramsEqual() {
+        val first = GraphiteCommandProgram(byteArrayOf(0, 31), emptyList())
+        val second = GraphiteCommandProgram(byteArrayOf(1, 0), emptyList())
+
+        assertEquals(first.hashCode(), second.hashCode())
+        assertNotEquals(first, second)
     }
 
     @Test
@@ -48,19 +76,10 @@ class GraphiteDisplayListTest {
         }
         val smallRoot = programDrawing(small)
         val largeRoot = programDrawing(large)
-        val largeReference = large.retainProgram()
-        try {
-            assertEquals(smallRoot.commands.size, largeRoot.commands.size)
-            assertEquals(1, largeRoot.resources.size)
-            assertTrue(largeReference.value.commands.size > 100_000)
-            assertTrue(largeRoot.commands.size < 128)
-        } finally {
-            largeReference.close()
-            smallRoot.close()
-            largeRoot.close()
-            small.close()
-            large.close()
-        }
+        assertEquals(smallRoot.commands.size, largeRoot.commands.size)
+        assertEquals(1, largeRoot.resources.size)
+        assertTrue(large.program.commands.size > 100_000)
+        assertTrue(largeRoot.commands.size < 128)
     }
 
     @Test
@@ -69,21 +88,11 @@ class GraphiteDisplayListTest {
         repeat(63) {
             val child = displayList
             displayList = GraphiteDisplayList.build { draw(child) }
-            child.close()
         }
-        val validProgram = displayList.retainProgram()
-        validProgram.value.validate()
+        displayList.program.validate()
 
         val tooDeep = GraphiteDisplayList.build { draw(displayList) }
-        val invalidProgram = tooDeep.retainProgram()
-        try {
-            assertFailsWith<IllegalArgumentException> { invalidProgram.value.validate() }
-        } finally {
-            validProgram.close()
-            invalidProgram.close()
-            displayList.close()
-            tooDeep.close()
-        }
+        assertFailsWith<IllegalArgumentException> { tooDeep.program.validate() }
     }
 
     @Test
@@ -91,21 +100,12 @@ class GraphiteDisplayListTest {
         val writer = GraphiteCommandWriter(GraphiteCommandBufferLimit.Default.bytes)
         writer.command(GraphiteCommandOpcode.DrawDisplayList) { writeInt(1) }
         val program = writer.finish()
-        try {
-            assertFailsWith<IllegalStateException> { program.validate() }
-        } finally {
-            program.close()
-        }
+        assertFailsWith<IllegalStateException> { program.validate() }
     }
 
     private fun programDrawing(displayList: GraphiteDisplayList): GraphiteCommandProgram {
         val writer = GraphiteCommandWriter(GraphiteCommandBufferLimit.Default.bytes)
-        return try {
-            GraphiteEncoderImpl(writer, cancellationProbe = {}).draw(displayList)
-            writer.finish()
-        } catch (error: Throwable) {
-            writer.close()
-            throw error
-        }
+        GraphiteEncoderImpl(writer, cancellationProbe = {}).draw(displayList)
+        return writer.finish()
     }
 }

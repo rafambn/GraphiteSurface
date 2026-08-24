@@ -3,6 +3,7 @@ package com.rafambn.graphitesurface.sample.ondemand
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.vector.PathData
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rafambn.graphitesurface.sample.components.RendererDemoScreen

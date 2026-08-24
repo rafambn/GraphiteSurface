@@ -17,7 +17,7 @@ public class GraphiteFrame internal constructor(
 ) : AutoCloseable {
     private val closed: AtomicBoolean = AtomicBoolean(false)
     private val retainedContent: GraphiteReferenceCounted<GraphiteFrameContent> =
-        GraphiteReferenceCounted(GraphiteFrameContent(insertions))
+        GraphiteReferenceCounted(GraphiteFrameContent(insertions), GraphiteFrameContent::close)
 
     public val isClosed: Boolean get() = closed.load()
 

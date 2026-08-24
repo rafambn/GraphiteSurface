@@ -64,8 +64,8 @@ ordering, cancellation, ownership, and failure semantics.
 - Display lists are built without a runtime. Recordings store fixed-size local
   resource-table indices, runtimes assign their own monotonic resource IDs on
   first use, and each recorder worker receives a resource payload only once.
-  Display lists, recordings, frames, and pending snapshots use retained
-  closeable handles instead of copying nested command arrays.
+  Display lists are immutable command graphs managed by the garbage collector.
+  Recordings, frames, and pending snapshots retain closeable handles.
 - Sample scenes cache prepared recording targets and display lists by runtime
   identity and physical pixel size. Presentation generation binds frames; it
   does not invalidate reusable scene inputs by itself.
@@ -435,8 +435,8 @@ public interface GraphitePresentationHost : AutoCloseable {
 
 **Accepted**
 
-- `GraphiteDisplayList` is public, immutable, closeable,
-  backend-independent, and transferable between workers and runtimes.
+- `GraphiteDisplayList` is a public, immutable, garbage-collected command
+  program. It is backend-independent and reusable between workers and runtimes.
 - It is constructed with `GraphiteDisplayList.build { ... }`; construction
   does not consult runtime state. Its builder has an independent command-buffer
   limit.
@@ -452,7 +452,7 @@ public interface GraphitePresentationHost : AutoCloseable {
   transform and clip in version 1; typed parameter slots are deferred.
 - Caller-owned source objects may be mutated or discarded after list
   construction. The library snapshots required CPU data and internally may use
-  copy-on-write, reference counting, interning, or deduplication.
+  copy-on-write, interning, or deduplication.
 - Version 1 snapshots CPU-backed resources:
   - paths;
   - paints and gradients;
@@ -474,7 +474,7 @@ Before adopting it, the browser prototype must validate:
 - serialization or transfer between Web Workers;
 - shared-memory behavior;
 - embedded font and image resource ownership;
-- lifecycle and close behavior;
+- garbage-collection behavior;
 - replay parity in the selected Skia Graphite/Canvas path.
 
 No Skia or Skiko fork will be changed merely to make
@@ -823,10 +823,11 @@ Deferred encoder features:
 - A runtime assigns an internal resource ID on first use.
 - Each recorder worker materializes and caches its own local Skia object.
 - Later commands sent to that worker reference the resource ID.
-- Display lists, recordings, frames, and in-flight GPU work retain the
-  resources they use.
-- After the last public and internal reference disappears, the runtime releases
-  worker caches after dependent GPU work retires.
+- A display list keeps ordinary strong references to its immutable command
+  resources. Recordings, frames, and in-flight GPU work retain what they use.
+- Runtime cache lifetime is separate from display-list lifetime. Cache entries
+  may be evicted under the configured budget, explicit trimming, or runtime
+  shutdown after dependent GPU work retires.
 - Version 1 reuses resources by handle identity. It does not hash large payloads
   or deduplicate distinct handles by content.
 - Resource IDs are unsigned 64-bit integers, monotonic within one runtime, and
@@ -900,14 +901,15 @@ Primary references:
 **Accepted**
 
 - `GraphiteEngine`, `GraphiteFontFace`, `GraphiteImage`,
-  `GraphiteDisplayList`, `GraphiteRecording`, and `GraphiteFrame` require
-  explicit, idempotent `close()`.
+  `GraphiteRecording`, and `GraphiteFrame` require explicit, idempotent
+  `close()`.
 - `GraphiteFont`, `GraphitePaint`, `GraphitePath`,
-  `GraphiteGlyphRun`, `GraphiteTextLayout`, `GraphiteColor`, and
-  `GraphitePixelBuffer` are immutable garbage-collected values.
-- A retained object owns an internal reference to every closeable resource it
-  uses. Closing the caller's original handle never invalidates a display list,
-  recording, frame, glyph run, or other object that still retains it.
+  `GraphiteGlyphRun`, `GraphiteTextLayout`, `GraphiteColor`,
+  `GraphitePixelBuffer`, and `GraphiteDisplayList` are immutable
+  garbage-collected values.
+- A display list snapshots or strongly references every immutable command
+  resource it uses. Recordings, frames, and GPU submissions retain their own
+  closeable handles.
 
 ### Glyph-run validation
 

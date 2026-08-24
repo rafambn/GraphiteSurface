@@ -7,12 +7,13 @@ were implemented on 2026-08-24.
 
 - `GraphiteDisplayList.build` is runtime-independent and has its own buffer
   limit. `GraphiteEngine.createDisplayList` was removed.
-- A command program owns command bytes plus a retained local resource table.
+- A command program owns command bytes plus an immutable local resource table.
   `DrawDisplayList` contains a four-byte table index, never nested list bytes.
 - Each runtime assigns monotonic 64-bit IDs and publishes each immutable
   command program once to each consuming recorder worker. Later jobs carry IDs.
-- Display lists, recordings, frames, frame insertions, pending frames, and
-  in-flight snapshots use explicit, idempotent retained handles.
+- Display lists are garbage-collected immutable command graphs. Recordings,
+  frames, frame insertions, pending frames, and in-flight snapshots retain
+  explicit handles where asynchronous lifecycle requires them.
 - Direct drawing and retained drawing are documented as separate choices.
 - The continuous, on-demand, and manual sample screens each have their own
   ViewModel. Every ViewModel owns its runtime creation, scene resources,
@@ -21,7 +22,7 @@ were implemented on 2026-08-24.
   revision restored a user-owned renderer-based Compose overload with
   `Continuous`, `OnDemand`, and `Manual` modes, without exposing platform
   drawing objects.
-- Common tests exercise independent construction and limits, closed handles,
+- Common tests exercise independent construction and limits, display-list reuse,
   nested-depth validation, malformed resource indices, cross-runtime reuse,
   per-worker publication caching, monotonic IDs, retained lifetimes, runtime
   constructor validation, scene generation reuse, and per-ViewModel cleanup.
@@ -50,7 +51,7 @@ The deterministic command-format tests establish these properties:
 | Display list drawn once | Root size is independent of display-list byte size. |
 | 100 KiB display list | Root contains one local resource entry and a four-byte `DrawDisplayList` index; it does not contain another 100 KiB payload. |
 | Repeated list draws | Every draw adds only command/scoping data; one identity occupies one local resource-table entry. |
-| Nested display lists | Child programs are retained and registered child-first; 64 levels validate and level 65 is rejected. |
+| Nested display lists | Child programs are strongly referenced and registered child-first; 64 levels validate and level 65 is rejected. |
 | First runtime use | Metrics increment `registered`, `registeredBytes`, `publications`, and `publishedBytes`. |
 | Cached use | `publications` and `publishedBytes` stay unchanged while `cacheHits` increments. |
 | Runtime shutdown | `released` reaches the number of registered programs without closing application-owned handles. |

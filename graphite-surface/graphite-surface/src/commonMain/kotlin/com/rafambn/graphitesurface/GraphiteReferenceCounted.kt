@@ -3,10 +3,11 @@
 package com.rafambn.graphitesurface
 
 import kotlin.concurrent.atomics.AtomicInt
-import kotlin.concurrent.atomics.AtomicLong
 
-internal class GraphiteReferenceCounted<T : AutoCloseable>(internal val value: T) {
-    internal val identity: Long = nextIdentity.addAndFetch(1)
+internal class GraphiteReferenceCounted<T>(
+    internal val value: T,
+    private val releaseValue: (T) -> Unit = {},
+) {
     private val references: AtomicInt = AtomicInt(1)
 
     internal fun retain(): GraphiteRetainedReference<T> {
@@ -23,10 +24,6 @@ internal class GraphiteReferenceCounted<T : AutoCloseable>(internal val value: T
     internal fun release() {
         val remaining = references.addAndFetch(-1)
         check(remaining >= 0) { "retained resource reference count underflow" }
-        if (remaining == 0) value.close()
-    }
-
-    private companion object {
-        val nextIdentity: AtomicLong = AtomicLong(0)
+        if (remaining == 0) releaseValue(value)
     }
 }

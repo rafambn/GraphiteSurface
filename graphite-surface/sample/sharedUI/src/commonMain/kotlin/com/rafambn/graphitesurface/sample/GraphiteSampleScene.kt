@@ -9,18 +9,11 @@ import com.rafambn.graphitesurface.GraphiteEngine
 import com.rafambn.graphitesurface.GraphiteSize
 import kotlin.math.min
 
-internal class GraphiteSampleScene : AutoCloseable {
-    internal var current: PreparedScene? = null
-        private set
-
+internal object GraphiteSampleScene {
     internal fun prepare(
         runtime: GraphiteEngine,
         pixelSize: GraphiteSize,
     ): PreparedScene {
-        current
-            ?.takeIf { it.runtime === runtime && it.pixelSize == pixelSize }
-            ?.let { return it }
-        close()
         val extent = min(pixelSize.width, pixelSize.height).toFloat()
         val halfWidth = extent * 0.35f
         val displayList = GraphiteDisplayList.build {
@@ -34,27 +27,13 @@ internal class GraphiteSampleScene : AutoCloseable {
                 GraphitePaint(GraphiteColor.Red),
             )
         }
-        return try {
-            PreparedScene(
-                runtime = runtime,
-                pixelSize = pixelSize,
-                target = runtime.createRecordingTarget(pixelSize),
-                displayList = displayList,
-            ).also { current = it }
-        } catch (error: Throwable) {
-            displayList.close()
-            throw error
-        }
-    }
-
-    override fun close() {
-        current?.displayList?.close()
-        current = null
+        return PreparedScene(
+            target = runtime.createRecordingTarget(pixelSize),
+            displayList = displayList,
+        )
     }
 
     internal class PreparedScene(
-        internal val runtime: GraphiteEngine,
-        internal val pixelSize: GraphiteSize,
         internal val target: GraphiteRecordingTarget,
         internal val displayList: GraphiteDisplayList,
     )

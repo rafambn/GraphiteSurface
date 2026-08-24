@@ -1,23 +1,23 @@
-@file:OptIn(kotlin.concurrent.atomics.ExperimentalAtomicApi::class)
-
 package com.rafambn.graphitesurface
-
-import kotlin.concurrent.atomics.AtomicBoolean
 
 internal class GraphiteCommandProgram(
     internal val commands: ByteArray,
-    internal val resources: List<GraphiteRetainedReference<GraphiteCommandProgram>>,
-) : AutoCloseable {
-    private val closed: AtomicBoolean = AtomicBoolean(false)
+    internal val resources: List<GraphiteCommandProgram>,
+) {
+    private val contentHashCode: Int = 31 * commands.contentHashCode() + resources.hashCode()
+
+    override fun equals(other: Any?): Boolean =
+        this === other ||
+            other is GraphiteCommandProgram &&
+            contentHashCode == other.contentHashCode &&
+            commands.contentEquals(other.commands) &&
+            resources == other.resources
+
+    override fun hashCode(): Int = contentHashCode
 
     internal fun validate(maximumDepth: Int = 64) {
         require(maximumDepth > 0) { "display-list nesting exceeds 64 levels" }
         GraphiteCommandBuffer.validate(commands, resources.size)
-        resources.forEach { it.value.validate(maximumDepth - 1) }
-    }
-
-    override fun close() {
-        if (!closed.compareAndSet(false, true)) return
-        resources.forEach(GraphiteRetainedReference<GraphiteCommandProgram>::close)
+        resources.forEach { it.validate(maximumDepth - 1) }
     }
 }

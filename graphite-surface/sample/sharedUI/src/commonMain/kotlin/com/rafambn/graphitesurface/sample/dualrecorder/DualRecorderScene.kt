@@ -12,37 +12,17 @@ import com.rafambn.graphitesurface.GraphiteSize
 import kotlin.math.max
 import kotlin.math.min
 
-internal class DualRecorderScene : AutoCloseable {
-    private var current: PreparedScene? = null
-
+internal object DualRecorderScene {
     internal fun prepare(
         runtime: GraphiteEngine,
         pixelSize: GraphiteSize,
     ): PreparedScene {
-        current
-            ?.takeIf { it.runtime === runtime && it.pixelSize == pixelSize }
-            ?.let { return it }
-        close()
-
         val background = buildBackground(pixelSize)
-        return try {
-            PreparedScene(
-                runtime = runtime,
-                pixelSize = pixelSize,
-                target = runtime.createRecordingTarget(pixelSize),
-                background = background,
-                foreground = buildForeground(pixelSize),
-            ).also { current = it }
-        } catch (error: Throwable) {
-            background.close()
-            throw error
-        }
-    }
-
-    override fun close() {
-        current?.background?.close()
-        current?.foreground?.close()
-        current = null
+        return PreparedScene(
+            target = runtime.createRecordingTarget(pixelSize),
+            background = background,
+            foreground = buildForeground(pixelSize),
+        )
     }
 
     private fun buildBackground(pixelSize: GraphiteSize): GraphiteDisplayList {
@@ -150,15 +130,11 @@ internal class DualRecorderScene : AutoCloseable {
     }
 
     internal class PreparedScene(
-        internal val runtime: GraphiteEngine,
-        internal val pixelSize: GraphiteSize,
         internal val target: GraphiteRecordingTarget,
         internal val background: GraphiteDisplayList,
         internal val foreground: GraphiteDisplayList,
     )
 
-    private companion object {
-        const val PARTICLE_COUNT: Int = 42
-        const val SATELLITE_COUNT: Int = 4
-    }
+    private const val PARTICLE_COUNT: Int = 42
+    private const val SATELLITE_COUNT: Int = 4
 }

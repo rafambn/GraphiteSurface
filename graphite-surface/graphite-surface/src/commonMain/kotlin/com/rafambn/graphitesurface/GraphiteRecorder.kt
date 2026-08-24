@@ -40,28 +40,20 @@ public class GraphiteRecorder internal constructor(
         metrics.admitted((admittedAt - queuedAt).coerceAtLeast(0))
         var encoderBlockCompleted = false
         var submittedToWorker = false
-        var program: GraphiteCommandProgram? = null
         try {
             val completedProgram = execution.withLock {
                 runtime.requireReady()
                 val job = currentCoroutineContext()[Job]
                 val writer = GraphiteCommandWriter(runtime.maxCommandBufferBytes.bytes)
-                try {
-                    GraphiteEncoderImpl(writer) { job?.ensureActive() }.block()
-                    encoderBlockCompleted = true
-                    writer.finish().also { encoded ->
-                        program = encoded
-                        val message = runtime.prepareRecording(encoded, index)
-                        submittedToWorker = true
-                        worker.process(message)
-                    }
-                } catch (error: Throwable) {
-                    writer.close()
-                    throw error
+                GraphiteEncoderImpl(writer) { job?.ensureActive() }.block()
+                encoderBlockCompleted = true
+                writer.finish().also { encoded ->
+                    val message = runtime.prepareRecording(encoded, index)
+                    submittedToWorker = true
+                    worker.process(message)
                 }
             }
             metrics.succeeded(elapsedSince(admittedAt))
-            program = null
             return GraphiteRecording(target, completedProgram)
         } catch (cancelled: CancellationException) {
             metrics.cancelled(elapsedSince(admittedAt))
@@ -75,7 +67,6 @@ public class GraphiteRecorder internal constructor(
             }
             throw error
         } finally {
-            program?.close()
             check(admission.trySend(Unit).isSuccess) { "recorder admission accounting is corrupted" }
         }
     }

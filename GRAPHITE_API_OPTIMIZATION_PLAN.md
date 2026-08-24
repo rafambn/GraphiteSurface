@@ -83,7 +83,7 @@ Completion criteria:
 - Exceeding the display-list limit throws
   `GraphiteEncodingException.CommandBufferTooLarge` without consulting or
   changing runtime state.
-- Drawing a closed display list fails synchronously.
+- A display list has no closed state and can be reused while referenced.
 - Nested-list and maximum-depth validation still pass.
 - All existing call sites use `GraphiteDisplayList.build`.
 
@@ -110,7 +110,7 @@ Change encoding as follows:
 
 - Give each command program a local resource table.
 - Encode `DrawDisplayList` with a resource-table index instead of nested bytes.
-- Retain nested display lists in the parent program's resource table.
+- Reference nested immutable command programs in the parent resource table.
 - Preserve the rule that only finalized display lists can be nested, which
   keeps cycles impossible.
 - Validate the referenced program once when it enters a consuming runtime,
@@ -162,31 +162,32 @@ Completion criteria:
 - Runtime shutdown releases every resource namespace without affecting a
   display list still owned by application code or another runtime.
 
-## 4. Implement retained lifetimes without command copying
+## 4. Retain stateful handles without command copying
 
-Resource references require real retention. Replace byte-array snapshots with
-internal retained handles:
+Display lists are immutable command graphs managed by the garbage collector.
+Stateful asynchronous handles still require explicit retention:
 
-- A parent display list retains every nested closeable resource it uses.
+- A parent display list strongly references every nested immutable command
+  program it uses.
 - An admitted recording job retains every referenced resource until the job
   completes or cancellation retires it.
 - A completed `GraphiteRecording` retains its resources.
 - A `GraphiteFrame` retains inserted recordings instead of copying their
   command arrays.
 - The pending-frame mailbox and in-flight submission retain their own handles.
-- Closing the caller's handle prevents new use but cannot invalidate work
-  already retained by a display list, recording, frame, or GPU submission.
-- Worker cache entries retire after their final logical reference and
-  dependent GPU use disappear.
+- Closing a recording or frame caller handle prevents new use but cannot
+  invalidate work already retained by a frame or GPU submission.
+- Runtime caches are independent of display-list garbage collection and may be
+  evicted under cache policy, explicit trimming, or runtime shutdown.
 
-Keep `close()` idempotent and thread-safe on every public closeable handle.
-Make every retain and release path explicit so cancellation, latest-wins frame
-replacement, failure, and shutdown each release ownership exactly once.
+Keep `close()` idempotent and thread-safe on stateful public handles. Make every
+retain and release path explicit so cancellation, latest-wins frame replacement,
+failure, and shutdown each release ownership exactly once.
 
 Completion criteria:
 
-- A caller can close a display list after `record` admits the job without
-  breaking that job.
+- A display list can be reused for the lifetime of its ordinary Kotlin
+  reference and requires no cleanup call.
 - A caller can close a recording after inserting it into a frame without
   breaking the frame.
 - A caller can close a frame after `present` accepts it without breaking the
@@ -258,12 +259,13 @@ Implement the lifecycle as follows:
 - Publish initialization, ready, and failure through a read-only `StateFlow`.
 - Keep the mutable runtime reference private to the ViewModel. The ready UI
   state exposes the same owned runtime only so `GraphiteSurface` can attach it.
-- Close the runtime and the current display list from `onCleared()`.
+- Close the runtime and clear the current display-list reference from
+  `onCleared()`.
 - Move presentation-generation tracking, display-list creation, recording
   target reuse, recording, frame construction, and presentation into a
   sequential suspend function on the ViewModel.
 - Build the triangle display list and recording target once per presentation
-  generation. Replace and close them when the generation changes.
+  generation. Replace their references when the generation changes.
 - Keep constructor and terminal runtime failures in the UI state or the
   runtime's existing observable state.
 

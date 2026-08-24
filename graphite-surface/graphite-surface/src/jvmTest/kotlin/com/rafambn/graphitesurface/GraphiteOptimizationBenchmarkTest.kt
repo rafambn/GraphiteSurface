@@ -21,26 +21,25 @@ class GraphiteOptimizationBenchmarkTest {
         val nested = GraphiteDisplayList.build { draw(displayList) }
 
         repeat(WARM_UP_ITERATIONS) {
-            encode { drawPath(path, paint) }.close()
-            encode { draw(displayList) }.close()
+            encode { drawPath(path, paint) }
+            encode { draw(displayList) }
         }
 
         val directNanos = averageNanos {
-            encode { drawPath(path, paint) }.close()
+            encode { drawPath(path, paint) }
         }
         val retainedOnceNanos = averageNanos {
-            encode { draw(displayList) }.close()
+            encode { draw(displayList) }
         }
         val retainedHundredNanos = averageNanos {
-            encode { repeat(100) { draw(displayList) } }.close()
+            encode { repeat(100) { draw(displayList) } }
         }
         val nestedNanos = averageNanos {
-            encode { draw(nested) }.close()
+            encode { draw(nested) }
         }
 
         val root = encode { draw(displayList) }
         val repeatedRoot = encode { repeat(100) { draw(displayList) } }
-        val displayReference = displayList.retainProgram()
         val runtime = GraphiteEngine()
         try {
             val target = runtime.createRecordingTarget(GraphiteSize(8, 8))
@@ -64,7 +63,7 @@ class GraphiteOptimizationBenchmarkTest {
 
             println(
                 "GRAPHITE_BENCHMARK " +
-                    "display_list_bytes=${displayReference.value.commands.size} " +
+                    "display_list_bytes=${displayList.program.commands.size} " +
                     "root_once_bytes=${root.commands.size} " +
                     "root_hundred_bytes=${repeatedRoot.commands.size} " +
                     "first_worker_message_bytes=${firstMetrics.workerMessageBytes} " +
@@ -82,23 +81,13 @@ class GraphiteOptimizationBenchmarkTest {
         } finally {
             runtime.close()
             runtime.awaitClosed()
-            displayReference.close()
-            root.close()
-            repeatedRoot.close()
-            nested.close()
-            displayList.close()
         }
     }
 
     private fun encode(block: GraphiteEncoder.() -> Unit): GraphiteCommandProgram {
         val writer = GraphiteCommandWriter(GraphiteCommandBufferLimit.Default.bytes)
-        return try {
-            GraphiteEncoderImpl(writer, cancellationProbe = {}).block()
-            writer.finish()
-        } catch (error: Throwable) {
-            writer.close()
-            throw error
-        }
+        GraphiteEncoderImpl(writer, cancellationProbe = {}).block()
+        return writer.finish()
     }
 
     private inline fun averageNanos(block: () -> Unit): Long {

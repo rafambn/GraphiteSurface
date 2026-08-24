@@ -27,7 +27,7 @@ internal fun GraphiteDrawContext.executeGraphiteCommands(
             }
             GraphiteCommandOpcode.DrawDisplayList -> {
                 val index = payload.readInt()
-                executeGraphiteCommands(program.resources[index].value, maximumDepth - 1)
+                executeGraphiteCommands(program.resources[index], maximumDepth - 1)
             }
             GraphiteCommandOpcode.DrawRect -> drawRect(payload.readRect(), payload.readPaint())
             GraphiteCommandOpcode.DrawRoundRect -> {

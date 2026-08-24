@@ -11,7 +11,7 @@ internal class GraphiteResourceRegistry : AutoCloseable {
     private val mutex: Mutex = Mutex()
     private val closed: AtomicBoolean = AtomicBoolean(false)
     private val nextId: AtomicLong = AtomicLong(0)
-    private val entries: MutableMap<Long, Entry> = mutableMapOf()
+    private val entries: MutableMap<GraphiteCommandProgram, Entry> = mutableMapOf()
     private val registeredResources: AtomicLong = AtomicLong(0)
     private val registeredResourceBytes: AtomicLong = AtomicLong(0)
     private val resourcePublications: AtomicLong = AtomicLong(0)
@@ -33,8 +33,8 @@ internal class GraphiteResourceRegistry : AutoCloseable {
         validateCommands(program)
         validateNestingDepth(program)
         val publications = mutableListOf<GraphiteWorkerPublication>()
-        val rootResourceIds = program.resources.map { reference ->
-            register(reference, workerIndex, publications)
+        val rootResourceIds = program.resources.map { resource ->
+            register(resource, workerIndex, publications)
         }.toLongArray()
         GraphiteWorkerMessage.encode(program, rootResourceIds, publications).also { message ->
             workerMessageBytes.addAndFetch(message.size.toLong())
@@ -60,41 +60,40 @@ internal class GraphiteResourceRegistry : AutoCloseable {
 
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
-        val retained = entries.values.map(Entry::reference)
+        val released = entries.size
         entries.clear()
-        retained.forEach(GraphiteRetainedReference<GraphiteCommandProgram>::close)
-        releasedResources.addAndFetch(retained.size.toLong())
+        releasedResources.addAndFetch(released.toLong())
     }
 
     private fun register(
-        reference: GraphiteRetainedReference<GraphiteCommandProgram>,
+        program: GraphiteCommandProgram,
         workerIndex: Int,
         publications: MutableList<GraphiteWorkerPublication>,
     ): Long {
-        val existing = entries[reference.identity]
+        val existing = entries[program]
         val entry = if (existing == null) {
-            validateCommands(reference.value)
-            val childIds = reference.value.resources.map { child ->
+            validateCommands(program)
+            val childIds = program.resources.map { child ->
                 register(child, workerIndex, publications)
             }.toLongArray()
             Entry(
                 id = nextId.addAndFetch(1),
-                reference = reference.retain(),
+                program = program,
                 childIds = childIds,
             ).also { created ->
-                entries[reference.identity] = created
+                entries[program] = created
                 registeredResources.addAndFetch(1)
-                registeredResourceBytes.addAndFetch(reference.value.commands.size.toLong())
+                registeredResourceBytes.addAndFetch(program.commands.size.toLong())
             }
         } else {
             resourceCacheHits.addAndFetch(1)
-            existing.reference.value.resources.forEach { child ->
+            existing.program.resources.forEach { child ->
                 register(child, workerIndex, publications)
             }
             existing
         }
         if (entry.publishedWorkers.add(workerIndex)) {
-            val commands = entry.reference.value.commands
+            val commands = entry.program.commands
             publications += GraphiteWorkerPublication(entry.id, commands, entry.childIds)
             resourcePublications.addAndFetch(1)
             publishedResourceBytes.addAndFetch(commands.size.toLong())
@@ -105,7 +104,7 @@ internal class GraphiteResourceRegistry : AutoCloseable {
     private fun validateNestingDepth(program: GraphiteCommandProgram, remainingDepth: Int = 64) {
         require(remainingDepth > 0) { "display-list nesting exceeds 64 levels" }
         program.resources.forEach { child ->
-            validateNestingDepth(child.value, remainingDepth - 1)
+            validateNestingDepth(child, remainingDepth - 1)
         }
     }
 
@@ -122,7 +121,7 @@ internal class GraphiteResourceRegistry : AutoCloseable {
 
     private class Entry(
         val id: Long,
-        val reference: GraphiteRetainedReference<GraphiteCommandProgram>,
+        val program: GraphiteCommandProgram,
         val childIds: LongArray,
         val publishedWorkers: MutableSet<Int> = mutableSetOf(),
     )
