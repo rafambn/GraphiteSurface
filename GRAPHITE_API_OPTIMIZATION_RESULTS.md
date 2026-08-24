@@ -109,6 +109,17 @@ Observed outcomes on 2026-08-24:
 - The JS and Wasm smokes both created a 2560×1600 physical canvas, rendered the
   rotating triangle in two distinct frames, and reported no runtime or worker
   exception.
-- iOS compilation is blocked before project Kotlin compilation by the included
-  Skiko build's `patchSkikoSymbolsIosArm64` task because `llvm-objcopy` is not
-  installed. The task itself reports `brew install llvm` as the prerequisite.
+- iOS simulator compilation, framework linking, and both native test suites
+  passed after supplying the Android NDK's `llvm-objcopy` to the Skiko symbol
+  patch task. The current Kotlin/Native POSIX bindings also required the
+  monotonic-clock compatibility adjustment in `PlatformTime.ios.kt`.
+- The JVM sample launched and animated successfully after adding the Swing
+  implementation of `Dispatchers.Main` to the desktop application.
+- The Android APK assembled and installed, but its process crashes while
+  loading `libskiko-android-arm64.so`: the binary references the unavailable
+  partition-allocator symbol
+  `_ZN15partition_alloc8internal21PartitionAddressSpace6setup_E`.
+- The iOS simulator app built, installed, launched, and continued producing
+  sample and Metal render frames without a logged application fault, but its
+  captured output remained entirely white. The iOS visual smoke therefore did
+  not pass.
