@@ -4,6 +4,7 @@ package com.rafambn.graphitesurface.sample
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -22,7 +23,9 @@ fun App() {
     Box(modifier = Modifier.fillMaxSize()) {
         when (val state = uiState) {
             GraphiteSampleUiState.Initializing -> Unit
-            is GraphiteSampleUiState.Failed -> Unit
+            is GraphiteSampleUiState.Failed -> BasicText(
+                text = state.error.message ?: state.error.toString(),
+            )
             is GraphiteSampleUiState.Ready -> {
                 GraphiteSurface(
                     runtime = state.runtime,

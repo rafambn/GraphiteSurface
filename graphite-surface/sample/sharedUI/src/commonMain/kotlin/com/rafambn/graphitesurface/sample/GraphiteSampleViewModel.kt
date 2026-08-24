@@ -7,10 +7,10 @@ import com.rafambn.graphitesurface.GraphitePresentResult
 import com.rafambn.graphitesurface.GraphitePresentationState
 import com.rafambn.graphitesurface.GraphiteRuntime
 import com.rafambn.graphitesurface.GraphiteRuntimeConfig
-import com.rafambn.graphitesurface.GraphiteRuntimeUnavailableException
 import com.rafambn.graphitesurface.GraphiteTransform
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlinx.coroutines.ensureActive
@@ -28,6 +28,7 @@ internal class GraphiteSampleViewModel(
     private val mutableUiState: MutableStateFlow<GraphiteSampleUiState> =
         MutableStateFlow(GraphiteSampleUiState.Initializing)
     private val cleared: AtomicBoolean = AtomicBoolean(false)
+    private val animationStartNanos: AtomicLong = AtomicLong(ANIMATION_NOT_STARTED)
     private val runtime: AtomicReference<GraphiteRuntime?> = AtomicReference(null)
     private val scene: GraphiteSampleScene = GraphiteSampleScene()
 
@@ -59,6 +60,17 @@ internal class GraphiteSampleViewModel(
     }
 
     internal suspend fun renderFrame(frameTimeNanos: Long) {
+        try {
+            renderFrameOrThrow(frameTimeNanos)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            scene.close()
+            mutableUiState.value = GraphiteSampleUiState.Failed(error)
+        }
+    }
+
+    private suspend fun renderFrameOrThrow(frameTimeNanos: Long) {
         val activeRuntime = runtime.load() ?: return
         val attached = activeRuntime.presentation.value as? GraphitePresentationState.Attached
         if (attached == null) {
@@ -71,36 +83,34 @@ internal class GraphiteSampleViewModel(
             generation = activePresentation.generation,
             pixelSize = activePresentation.pixelSize,
         )
+        animationStartNanos.compareAndSet(ANIMATION_NOT_STARTED, frameTimeNanos)
+        val elapsedNanos = (frameTimeNanos - animationStartNanos.load()).coerceAtLeast(0L)
 
+        val recording = activeRuntime.recorders.first().record(resources.target) {
+            draw(
+                resources.displayList,
+                transform = GraphiteTransform.translation(
+                    activePresentation.pixelSize.width / 2f,
+                    activePresentation.pixelSize.height / 2f,
+                ) * GraphiteTransform.rotationDegrees(
+                    loopingRotationDegrees(elapsedNanos),
+                ),
+            )
+        }
         try {
-            val recording = activeRuntime.recorders.first().record(resources.target) {
-                draw(
-                    resources.displayList,
-                    transform = GraphiteTransform.translation(
-                        activePresentation.pixelSize.width / 2f,
-                        activePresentation.pixelSize.height / 2f,
-                    ) * GraphiteTransform.rotationDegrees(
-                        (frameTimeNanos / NANOS_PER_SECOND * DEGREES_PER_SECOND).toFloat(),
-                    ),
-                )
+            val frame = activeRuntime.createFrame(activePresentation, GraphiteColor.White) {
+                insert(recording)
             }
             try {
-                val frame = activeRuntime.createFrame(activePresentation, GraphiteColor.White) {
-                    insert(recording)
-                }
-                try {
-                    if (activeRuntime.present(frame) == GraphitePresentResult.StalePresentation) {
-                        scene.close()
-                    }
-                } finally {
-                    frame.close()
+                val result = activeRuntime.present(frame)
+                if (result == GraphitePresentResult.StalePresentation) {
+                    scene.close()
                 }
             } finally {
-                recording.close()
+                frame.close()
             }
-        } catch (error: GraphiteRuntimeUnavailableException) {
-            scene.close()
-            mutableUiState.value = GraphiteSampleUiState.Failed(error)
+        } finally {
+            recording.close()
         }
     }
 
@@ -111,7 +121,14 @@ internal class GraphiteSampleViewModel(
     }
 
     private companion object {
-        const val NANOS_PER_SECOND: Double = 1_000_000_000.0
-        const val DEGREES_PER_SECOND: Double = 90.0
+        const val ANIMATION_NOT_STARTED: Long = Long.MIN_VALUE
     }
 }
+
+internal fun loopingRotationDegrees(elapsedNanos: Long): Float {
+    val nanosWithinRotation = elapsedNanos.coerceAtLeast(0L) % ROTATION_PERIOD_NANOS
+    return (nanosWithinRotation.toDouble() * FULL_ROTATION_DEGREES / ROTATION_PERIOD_NANOS).toFloat()
+}
+
+private const val ROTATION_PERIOD_NANOS: Long = 4_000_000_000L
+private const val FULL_ROTATION_DEGREES: Double = 360.0

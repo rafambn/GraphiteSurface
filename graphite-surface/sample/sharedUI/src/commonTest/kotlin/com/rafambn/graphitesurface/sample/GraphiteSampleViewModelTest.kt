@@ -17,6 +17,15 @@ import kotlinx.coroutines.test.setMain
 @OptIn(ExperimentalCoroutinesApi::class)
 class GraphiteSampleViewModelTest {
     @Test
+    fun keepsRotationStableForLargeFrameTimes() {
+        val manyRotations = 250_000_000L * 4_000_000_000L
+
+        assertEquals(0f, loopingRotationDegrees(manyRotations))
+        assertEquals(90f, loopingRotationDegrees(manyRotations + 1_000_000_000L))
+        assertEquals(180f, loopingRotationDegrees(manyRotations + 2_000_000_000L))
+    }
+
+    @Test
     fun publishesSuccessfulInitializationAndClosesTheRuntime() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val runtime = GraphiteRuntime.create()

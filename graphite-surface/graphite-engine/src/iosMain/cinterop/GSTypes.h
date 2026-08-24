@@ -3,7 +3,7 @@
 
 #import <Foundation/Foundation.h>
 
-typedef void (^GSFrameCallback)(int width, int height);
+typedef void (^GSFrameCallback)(void);
 typedef void (^GSFailureCallback)(NSString *message);
 
 #endif /* GS_TYPES_H */

@@ -1,4 +1,16 @@
+import java.util.Properties
+
 rootProject.name = "GraphiteSurface"
+
+val rootLocalProperties = Properties().apply {
+    val propertiesFile = file("local.properties")
+    if (propertiesFile.isFile) propertiesFile.inputStream().use(::load)
+}
+rootLocalProperties.getProperty("sdk.dir")?.let { sdkDirectory ->
+    if (System.getProperty("android.home") == null) {
+        System.setProperty("android.home", sdkDirectory)
+    }
+}
 
 pluginManagement {
     repositories {

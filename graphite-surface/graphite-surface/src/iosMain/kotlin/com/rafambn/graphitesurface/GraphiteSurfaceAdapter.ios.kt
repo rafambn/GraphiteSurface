@@ -26,7 +26,7 @@ internal class GraphiteSurfaceAdapter(
                 engineView = created
                 GraphiteEngineGraphiteEngineView_iosKt.gsStartRenderingView(
                     created,
-                    callback = { width, height -> onFrame(created, width, height) },
+                    callback = { onFrame(created) },
                     failureCallback = { message ->
                         renderer.onSurfaceError(
                             IllegalStateException(message ?: "The iOS Graphite render worker failed"),
@@ -46,7 +46,9 @@ internal class GraphiteSurfaceAdapter(
         engineView = null
     }
 
-    private fun onFrame(view: UIView, width: Int, height: Int) {
+    private fun onFrame(view: UIView) {
+        val width = GraphiteEngineGraphiteEngineView_iosKt.gsDrawableWidthView(view)
+        val height = GraphiteEngineGraphiteEngineView_iosKt.gsDrawableHeightView(view)
         val size = GraphiteSize(width, height)
         if (!surfaceCreated) {
             surfaceCreated = true

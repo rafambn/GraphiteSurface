@@ -16,10 +16,10 @@ import kotlinx.cinterop.objcPtr
 import kotlinx.cinterop.useContents
 import kotlinx.cinterop.usePinned
 import org.jetbrains.skia.ColorSpace
+import org.jetbrains.skia.Matrix44
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.PaintMode
 import org.jetbrains.skia.PathBuilder
-import org.jetbrains.skia.Matrix44
 import org.jetbrains.skia.Surface
 import org.jetbrains.skia.gpu.graphite.BackendTexture
 import org.jetbrains.skia.gpu.graphite.GraphiteContext
@@ -77,6 +77,14 @@ public fun gsStopRendering(view: UIView) {
 public fun gsRequestRender(view: UIView) {
     (view as? GraphiteEngineView)?.requestRender()
 }
+
+@Suppress("unused")
+public fun gsDrawableWidth(view: UIView): Int =
+    frameContextOf(view).width
+
+@Suppress("unused")
+public fun gsDrawableHeight(view: UIView): Int =
+    frameContextOf(view).height
 
 @Suppress("unused")
 public fun gsClear(view: UIView, color: UInt) {
@@ -434,9 +442,9 @@ private class GraphiteEngineView : UIView {
                 surface.use {
                     val callback = frameCallback
                     if (callback != null) {
-                        currentFrameContext = FrameContext(it.canvas)
+                        currentFrameContext = FrameContext(it.canvas, width, height)
                         try {
-                            callback(width, height)
+                            callback()
                         } finally {
                             currentFrameContext = null
                         }

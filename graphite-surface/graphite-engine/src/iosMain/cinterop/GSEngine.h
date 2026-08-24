@@ -13,6 +13,8 @@
 + (void)gsStartRenderingView:(UIView *)view callback:(GSFrameCallback)callback failureCallback:(GSFailureCallback)failureCallback;
 + (void)gsStopRenderingView:(UIView *)view;
 + (void)gsRequestRenderView:(UIView *)view;
++ (int)gsDrawableWidthView:(UIView *)view;
++ (int)gsDrawableHeightView:(UIView *)view;
 
 /* Drawing operations are valid only from GSFrameCallback. */
 + (void)gsClearView:(UIView *)view color:(unsigned)color; /* 0xAARRGGBB */

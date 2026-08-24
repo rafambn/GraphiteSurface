@@ -3,6 +3,8 @@
 package com.rafambn.graphitesurface.engine
 
 import java.awt.Component
+import java.awt.event.ComponentAdapter
+import java.awt.event.ComponentEvent
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.roundToInt
@@ -37,6 +39,19 @@ public class JvmGraphiteSurface(
     private val renderScheduled = AtomicBoolean(false)
     private val closed = AtomicBoolean(false)
     private val failed = AtomicBoolean(false)
+    private val componentListener = object : ComponentAdapter() {
+        override fun componentShown(event: ComponentEvent) {
+            render()
+        }
+
+        override fun componentResized(event: ComponentEvent) {
+            render()
+        }
+    }
+
+    init {
+        backend.component.addComponentListener(componentListener)
+    }
 
     /** AWT component that owns the native GPU presentation surface. */
     public val component: Component
@@ -51,6 +66,7 @@ public class JvmGraphiteSurface(
 
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
+        backend.component.removeComponentListener(componentListener)
         renderRequested.set(false)
         renderExecutor.execute {
             try {

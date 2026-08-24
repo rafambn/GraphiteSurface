@@ -126,7 +126,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "cd \"$SRCROOT/../../..\"\nif [ \"$PLATFORM_NAME\" = \"iphonesimulator\" ]; then ENGINE_TARGET=iosSimulatorArm64; else ENGINE_TARGET=iosArm64; fi\nif [ \"$CONFIGURATION\" = \"Release\" ]; then ENGINE_BUILD_TYPE=Release; ENGINE_DIRECTORY=releaseFramework; else ENGINE_BUILD_TYPE=Debug; ENGINE_DIRECTORY=debugFramework; fi\n./gradlew :graphite-engine:link${ENGINE_BUILD_TYPE}Framework${ENGINE_TARGET} :sample:sharedUI:embedAndSignAppleFrameworkForXcode\nENGINE_FRAMEWORK=\"$SRCROOT/../../graphite-engine/build/bin/${ENGINE_TARGET}/${ENGINE_DIRECTORY}/GraphiteEngine.framework\"\nAPP_FRAMEWORKS=\"$TARGET_BUILD_DIR/Multiplatform App.app/Frameworks\"\nmkdir -p \"$APP_FRAMEWORKS\"\nrm -rf \"$APP_FRAMEWORKS/GraphiteEngine.framework\"\ncp -R \"$ENGINE_FRAMEWORK\" \"$APP_FRAMEWORKS/\"\n";
+			shellScript = "/bin/sh \"$SRCROOT/build-graphite-frameworks.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -145,8 +145,8 @@
 		A93A954329CC810D00F8E227 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = arm64;
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = arm64;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -206,8 +206,8 @@
 		A93A954429CC810D00F8E227 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = arm64;
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = arm64;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -262,13 +262,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ARCHS = arm64;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
-				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-framework",
-					GraphiteEngine,
 				);
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = (
 					"$(inherited)",
@@ -278,9 +276,6 @@
 					"$(inherited)",
 					"$(SRCROOT)/../../graphite-engine/build/bin/iosSimulatorArm64/debugFramework",
 				);
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = iosApp/Info.plist;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -289,6 +284,11 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					GraphiteEngine,
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = sample.app.iosApp;
 				PRODUCT_NAME = "Multiplatform App";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -301,13 +301,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ARCHS = arm64;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
-				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-framework",
-					GraphiteEngine,
 				);
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = (
 					"$(inherited)",
@@ -317,9 +315,6 @@
 					"$(inherited)",
 					"$(SRCROOT)/../../graphite-engine/build/bin/iosSimulatorArm64/releaseFramework",
 				);
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = iosApp/Info.plist;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -328,6 +323,11 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					GraphiteEngine,
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = sample.app.iosApp;
 				PRODUCT_NAME = "Multiplatform App";
 				SWIFT_EMIT_LOC_STRINGS = YES;
