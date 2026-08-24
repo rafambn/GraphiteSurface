@@ -56,7 +56,7 @@ internal class GraphiteEngineRenderer(private val runtime: GraphiteEngine) :
                             antiAlias = false,
                         )
                     }
-                    context.executeGraphiteCommands(insertion.recording.value.program)
+                    context.executeGraphiteCommands(insertion.program)
                 } finally {
                     context.restore()
                 }

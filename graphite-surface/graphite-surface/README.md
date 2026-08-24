@@ -20,7 +20,6 @@ val renderer = GraphiteRenderer(
         present(frame)
     } finally {
         frame.close()
-        recording.close()
     }
 }
 

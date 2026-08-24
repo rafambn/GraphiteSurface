@@ -108,14 +108,8 @@ public class GraphiteEngine(
         if (presentation.runtimeToken !== token) {
             throw GraphitePresentationException("presentation belongs to a different runtime")
         }
-        val builder = GraphiteFrameBuilder(token)
-        return try {
-            builder.apply(block)
-            GraphiteFrame(presentation, clearColor, builder.build())
-        } catch (error: Throwable) {
-            builder.close()
-            throw error
-        }
+        val insertions = GraphiteFrameBuilder(token).apply(block).build()
+        return GraphiteFrame(presentation, clearColor, insertions)
     }
 
     public fun present(frame: GraphiteFrame): GraphitePresentResult {

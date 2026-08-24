@@ -55,17 +55,13 @@ internal class ManualRendererViewModel : ViewModel() {
                     ),
                 )
             }
+            val frame = createFrame(presentation, GraphiteColor.White) {
+                insert(recording)
+            }
             try {
-                val frame = createFrame(presentation, GraphiteColor.White) {
-                    insert(recording)
-                }
-                try {
-                    present(frame)
-                } finally {
-                    frame.close()
-                }
+                present(frame)
             } finally {
-                recording.close()
+                frame.close()
             }
         } catch (cancelled: CancellationException) {
             throw cancelled

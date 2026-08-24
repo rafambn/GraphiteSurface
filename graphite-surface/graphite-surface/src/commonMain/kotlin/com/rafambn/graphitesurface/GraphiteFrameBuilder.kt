@@ -1,7 +1,7 @@
 package com.rafambn.graphitesurface
 
 /** Builder for an ordered frame made from completed recordings. */
-public class GraphiteFrameBuilder internal constructor(private val runtimeToken: Any) : AutoCloseable {
+public class GraphiteFrameBuilder internal constructor(private val runtimeToken: Any) {
     private val insertions: MutableList<GraphiteFrameInsertion> = mutableListOf()
     private var built: Boolean = false
 
@@ -14,28 +14,16 @@ public class GraphiteFrameBuilder internal constructor(private val runtimeToken:
             throw GraphitePresentationException("recording belongs to a different runtime")
         }
         check(!built) { "frame builder has already finished" }
-        val retained = recording.retainContent()
-        try {
-            insertions += GraphiteFrameInsertion(
-                recording = retained,
-                translation = translation,
-                clip = clip,
-            )
-        } catch (error: Throwable) {
-            retained.close()
-            throw error
-        }
+        insertions += GraphiteFrameInsertion(
+            program = recording.program,
+            translation = translation,
+            clip = clip,
+        )
     }
 
     internal fun build(): List<GraphiteFrameInsertion> {
         check(!built) { "frame builder has already finished" }
         built = true
         return insertions.toList()
-    }
-
-    override fun close() {
-        if (built) return
-        built = true
-        insertions.forEach(GraphiteFrameInsertion::close)
     }
 }

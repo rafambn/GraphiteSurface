@@ -43,12 +43,12 @@ class GraphiteOptimizationBenchmarkTest {
         val runtime = GraphiteEngine()
         try {
             val firstStarted = System.nanoTime()
-            runtime.recorders.single().record { draw(displayList) }.close()
+            runtime.recorders.single().record { draw(displayList) }
             val firstUseNanos = System.nanoTime() - firstStarted
             val firstMetrics = runtime.metricsSnapshot().resources
 
             val cachedStarted = System.nanoTime()
-            runtime.recorders.single().record { draw(displayList) }.close()
+            runtime.recorders.single().record { draw(displayList) }
             val cachedUseNanos = System.nanoTime() - cachedStarted
             val cachedMetrics = runtime.metricsSnapshot().resources
 

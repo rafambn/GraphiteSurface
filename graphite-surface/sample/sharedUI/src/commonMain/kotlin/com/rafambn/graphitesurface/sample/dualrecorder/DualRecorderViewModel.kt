@@ -69,50 +69,46 @@ internal class DualRecorderViewModel : ViewModel() {
                 AtomicReference<GraphiteRecording?>(null),
             )
 
-            try {
-                coroutineScope {
-                    if (recorderEnabled[0].load()) {
-                        launch {
-                            recordings[0].store(
-                                recorders[0].record {
-                                    draw(
-                                        displayList = prepared.background,
-                                        transform = GraphiteTransform.translation(centerX, centerY) *
-                                            GraphiteTransform.rotationDegrees(-rotation * 0.08f) *
-                                            GraphiteTransform.translation(-centerX, -centerY),
-                                    )
-                                },
-                            )
-                        }
-                    }
-                    if (recorderEnabled[1].load()) {
-                        launch {
-                            recordings[1].store(
-                                recorders[1].record {
-                                    draw(
-                                        displayList = prepared.foreground,
-                                        transform = GraphiteTransform.translation(centerX, centerY) *
-                                            GraphiteTransform.rotationDegrees(rotation),
-                                    )
-                                },
-                            )
-                        }
+            coroutineScope {
+                if (recorderEnabled[0].load()) {
+                    launch {
+                        recordings[0].store(
+                            recorders[0].record {
+                                draw(
+                                    displayList = prepared.background,
+                                    transform = GraphiteTransform.translation(centerX, centerY) *
+                                        GraphiteTransform.rotationDegrees(-rotation * 0.08f) *
+                                        GraphiteTransform.translation(-centerX, -centerY),
+                                )
+                            },
+                        )
                     }
                 }
+                if (recorderEnabled[1].load()) {
+                    launch {
+                        recordings[1].store(
+                            recorders[1].record {
+                                draw(
+                                    displayList = prepared.foreground,
+                                    transform = GraphiteTransform.translation(centerX, centerY) *
+                                        GraphiteTransform.rotationDegrees(rotation),
+                                )
+                            },
+                        )
+                    }
+                }
+            }
 
-                val frame = createFrame(
-                    presentation = presentation,
-                    clearColor = GraphiteColor.rgba(16, 17, 20),
-                ) {
-                    recordings.forEach { slot -> slot.load()?.let(::insert) }
-                }
-                try {
-                    present(frame)
-                } finally {
-                    frame.close()
-                }
+            val frame = createFrame(
+                presentation = presentation,
+                clearColor = GraphiteColor.rgba(16, 17, 20),
+            ) {
+                recordings.forEach { slot -> slot.load()?.let(::insert) }
+            }
+            try {
+                present(frame)
             } finally {
-                recordings.forEach { slot -> slot.exchange(null)?.close() }
+                frame.close()
             }
 
             if (renderedFrames.addAndFetch(1) % METRICS_REFRESH_FRAMES == 0L) {

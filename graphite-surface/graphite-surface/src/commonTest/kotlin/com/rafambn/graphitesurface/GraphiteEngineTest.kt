@@ -42,7 +42,7 @@ class GraphiteEngineTest {
             }
 
             assertEquals(1, runtime.metricsSnapshot().recorders[1].completed)
-            recording.close()
+            recording.program.validate()
         } finally {
             runtime.close()
             runtime.awaitClosed()
@@ -92,7 +92,7 @@ class GraphiteEngineTest {
                             GraphitePaint(GraphiteColor.White),
                         )
                     }
-                    runtime.recorders.single().record { draw(displayList) }.close()
+                    runtime.recorders.single().record { draw(displayList) }
                 }
             }
 
@@ -119,7 +119,7 @@ class GraphiteEngineTest {
     }
 
     @Test
-    fun retainedWorkSurvivesClosingRecordingAndFrameHandles() = runTest {
+    fun frameSnapshotKeepsImmutableRecordingCommands() = runTest {
         val runtime = GraphiteEngine()
         try {
             val attachmentId = requireNotNull(runtime.attachPresentation {})
@@ -133,7 +133,6 @@ class GraphiteEngineTest {
                 draw(displayList)
             }
             val frame = runtime.createFrame(presentation) { insert(recording) }
-            recording.close()
 
             assertEquals(GraphitePresentResult.Accepted, runtime.present(frame))
             frame.close()
@@ -141,11 +140,10 @@ class GraphiteEngineTest {
             val pending = requireNotNull(runtime.takePendingFrame(attachmentId))
             try {
                 val insertion = pending.insertions.single()
-                insertion.recording.value.program.validate()
+                insertion.program.validate()
             } finally {
                 pending.close()
             }
-            assertTrue(recording.isClosed)
             assertTrue(frame.isClosed)
         } finally {
             runtime.close()
@@ -197,12 +195,12 @@ class GraphiteEngineTest {
         try {
             val jobs = List(32) {
                 launch {
-                    runtime.recorders.single().record { draw(displayList) }.close()
+                    runtime.recorders.single().record { draw(displayList) }
                 }
             }
             jobs.forEach { it.cancelAndJoin() }
 
-            runtime.recorders.single().record { draw(displayList) }.close()
+            runtime.recorders.single().record { draw(displayList) }
             assertIs<GraphiteEngineState.Ready>(runtime.state.value)
         } finally {
             runtime.close()
@@ -220,12 +218,8 @@ class GraphiteEngineTest {
                 second.updatePresentation(attachmentId, GraphiteSize(1, 1), density = 1f),
             )
             val recording = first.recorders.single().record { }
-            try {
-                assertFailsWith<GraphitePresentationException> {
-                    second.createFrame(presentation) { insert(recording) }
-                }
-            } finally {
-                recording.close()
+            assertFailsWith<GraphitePresentationException> {
+                second.createFrame(presentation) { insert(recording) }
             }
         } finally {
             first.close()
