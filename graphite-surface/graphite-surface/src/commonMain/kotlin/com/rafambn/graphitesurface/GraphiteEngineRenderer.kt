@@ -2,6 +2,8 @@
 
 package com.rafambn.graphitesurface
 
+import androidx.compose.ui.geometry.Rect
+
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.AtomicReference
 
@@ -47,7 +49,7 @@ internal class GraphiteEngineRenderer(private val runtime: GraphiteEngine) :
                     )
                     insertion.clip?.let { clip ->
                         context.clipRect(
-                            GraphiteRect(
+                            Rect(
                                 clip.left.toFloat(),
                                 clip.top.toFloat(),
                                 clip.right.toFloat(),

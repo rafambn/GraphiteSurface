@@ -310,8 +310,6 @@ class JvmGraphiteSurface(
     private class SkiaGraphiteDrawContext(
         private val canvas: Canvas,
     ) : JvmGraphiteDrawContext {
-        private var path = PathBuilder()
-
         override fun clear(color: Long) {
             canvas.clear(color.toInt())
         }
@@ -348,51 +346,40 @@ class JvmGraphiteSurface(
             canvas.clipRect(left, top, right, bottom, antiAlias)
         }
 
-        override fun beginPath() {
-            path = PathBuilder()
-        }
-
-        override fun moveTo(x: Float, y: Float) {
-            path.moveTo(x, y)
-        }
-
-        override fun lineTo(x: Float, y: Float) {
-            path.lineTo(x, y)
-        }
-
-        override fun closePath() {
-            path.closePath()
-        }
-
-        override fun drawPath(color: Long, antiAlias: Boolean) {
-            val path = path.detach()
-            val paint = Paint().apply {
-                this.color = color.toInt()
-                isAntiAlias = antiAlias
-            }
-            try {
-                canvas.drawPath(path, paint)
-            } finally {
-                path.close()
-                paint.close()
-            }
-        }
-
         override fun drawPath(
             verbs: ByteArray,
             points: FloatArray,
+            weights: FloatArray,
+            fillType: Int,
             color: Long,
             stroke: Boolean,
             strokeWidth: Float,
             antiAlias: Boolean,
         ) {
             val builder = PathBuilder()
+            builder.setFillType(
+                if (fillType == 1) org.jetbrains.skia.PathFillMode.EVEN_ODD
+                else org.jetbrains.skia.PathFillMode.WINDING,
+            )
             var pointIndex = 0
-            verbs.forEach { verb ->
+            verbs.forEachIndexed { index, verb ->
                 when (verb.toInt()) {
                     1 -> builder.moveTo(points[pointIndex++], points[pointIndex++])
                     2 -> builder.lineTo(points[pointIndex++], points[pointIndex++])
-                    3 -> builder.closePath()
+                    3 -> builder.quadTo(
+                        points[pointIndex++], points[pointIndex++],
+                        points[pointIndex++], points[pointIndex++],
+                    )
+                    4 -> builder.conicTo(
+                        points[pointIndex++], points[pointIndex++],
+                        points[pointIndex++], points[pointIndex++], weights[index],
+                    )
+                    5 -> builder.cubicTo(
+                        points[pointIndex++], points[pointIndex++],
+                        points[pointIndex++], points[pointIndex++],
+                        points[pointIndex++], points[pointIndex++],
+                    )
+                    6 -> builder.closePath()
                     else -> error("Unknown Graphite path verb: $verb")
                 }
             }

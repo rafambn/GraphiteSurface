@@ -2,7 +2,7 @@ package com.rafambn.graphitesurface
 
 internal object GraphiteCommandBuffer {
     internal const val Magic: Int = 0x47534631
-    internal const val Version: Int = 1
+    internal const val Version: Int = 2
     private const val HeaderBytes: Int = Int.SIZE_BYTES * 2
     private const val CommandHeaderBytes: Int = 1 + Int.SIZE_BYTES
 

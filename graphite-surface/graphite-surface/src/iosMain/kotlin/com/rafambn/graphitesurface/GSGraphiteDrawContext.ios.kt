@@ -2,6 +2,8 @@
 
 package com.rafambn.graphitesurface
 
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import com.rafambn.graphitesurface.engine.GraphiteEngineGraphiteEngineView_iosKt
 import platform.UIKit.UIView
 
@@ -38,7 +40,7 @@ internal class GSGraphiteDrawContext(
         )
     }
 
-    override fun clipRect(rect: GraphiteRect, antiAlias: Boolean) {
+    override fun clipRect(rect: Rect, antiAlias: Boolean) {
         GraphiteEngineGraphiteEngineView_iosKt.gsClipRectView(
             view,
             rect.left,
@@ -49,38 +51,48 @@ internal class GSGraphiteDrawContext(
         )
     }
 
-    override fun beginPath() {
+    private fun beginPath() {
         GraphiteEngineGraphiteEngineView_iosKt.gsBeginPathView(view)
     }
 
-    override fun moveTo(x: Float, y: Float) {
+    private fun moveTo(x: Float, y: Float) {
         GraphiteEngineGraphiteEngineView_iosKt.gsMoveToView(view, x, y)
     }
 
-    override fun lineTo(x: Float, y: Float) {
+    private fun lineTo(x: Float, y: Float) {
         GraphiteEngineGraphiteEngineView_iosKt.gsLineToView(view, x, y)
     }
 
-    override fun closePath() {
+    private fun closePath() {
         GraphiteEngineGraphiteEngineView_iosKt.gsClosePathView(view)
     }
 
-    override fun drawPath(color: Long, antiAlias: Boolean) {
-        GraphiteEngineGraphiteEngineView_iosKt.gsDrawPathView(
-            view,
-            color.toUInt(),
-            if (antiAlias) 1 else 0,
-        )
-    }
-
-    override fun drawPath(path: GraphitePath, paint: GraphitePaint) {
+    override fun drawPath(path: GraphitePathData, paint: GraphitePaint) {
         beginPath()
+        GraphiteEngineGraphiteEngineView_iosKt.gsSetPathFillTypeView(view, path.fillType)
         var pointIndex = 0
-        path.verbs.forEach { verb ->
+        path.verbs.forEachIndexed { index, verb ->
             when (verb.toInt()) {
                 1 -> moveTo(path.points[pointIndex++], path.points[pointIndex++])
                 2 -> lineTo(path.points[pointIndex++], path.points[pointIndex++])
-                3 -> closePath()
+                3 -> GraphiteEngineGraphiteEngineView_iosKt.gsQuadToView(
+                    view,
+                    path.points[pointIndex++], path.points[pointIndex++],
+                    path.points[pointIndex++], path.points[pointIndex++],
+                )
+                4 -> GraphiteEngineGraphiteEngineView_iosKt.gsConicToView(
+                    view,
+                    path.points[pointIndex++], path.points[pointIndex++],
+                    path.points[pointIndex++], path.points[pointIndex++],
+                    path.weights[index],
+                )
+                5 -> GraphiteEngineGraphiteEngineView_iosKt.gsCubicToView(
+                    view,
+                    path.points[pointIndex++], path.points[pointIndex++],
+                    path.points[pointIndex++], path.points[pointIndex++],
+                    path.points[pointIndex++], path.points[pointIndex++],
+                )
+                6 -> closePath()
                 else -> error("Unknown Graphite path verb: $verb")
             }
         }
@@ -93,7 +105,7 @@ internal class GSGraphiteDrawContext(
         )
     }
 
-    override fun drawRect(rect: GraphiteRect, paint: GraphitePaint) {
+    override fun drawRect(rect: Rect, paint: GraphitePaint) {
         GraphiteEngineGraphiteEngineView_iosKt.gsDrawRectView(
             view, rect.left, rect.top, rect.right, rect.bottom,
             paint.color.toArgbLong().toUInt(), paint.isStroke.toNativeInt(),
@@ -102,7 +114,7 @@ internal class GSGraphiteDrawContext(
     }
 
     override fun drawRoundRect(
-        rect: GraphiteRect,
+        rect: Rect,
         radiusX: Float,
         radiusY: Float,
         paint: GraphitePaint,
@@ -114,7 +126,7 @@ internal class GSGraphiteDrawContext(
         )
     }
 
-    override fun drawOval(rect: GraphiteRect, paint: GraphitePaint) {
+    override fun drawOval(rect: Rect, paint: GraphitePaint) {
         GraphiteEngineGraphiteEngineView_iosKt.gsDrawOvalView(
             view, rect.left, rect.top, rect.right, rect.bottom,
             paint.color.toArgbLong().toUInt(), paint.isStroke.toNativeInt(),
@@ -122,7 +134,7 @@ internal class GSGraphiteDrawContext(
         )
     }
 
-    override fun drawCircle(center: GraphitePoint, radius: Float, paint: GraphitePaint) {
+    override fun drawCircle(center: Offset, radius: Float, paint: GraphitePaint) {
         GraphiteEngineGraphiteEngineView_iosKt.gsDrawCircleView(
             view, center.x, center.y, radius,
             paint.color.toArgbLong().toUInt(), paint.isStroke.toNativeInt(),
@@ -130,7 +142,7 @@ internal class GSGraphiteDrawContext(
         )
     }
 
-    override fun drawLine(start: GraphitePoint, end: GraphitePoint, paint: GraphitePaint) {
+    override fun drawLine(start: Offset, end: Offset, paint: GraphitePaint) {
         GraphiteEngineGraphiteEngineView_iosKt.gsDrawLineView(
             view, start.x, start.y, end.x, end.y,
             paint.color.toArgbLong().toUInt(), paint.strokeWidth, paint.antiAlias.toNativeInt(),

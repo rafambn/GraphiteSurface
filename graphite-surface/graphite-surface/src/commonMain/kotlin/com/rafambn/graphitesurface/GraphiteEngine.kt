@@ -3,6 +3,7 @@
 package com.rafambn.graphitesurface
 
 import com.rafambn.scribe.Archivist
+import androidx.compose.ui.graphics.Color
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.AtomicReference
@@ -101,7 +102,7 @@ class GraphiteEngine(
 
     fun createFrame(
         presentation: GraphitePresentationInfo,
-        clearColor: GraphiteColor = GraphiteColor.Transparent,
+        clearColor: Color = Color.Transparent,
         block: GraphiteFrameBuilder.() -> Unit = {},
     ): GraphiteFrame {
         requireReady()

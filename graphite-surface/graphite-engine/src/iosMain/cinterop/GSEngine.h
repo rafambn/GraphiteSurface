@@ -25,8 +25,12 @@
 + (void)gsConcatView:(UIView *)view m0:(float)m0 m1:(float)m1 m2:(float)m2 m3:(float)m3 m4:(float)m4 m5:(float)m5 m6:(float)m6 m7:(float)m7 m8:(float)m8 m9:(float)m9 m10:(float)m10 m11:(float)m11 m12:(float)m12 m13:(float)m13 m14:(float)m14 m15:(float)m15;
 + (void)gsClipRectView:(UIView *)view left:(float)left top:(float)top right:(float)right bottom:(float)bottom antiAlias:(int)antiAlias;
 + (void)gsBeginPathView:(UIView *)view;
++ (void)gsSetPathFillTypeView:(UIView *)view fillType:(int)fillType;
 + (void)gsMoveToView:(UIView *)view x:(float)x y:(float)y;
 + (void)gsLineToView:(UIView *)view x:(float)x y:(float)y;
++ (void)gsQuadToView:(UIView *)view x1:(float)x1 y1:(float)y1 x2:(float)x2 y2:(float)y2;
++ (void)gsConicToView:(UIView *)view x1:(float)x1 y1:(float)y1 x2:(float)x2 y2:(float)y2 weight:(float)weight;
++ (void)gsCubicToView:(UIView *)view x1:(float)x1 y1:(float)y1 x2:(float)x2 y2:(float)y2 x3:(float)x3 y3:(float)y3;
 + (void)gsClosePathView:(UIView *)view;
 + (void)gsDrawPathView:(UIView *)view color:(unsigned)color antiAlias:(int)antiAlias;
 + (void)gsDrawStyledPathView:(UIView *)view color:(unsigned)color stroke:(int)stroke strokeWidth:(float)strokeWidth antiAlias:(int)antiAlias;

@@ -15,6 +15,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.viewinterop.AndroidView
 import com.rafambn.graphitesurface.engine.AndroidGraphiteNative
 import java.util.concurrent.atomic.AtomicBoolean
@@ -276,37 +278,19 @@ private class AndroidGraphiteDrawContext(
         )
     }
 
-    override fun clipRect(rect: GraphiteRect, antiAlias: Boolean) {
+    override fun clipRect(rect: Rect, antiAlias: Boolean) {
         AndroidGraphiteNative.clipRect(
             engineHandle, rect.left, rect.top, rect.right, rect.bottom, antiAlias,
         )
     }
 
-    override fun beginPath() {
-        AndroidGraphiteNative.beginPath(engineHandle)
-    }
-
-    override fun moveTo(x: Float, y: Float) {
-        AndroidGraphiteNative.moveTo(engineHandle, x, y)
-    }
-
-    override fun lineTo(x: Float, y: Float) {
-        AndroidGraphiteNative.lineTo(engineHandle, x, y)
-    }
-
-    override fun closePath() {
-        AndroidGraphiteNative.closePath(engineHandle)
-    }
-
-    override fun drawPath(color: Long, antiAlias: Boolean) {
-        AndroidGraphiteNative.drawPath(engineHandle, color.toInt(), antiAlias)
-    }
-
-    override fun drawPath(path: GraphitePath, paint: GraphitePaint) {
+    override fun drawPath(path: GraphitePathData, paint: GraphitePaint) {
         AndroidGraphiteNative.drawImmutablePath(
             engineHandle,
             path.verbs,
             path.points,
+            path.weights,
+            path.fillType,
             paint.color.toArgbLong().toInt(),
             paint.style == GraphitePaint.Style.Stroke,
             paint.strokeWidth,
@@ -314,7 +298,7 @@ private class AndroidGraphiteDrawContext(
         )
     }
 
-    override fun drawRect(rect: GraphiteRect, paint: GraphitePaint) {
+    override fun drawRect(rect: Rect, paint: GraphitePaint) {
         AndroidGraphiteNative.drawRect(
             engineHandle, rect.left, rect.top, rect.right, rect.bottom,
             paint.color.toArgbLong().toInt(), paint.style == GraphitePaint.Style.Stroke,
@@ -323,7 +307,7 @@ private class AndroidGraphiteDrawContext(
     }
 
     override fun drawRoundRect(
-        rect: GraphiteRect,
+        rect: Rect,
         radiusX: Float,
         radiusY: Float,
         paint: GraphitePaint,
@@ -335,7 +319,7 @@ private class AndroidGraphiteDrawContext(
         )
     }
 
-    override fun drawOval(rect: GraphiteRect, paint: GraphitePaint) {
+    override fun drawOval(rect: Rect, paint: GraphitePaint) {
         AndroidGraphiteNative.drawOval(
             engineHandle, rect.left, rect.top, rect.right, rect.bottom,
             paint.color.toArgbLong().toInt(), paint.style == GraphitePaint.Style.Stroke,
@@ -343,7 +327,7 @@ private class AndroidGraphiteDrawContext(
         )
     }
 
-    override fun drawCircle(center: GraphitePoint, radius: Float, paint: GraphitePaint) {
+    override fun drawCircle(center: Offset, radius: Float, paint: GraphitePaint) {
         AndroidGraphiteNative.drawCircle(
             engineHandle, center.x, center.y, radius,
             paint.color.toArgbLong().toInt(), paint.style == GraphitePaint.Style.Stroke,
@@ -351,7 +335,7 @@ private class AndroidGraphiteDrawContext(
         )
     }
 
-    override fun drawLine(start: GraphitePoint, end: GraphitePoint, paint: GraphitePaint) {
+    override fun drawLine(start: Offset, end: Offset, paint: GraphitePaint) {
         AndroidGraphiteNative.drawLine(
             engineHandle, start.x, start.y, end.x, end.y,
             paint.color.toArgbLong().toInt(), paint.strokeWidth, paint.antiAlias,

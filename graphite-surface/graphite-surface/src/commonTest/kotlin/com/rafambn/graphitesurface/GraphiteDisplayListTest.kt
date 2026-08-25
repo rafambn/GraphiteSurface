@@ -1,5 +1,8 @@
 package com.rafambn.graphitesurface
 
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -19,7 +22,7 @@ class GraphiteDisplayListTest {
 
         assertFailsWith<GraphiteEncodingException.CommandBufferTooLarge> {
             GraphiteDisplayList.build(GraphiteCommandBufferLimit(Int.SIZE_BYTES * 2)) {
-                drawRect(GraphiteRect(0f, 0f, 1f, 1f), GraphitePaint(GraphiteColor.White))
+                drawRect(Rect(0f, 0f, 1f, 1f), GraphitePaint(Color.White))
             }
         }
     }
@@ -37,10 +40,10 @@ class GraphiteDisplayListTest {
     @Test
     fun equivalentDisplayListsShareOneResourceReference() {
         val first = GraphiteDisplayList.build {
-            drawCircle(GraphitePoint(4f, 4f), 2f, GraphitePaint(GraphiteColor.White))
+            drawCircle(Offset(4f, 4f), 2f, GraphitePaint(Color.White))
         }
         val second = GraphiteDisplayList.build {
-            drawCircle(GraphitePoint(4f, 4f), 2f, GraphitePaint(GraphiteColor.White))
+            drawCircle(Offset(4f, 4f), 2f, GraphitePaint(Color.White))
         }
         val writer = GraphiteCommandWriter(GraphiteCommandBufferLimit.Default.bytes)
         GraphiteEncoderImpl(writer, cancellationProbe = {}).apply {
@@ -63,14 +66,14 @@ class GraphiteDisplayListTest {
     @Test
     fun recordingStoresAFixedSizeReferenceInsteadOfNestedCommandBytes() {
         val small = GraphiteDisplayList.build {
-            drawCircle(GraphitePoint(0f, 0f), 1f, GraphitePaint(GraphiteColor.White))
+            drawCircle(Offset(0f, 0f), 1f, GraphitePaint(Color.White))
         }
         val large = GraphiteDisplayList.build {
             repeat(4_000) { index ->
                 drawCircle(
-                    GraphitePoint(index.toFloat(), index.toFloat()),
+                    Offset(index.toFloat(), index.toFloat()),
                     1f,
-                    GraphitePaint(GraphiteColor.White),
+                    GraphitePaint(Color.White),
                 )
             }
         }

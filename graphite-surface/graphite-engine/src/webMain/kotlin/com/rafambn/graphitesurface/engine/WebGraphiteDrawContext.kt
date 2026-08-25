@@ -4,9 +4,6 @@ package com.rafambn.graphitesurface.engine
 class WebGraphiteDrawContext internal constructor() {
     private val commands = StringBuilder("[")
     private var firstCommand = true
-    private var pathVerbs = mutableListOf<Int>()
-    private var pathPoints = mutableListOf<Float>()
-
     fun clear(color: Long) = command(0, color)
     fun save() = command(1)
     fun restore() = command(2)
@@ -21,54 +18,30 @@ class WebGraphiteDrawContext internal constructor() {
     fun clipRect(left: Float, top: Float, right: Float, bottom: Float, antiAlias: Boolean) =
         command(6, left, top, right, bottom, antiAlias.asInt())
 
-    fun beginPath() {
-        pathVerbs = mutableListOf()
-        pathPoints = mutableListOf()
-    }
-
-    fun moveTo(x: Float, y: Float) {
-        pathVerbs += 1
-        pathPoints += x
-        pathPoints += y
-    }
-
-    fun lineTo(x: Float, y: Float) {
-        pathVerbs += 2
-        pathPoints += x
-        pathPoints += y
-    }
-
-    fun closePath() {
-        pathVerbs += 3
-    }
-
-    fun drawPath(color: Long, antiAlias: Boolean) {
-        drawPath(
-            verbs = pathVerbs.map(Int::toByte).toByteArray(),
-            points = pathPoints.toFloatArray(),
-            color = color,
-            stroke = false,
-            strokeWidth = 1f,
-            antiAlias = antiAlias,
-        )
-    }
-
     fun drawPath(
         verbs: ByteArray,
         points: FloatArray,
+        weights: FloatArray,
+        fillType: Int,
         color: Long,
         stroke: Boolean,
         strokeWidth: Float,
         antiAlias: Boolean,
-    ) = commandWithArrays(
-        opcode = 7,
-        integers = verbs.map { it.toInt() },
-        floats = points.asList(),
-        color,
-        stroke.asInt(),
-        strokeWidth,
-        antiAlias.asInt(),
-    )
+    ) {
+        beginCommand(7)
+        commands.append(',')
+        appendArray(verbs.map { it.toInt() })
+        commands.append(',')
+        appendArray(points.asList())
+        commands.append(',')
+        appendArray(weights.asList())
+        commands.append(',').append(fillType)
+        commands.append(',').append(color)
+        commands.append(',').append(stroke.asInt())
+        commands.append(',').append(strokeWidth)
+        commands.append(',').append(antiAlias.asInt())
+        commands.append(']')
+    }
 
     fun drawRect(
         left: Float, top: Float, right: Float, bottom: Float,

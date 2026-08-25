@@ -1,7 +1,6 @@
 package com.rafambn.graphitesurface.sample.dualrecorder
 
 import androidx.lifecycle.ViewModel
-import com.rafambn.graphitesurface.GraphiteColor
 import com.rafambn.graphitesurface.GraphiteMetricsSnapshot
 import com.rafambn.graphitesurface.GraphitePresentationInfo
 import com.rafambn.graphitesurface.GraphiteRecording
@@ -10,6 +9,7 @@ import com.rafambn.graphitesurface.GraphiteRenderer
 import com.rafambn.graphitesurface.GraphiteEngine
 import com.rafambn.graphitesurface.GraphiteTransform
 import com.rafambn.graphitesurface.sample.loopingRotationDegrees
+import androidx.compose.ui.graphics.Color
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.AtomicReference
@@ -101,7 +101,7 @@ internal class DualRecorderViewModel : ViewModel() {
 
             val frame = createFrame(
                 presentation = presentation,
-                clearColor = GraphiteColor.rgba(16, 17, 20),
+                clearColor = Color(16, 17, 20),
             ) {
                 recordings.forEach { slot -> slot.load()?.let(::insert) }
             }

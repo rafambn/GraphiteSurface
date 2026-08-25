@@ -564,7 +564,7 @@ Primary and local references:
   ```kotlin
   runtime.createFrame(
       presentation = presentationInfo,
-      clearColor = GraphiteColor.Transparent,
+      clearColor = Color.Transparent,
   ) {
       insert(recording, translation, clip)
   }
@@ -894,8 +894,8 @@ Primary references:
 - `GraphiteEngine`, `GraphiteFontFace`, `GraphiteImage`,
   `GraphiteRecording`, and `GraphiteFrame` require explicit, idempotent
   `close()`.
-- `GraphiteFont`, `GraphitePaint`, `GraphitePath`,
-  `GraphiteGlyphRun`, `GraphiteTextLayout`, `GraphiteColor`,
+- `GraphiteFont`, `GraphitePaint`,
+  `GraphiteGlyphRun`, `GraphiteTextLayout`,
   `GraphitePixelBuffer`, and `GraphiteDisplayList` are immutable
   garbage-collected values.
 - A display list snapshots or strongly references every immutable command
@@ -942,7 +942,8 @@ Primary references:
 
 - Version 1 presentation is standard dynamic range, 8-bit sRGB.
 - Public paint colors are unpremultiplied sRGB values.
-- `GraphiteColor` stores `0xRRGGBBAA` in a packed `UInt`.
+- Compose `Color` values are converted synchronously to canonical 8-bit sRGB
+  command values. The command stream stores them as `0xAARRGGBB`.
 - `GraphitePixelBuffer` contains width, height, row bytes, copied immutable
   bytes, an alpha type, and either `Rgba8888` or `Bgra8888` format.
 - Pixel alpha types are `Opaque`, `Premultiplied`, and
@@ -950,8 +951,9 @@ Primary references:
 - The implementation performs premultiplication and conversion to the
   platform presentation format internally.
 - Wide gamut, HDR, and floating-point presentation formats are deferred.
-- The runtime API depends only on `GraphiteColor`. The Compose module provides
-  conversions to and from `androidx.compose.ui.graphics.Color`.
+- The runtime API accepts `androidx.compose.ui.graphics.Color` directly. The
+  compiler owns the conversion and the engine never receives a mutable Compose
+  object.
 
 ## Diagnostics and logging
 

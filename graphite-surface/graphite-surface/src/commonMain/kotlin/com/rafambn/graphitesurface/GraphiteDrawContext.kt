@@ -1,5 +1,9 @@
 package com.rafambn.graphitesurface
 
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Path
+
 /**
  * Library-owned drawing operations for one frame.
  *
@@ -28,62 +32,30 @@ internal interface GraphiteDrawContext {
     }
 
     /** Intersects the current clip with [rect]. */
-    fun clipRect(rect: GraphiteRect, antiAlias: Boolean) {
+    fun clipRect(rect: Rect, antiAlias: Boolean) {
         throw UnsupportedOperationException("rectangle clipping is not supported by this backend")
     }
 
-    /** Starts a new path. */
-    fun beginPath()
-
-    /** Moves the current path to [x] and [y] without drawing. */
-    fun moveTo(x: Float, y: Float)
-
-    /** Draws a line from the current point to [x] and [y]. */
-    fun lineTo(x: Float, y: Float)
-
-    /** Closes the current path with a line back to its start. */
-    fun closePath()
-
-    /** Fills and strokes the current path with [color]. */
-    fun drawPath(color: Long, antiAlias: Boolean)
-
-    /** Draws an immutable path with [paint]. */
-    fun drawPath(path: GraphitePath, paint: GraphitePaint) {
-        beginPath()
-        var pointIndex = 0
-        path.verbs.forEach { code ->
-            when (code) {
-                GraphitePathVerb.Move.code -> {
-                    moveTo(path.points[pointIndex], path.points[pointIndex + 1])
-                    pointIndex += 2
-                }
-                GraphitePathVerb.Line.code -> {
-                    lineTo(path.points[pointIndex], path.points[pointIndex + 1])
-                    pointIndex += 2
-                }
-                GraphitePathVerb.Close.code -> closePath()
-            }
-        }
-        drawPath(paint.color.toArgbLong(), paint.antiAlias)
-    }
+    /** Draws an immutable path snapshot with [paint]. */
+    fun drawPath(path: GraphitePathData, paint: GraphitePaint)
 
     /** Draws an axis-aligned rectangle. */
-    fun drawRect(rect: GraphiteRect, paint: GraphitePaint) {
+    fun drawRect(rect: Rect, paint: GraphitePaint) {
         drawPath(
-            GraphitePath.build {
+            GraphitePathData.fromComposePath(Path().apply {
                 moveTo(rect.left, rect.top)
                 lineTo(rect.right, rect.top)
                 lineTo(rect.right, rect.bottom)
                 lineTo(rect.left, rect.bottom)
                 close()
-            },
+            }),
             paint,
         )
     }
 
     /** Draws a rounded rectangle. */
     fun drawRoundRect(
-        rect: GraphiteRect,
+        rect: Rect,
         radiusX: Float,
         radiusY: Float,
         paint: GraphitePaint,
@@ -92,22 +64,22 @@ internal interface GraphiteDrawContext {
     }
 
     /** Draws an oval bounded by [rect]. */
-    fun drawOval(rect: GraphiteRect, paint: GraphitePaint) {
+    fun drawOval(rect: Rect, paint: GraphitePaint) {
         throw UnsupportedOperationException("ovals are not supported by this backend")
     }
 
     /** Draws a circle. */
-    fun drawCircle(center: GraphitePoint, radius: Float, paint: GraphitePaint) {
+    fun drawCircle(center: Offset, radius: Float, paint: GraphitePaint) {
         throw UnsupportedOperationException("circles are not supported by this backend")
     }
 
     /** Draws a line segment. */
-    fun drawLine(start: GraphitePoint, end: GraphitePoint, paint: GraphitePaint) {
+    fun drawLine(start: Offset, end: Offset, paint: GraphitePaint) {
         drawPath(
-            GraphitePath.build {
+            GraphitePathData.fromComposePath(Path().apply {
                 moveTo(start.x, start.y)
                 lineTo(end.x, end.y)
-            },
+            }),
             paint,
         )
     }

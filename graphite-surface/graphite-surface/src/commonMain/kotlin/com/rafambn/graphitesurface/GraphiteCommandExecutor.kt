@@ -1,5 +1,7 @@
 package com.rafambn.graphitesurface
 
+import androidx.compose.ui.geometry.Offset
+
 internal fun GraphiteDrawContext.executeGraphiteCommands(
     program: GraphiteCommandProgram,
     maximumDepth: Int = 64,
@@ -38,12 +40,12 @@ internal fun GraphiteDrawContext.executeGraphiteCommands(
             }
             GraphiteCommandOpcode.DrawOval -> drawOval(payload.readRect(), payload.readPaint())
             GraphiteCommandOpcode.DrawCircle -> {
-                val center = GraphitePoint(payload.readFloat(), payload.readFloat())
+                val center = Offset(payload.readFloat(), payload.readFloat())
                 drawCircle(center, payload.readFloat(), payload.readPaint())
             }
             GraphiteCommandOpcode.DrawLine -> {
-                val start = GraphitePoint(payload.readFloat(), payload.readFloat())
-                val end = GraphitePoint(payload.readFloat(), payload.readFloat())
+                val start = Offset(payload.readFloat(), payload.readFloat())
+                val end = Offset(payload.readFloat(), payload.readFloat())
                 drawLine(start, end, payload.readPaint())
             }
             GraphiteCommandOpcode.DrawPath -> drawPath(payload.readPath(), payload.readPaint())

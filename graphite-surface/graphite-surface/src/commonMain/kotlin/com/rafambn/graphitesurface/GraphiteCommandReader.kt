@@ -1,5 +1,7 @@
 package com.rafambn.graphitesurface
 
+import androidx.compose.ui.geometry.Rect
+
 internal class GraphiteCommandReader(
     private val bytes: ByteArray,
     start: Int = 0,
@@ -41,19 +43,24 @@ internal class GraphiteCommandReader(
         return bytes.copyOfRange(position, position + size).also { position += size }
     }
 
-    internal fun readRect(): GraphiteRect = GraphiteRect(
-        left = readFloat(),
-        top = readFloat(),
-        right = readFloat(),
-        bottom = readFloat(),
-    )
+    internal fun readRect(): Rect {
+        val rect = Rect(
+            left = readFloat(),
+            top = readFloat(),
+            right = readFloat(),
+            bottom = readFloat(),
+        )
+        require(rect.left <= rect.right) { "left must not exceed right" }
+        require(rect.top <= rect.bottom) { "top must not exceed bottom" }
+        return rect
+    }
 
     internal fun readTransform(): GraphiteTransform = GraphiteTransform.fromColumnMajor(
         FloatArray(16) { readFloat() },
     )
 
     internal fun readPaint(): GraphitePaint {
-        val color = GraphiteColor(readInt().toUInt())
+        val color = readInt().toLong().toComposeColor()
         val style = GraphitePaint.Style.entries.getOrNull(readByte())
             ?: error("invalid paint style")
         return GraphitePaint(
@@ -68,13 +75,18 @@ internal class GraphiteCommandReader(
         )
     }
 
-    internal fun readPath(): GraphitePath {
+    internal fun readPath(): GraphitePathData {
         val verbCount = readInt()
         if (verbCount < 0) error("negative path verb count")
         val verbs = readBytes(verbCount)
         val pointCount = readInt()
         if (pointCount < 0) error("negative path point count")
-        return GraphitePath(verbs, FloatArray(pointCount) { readFloat() })
+        val points = FloatArray(pointCount) { readFloat() }
+        val weightCount = readInt()
+        if (weightCount < 0) error("negative path weight count")
+        val weights = FloatArray(weightCount) { readFloat() }
+        val fillType = readByte()
+        return GraphitePathData(verbs, points, weights, fillType)
     }
 
     internal fun requireFinished() {

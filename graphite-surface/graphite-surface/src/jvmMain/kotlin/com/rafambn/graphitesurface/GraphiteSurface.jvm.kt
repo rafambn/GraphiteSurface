@@ -14,6 +14,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.SwingPanel
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import com.rafambn.graphitesurface.engine.JvmGraphiteDrawContext
 import com.rafambn.graphitesurface.engine.JvmGraphiteRenderer
 import com.rafambn.graphitesurface.engine.JvmGraphiteSurface
@@ -101,31 +103,22 @@ private class JvmGraphiteSurfaceAdapter(
                         override fun concat(transform: GraphiteTransform) =
                             context.concat(FloatArray(16) { index -> transform[index / 4, index % 4] })
 
-                        override fun clipRect(rect: GraphiteRect, antiAlias: Boolean) =
+                        override fun clipRect(rect: Rect, antiAlias: Boolean) =
                             context.clipRect(rect.left, rect.top, rect.right, rect.bottom, antiAlias)
 
-                        override fun beginPath() = context.beginPath()
-
-                        override fun moveTo(x: Float, y: Float) = context.moveTo(x, y)
-
-                        override fun lineTo(x: Float, y: Float) = context.lineTo(x, y)
-
-                        override fun closePath() = context.closePath()
-
-                        override fun drawPath(color: Long, antiAlias: Boolean) =
-                            context.drawPath(color, antiAlias)
-
-                        override fun drawPath(path: GraphitePath, paint: GraphitePaint) =
+                        override fun drawPath(path: GraphitePathData, paint: GraphitePaint) =
                             context.drawPath(
                                 path.verbs,
                                 path.points,
+                                path.weights,
+                                path.fillType,
                                 paint.color.toArgbLong(),
                                 paint.style == GraphitePaint.Style.Stroke,
                                 paint.strokeWidth,
                                 paint.antiAlias,
                             )
 
-                        override fun drawRect(rect: GraphiteRect, paint: GraphitePaint) =
+                        override fun drawRect(rect: Rect, paint: GraphitePaint) =
                             context.drawRect(
                                 rect.left, rect.top, rect.right, rect.bottom,
                                 paint.color.toArgbLong(),
@@ -135,7 +128,7 @@ private class JvmGraphiteSurfaceAdapter(
                             )
 
                         override fun drawRoundRect(
-                            rect: GraphiteRect,
+                            rect: Rect,
                             radiusX: Float,
                             radiusY: Float,
                             paint: GraphitePaint,
@@ -147,7 +140,7 @@ private class JvmGraphiteSurfaceAdapter(
                             paint.antiAlias,
                         )
 
-                        override fun drawOval(rect: GraphiteRect, paint: GraphitePaint) =
+                        override fun drawOval(rect: Rect, paint: GraphitePaint) =
                             context.drawOval(
                                 rect.left, rect.top, rect.right, rect.bottom,
                                 paint.color.toArgbLong(),
@@ -157,7 +150,7 @@ private class JvmGraphiteSurfaceAdapter(
                             )
 
                         override fun drawCircle(
-                            center: GraphitePoint,
+                            center: Offset,
                             radius: Float,
                             paint: GraphitePaint,
                         ) = context.drawCircle(
@@ -169,8 +162,8 @@ private class JvmGraphiteSurfaceAdapter(
                         )
 
                         override fun drawLine(
-                            start: GraphitePoint,
-                            end: GraphitePoint,
+                            start: Offset,
+                            end: Offset,
                             paint: GraphitePaint,
                         ) = context.drawLine(
                             start.x, start.y, end.x, end.y,

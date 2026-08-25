@@ -54,12 +54,14 @@ const createPaint = (color, stroke, strokeWidth, antiAlias) => {
     return paint;
 };
 
-const buildPath = (verbs, points) => {
+const buildPath = (verbs, points, weights, fillType) => {
     const builder = Skia.org_jetbrains_skia_PathBuilder__1nMake();
     if (!builder) throw new Error('Skia failed to create a path builder');
+    Skia.org_jetbrains_skia_PathBuilder__1nSetFillType(builder, fillType);
     let pointIndex = 0;
     try {
-        for (const verb of verbs) {
+        for (let verbIndex = 0; verbIndex < verbs.length; verbIndex += 1) {
+            const verb = verbs[verbIndex];
             if (verb === 1) {
                 Skia.org_jetbrains_skia_PathBuilder__1nMoveTo(
                     builder,
@@ -73,6 +75,33 @@ const buildPath = (verbs, points) => {
                     points[pointIndex++],
                 );
             } else if (verb === 3) {
+                Skia.org_jetbrains_skia_PathBuilder__1nQuadTo(
+                    builder,
+                    points[pointIndex++],
+                    points[pointIndex++],
+                    points[pointIndex++],
+                    points[pointIndex++],
+                );
+            } else if (verb === 4) {
+                Skia.org_jetbrains_skia_PathBuilder__1nConicTo(
+                    builder,
+                    points[pointIndex++],
+                    points[pointIndex++],
+                    points[pointIndex++],
+                    points[pointIndex++],
+                    weights[verbIndex],
+                );
+            } else if (verb === 5) {
+                Skia.org_jetbrains_skia_PathBuilder__1nCubicTo(
+                    builder,
+                    points[pointIndex++],
+                    points[pointIndex++],
+                    points[pointIndex++],
+                    points[pointIndex++],
+                    points[pointIndex++],
+                    points[pointIndex++],
+                );
+            } else if (verb === 6) {
                 Skia.org_jetbrains_skia_PathBuilder__1nClosePath(builder);
             } else {
                 throw new Error(`Unknown Graphite path verb ${verb}`);
@@ -136,8 +165,8 @@ const executeCommands = (canvas, encoded) => {
                 );
                 break;
             case 7: {
-                const path = buildPath(command[1], command[2]);
-                const paint = createPaint(command[3], command[4], command[5], command[6]);
+                const path = buildPath(command[1], command[2], command[3], command[4]);
+                const paint = createPaint(command[5], command[6], command[7], command[8]);
                 try {
                     Skia.org_jetbrains_skia_Canvas__1nDrawPath(canvas, path, paint);
                 } finally {

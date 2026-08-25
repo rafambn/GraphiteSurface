@@ -1,5 +1,9 @@
 package com.rafambn.graphitesurface
 
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Path
+
 /**
  * Scope that writes portable drawing commands on the caller thread.
  *
@@ -9,17 +13,17 @@ package com.rafambn.graphitesurface
  */
 interface GraphiteEncoder {
     fun withTransform(transform: GraphiteTransform, block: GraphiteEncoder.() -> Unit)
-    fun withClip(rect: GraphiteRect, antiAlias: Boolean = false, block: GraphiteEncoder.() -> Unit)
+    fun withClip(rect: Rect, antiAlias: Boolean = false, block: GraphiteEncoder.() -> Unit)
     /** References and draws [displayList]; its command bytes are not copied into this recording. */
     fun draw(
         displayList: GraphiteDisplayList,
         transform: GraphiteTransform = GraphiteTransform.Identity,
-        clip: GraphiteRect? = null,
+        clip: Rect? = null,
     )
-    fun drawRect(rect: GraphiteRect, paint: GraphitePaint)
-    fun drawRoundRect(rect: GraphiteRect, radiusX: Float, radiusY: Float, paint: GraphitePaint)
-    fun drawOval(rect: GraphiteRect, paint: GraphitePaint)
-    fun drawCircle(center: GraphitePoint, radius: Float, paint: GraphitePaint)
-    fun drawLine(start: GraphitePoint, end: GraphitePoint, paint: GraphitePaint)
-    fun drawPath(path: GraphitePath, paint: GraphitePaint)
+    fun drawRect(rect: Rect, paint: GraphitePaint)
+    fun drawRoundRect(rect: Rect, radiusX: Float, radiusY: Float, paint: GraphitePaint)
+    fun drawOval(rect: Rect, paint: GraphitePaint)
+    fun drawCircle(center: Offset, radius: Float, paint: GraphitePaint)
+    fun drawLine(start: Offset, end: Offset, paint: GraphitePaint)
+    fun drawPath(path: Path, paint: GraphitePaint)
 }

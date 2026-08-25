@@ -1,5 +1,7 @@
 package com.rafambn.graphitesurface
 
+import androidx.compose.ui.geometry.Rect
+
 internal class GraphiteCommandWriter(private val limitBytes: Int) {
     private var bytes = ByteArray(minOf(INITIAL_CAPACITY, limitBytes))
     private var size = 0
@@ -22,24 +24,33 @@ internal class GraphiteCommandWriter(private val limitBytes: Int) {
     }
 
     internal fun writePaint(paint: GraphitePaint) {
-        writeInt(paint.color.rgba.toInt())
+        writeInt(paint.color.toArgbLong().toInt())
         writeByte(paint.style.ordinal)
         writeFloat(paint.strokeWidth)
         writeByte(if (paint.antiAlias) 1 else 0)
     }
 
-    internal fun writeRect(rect: GraphiteRect) {
+    internal fun writeRect(rect: Rect) {
+        require(rect.left.isFinite() && rect.top.isFinite() &&
+            rect.right.isFinite() && rect.bottom.isFinite()) {
+            "rectangle coordinates must be finite"
+        }
+        require(rect.left <= rect.right) { "left must not exceed right" }
+        require(rect.top <= rect.bottom) { "top must not exceed bottom" }
         writeFloat(rect.left)
         writeFloat(rect.top)
         writeFloat(rect.right)
         writeFloat(rect.bottom)
     }
 
-    internal fun writePath(path: GraphitePath) {
+    internal fun writePath(path: GraphitePathData) {
         writeInt(path.verbs.size)
         writeBytes(path.verbs)
         writeInt(path.points.size)
         path.points.forEach(::writeFloat)
+        writeInt(path.weights.size)
+        path.weights.forEach(::writeFloat)
+        writeByte(path.fillType)
     }
 
     internal fun writeTransform(transform: GraphiteTransform) {

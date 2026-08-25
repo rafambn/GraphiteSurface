@@ -16,19 +16,11 @@ interface JvmGraphiteDrawContext {
 
     fun clipRect(left: Float, top: Float, right: Float, bottom: Float, antiAlias: Boolean)
 
-    fun beginPath()
-
-    fun moveTo(x: Float, y: Float)
-
-    fun lineTo(x: Float, y: Float)
-
-    fun closePath()
-
-    fun drawPath(color: Long, antiAlias: Boolean)
-
     fun drawPath(
         verbs: ByteArray,
         points: FloatArray,
+        weights: FloatArray,
+        fillType: Int,
         color: Long,
         stroke: Boolean,
         strokeWidth: Float,

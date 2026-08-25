@@ -20,6 +20,7 @@ import org.jetbrains.skia.Matrix44
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.PaintMode
 import org.jetbrains.skia.PathBuilder
+import org.jetbrains.skia.PathFillMode
 import org.jetbrains.skia.Surface
 import org.jetbrains.skia.gpu.graphite.BackendTexture
 import org.jetbrains.skia.gpu.graphite.GraphiteContext
@@ -147,6 +148,13 @@ fun gsBeginPath(view: UIView) {
 }
 
 @Suppress("unused")
+fun gsSetPathFillType(view: UIView, fillType: Int) {
+    frameContextOf(view).path.setFillType(
+        if (fillType == 1) PathFillMode.EVEN_ODD else PathFillMode.WINDING,
+    )
+}
+
+@Suppress("unused")
 fun gsMoveTo(view: UIView, x: Float, y: Float) {
     frameContextOf(view).path.moveTo(x, y)
 }
@@ -154,6 +162,29 @@ fun gsMoveTo(view: UIView, x: Float, y: Float) {
 @Suppress("unused")
 fun gsLineTo(view: UIView, x: Float, y: Float) {
     frameContextOf(view).path.lineTo(x, y)
+}
+
+@Suppress("unused")
+fun gsQuadTo(view: UIView, x1: Float, y1: Float, x2: Float, y2: Float) {
+    frameContextOf(view).path.quadTo(x1, y1, x2, y2)
+}
+
+@Suppress("unused")
+fun gsConicTo(view: UIView, x1: Float, y1: Float, x2: Float, y2: Float, weight: Float) {
+    frameContextOf(view).path.conicTo(x1, y1, x2, y2, weight)
+}
+
+@Suppress("unused")
+fun gsCubicTo(
+    view: UIView,
+    x1: Float,
+    y1: Float,
+    x2: Float,
+    y2: Float,
+    x3: Float,
+    y3: Float,
+) {
+    frameContextOf(view).path.cubicTo(x1, y1, x2, y2, x3, y3)
 }
 
 @Suppress("unused")

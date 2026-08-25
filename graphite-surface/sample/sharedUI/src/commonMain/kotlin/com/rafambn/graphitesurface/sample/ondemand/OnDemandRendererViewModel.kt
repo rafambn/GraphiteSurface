@@ -1,7 +1,6 @@
 package com.rafambn.graphitesurface.sample.ondemand
 
 import androidx.lifecycle.ViewModel
-import com.rafambn.graphitesurface.GraphiteColor
 import com.rafambn.graphitesurface.GraphitePresentationInfo
 import com.rafambn.graphitesurface.GraphiteRenderMode
 import com.rafambn.graphitesurface.GraphiteRenderer
@@ -10,6 +9,7 @@ import com.rafambn.graphitesurface.GraphiteTransform
 import com.rafambn.graphitesurface.sample.RotationSpeed
 import com.rafambn.graphitesurface.sample.loopingRotationDegrees
 import com.rafambn.graphitesurface.sample.prepareGraphiteSampleScene
+import androidx.compose.ui.graphics.Color
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -55,7 +55,7 @@ internal class OnDemandRendererViewModel : ViewModel() {
                     ),
                 )
             }
-            val frame = createFrame(presentation, GraphiteColor.White) {
+            val frame = createFrame(presentation, Color.White) {
                 insert(recording)
             }
             present(frame)

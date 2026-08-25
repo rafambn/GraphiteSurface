@@ -13,7 +13,7 @@ val renderer = GraphiteRenderer(
         draw(roads, transform = cameraAt(frameTimeNanos))
         drawPath(route, routePaint)
     }
-    val frame = createFrame(presentation, GraphiteColor.White) {
+    val frame = createFrame(presentation, Color.White) {
         insert(recording)
     }
     present(frame)
@@ -26,6 +26,11 @@ GraphiteSurface(renderer, Modifier.fillMaxSize())
 Recorders have stable indices and independent native threads or Web Workers.
 `present()` uses a one-slot latest-wins mailbox. Public types contain no Skia,
 Skiko, WebGPU, or platform handles.
+
+The drawing DSL accepts Compose `Path`, `Rect`, `Offset`, and `Color` values.
+It reads them synchronously and stores only portable command bytes. A Compose
+path never crosses into a recorder or render worker. The engine reconstructs a
+native path locally with its private Skiko implementation.
 
 `GraphiteRenderer` offers three scheduling policies:
 

@@ -1,5 +1,7 @@
 package com.rafambn.graphitesurface
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -8,13 +10,13 @@ import kotlinx.coroutines.test.runTest
 class GraphiteOptimizationBenchmarkTest {
     @Test
     fun reportsRetainedCommandCosts() = runTest {
-        val path = GraphitePath.build {
+        val path = Path().apply {
             moveTo(0f, 0f)
             lineTo(50f, 100f)
             lineTo(100f, 0f)
             close()
         }
-        val paint = GraphitePaint(GraphiteColor.White)
+        val paint = GraphitePaint(Color.White)
         val displayList = GraphiteDisplayList.build {
             repeat(4_000) { drawPath(path, paint) }
         }

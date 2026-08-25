@@ -1,12 +1,12 @@
 package com.rafambn.graphitesurface.sample.dualrecorder
 
-import com.rafambn.graphitesurface.GraphiteColor
 import com.rafambn.graphitesurface.GraphiteDisplayList
 import com.rafambn.graphitesurface.GraphitePaint
-import com.rafambn.graphitesurface.GraphitePath
-import com.rafambn.graphitesurface.GraphitePoint
-import com.rafambn.graphitesurface.GraphiteRect
 import com.rafambn.graphitesurface.GraphiteSize
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import kotlin.math.max
 import kotlin.math.min
 
@@ -26,18 +26,18 @@ internal object DualRecorderScene {
         val height = pixelSize.height.toFloat()
         val spacing = max(32f, min(width, height) / 9f)
         val gridPaint = GraphitePaint(
-            color = GraphiteColor.rgba(101, 216, 154, 80),
+            color = Color(101, 216, 154, 80),
             style = GraphitePaint.Style.Stroke,
             strokeWidth = 1.5f,
         )
-        val particlePaint = GraphitePaint(GraphiteColor.rgba(101, 216, 154, 190))
+        val particlePaint = GraphitePaint(Color(101, 216, 154, 190))
 
         return GraphiteDisplayList.build {
             var x = -height
             while (x < width + height) {
                 drawLine(
-                    start = GraphitePoint(x, 0f),
-                    end = GraphitePoint(x + height, height),
+                    start = Offset(x, 0f),
+                    end = Offset(x + height, height),
                     paint = gridPaint,
                 )
                 x += spacing
@@ -46,8 +46,8 @@ internal object DualRecorderScene {
             var y = 0f
             while (y <= height) {
                 drawLine(
-                    start = GraphitePoint(0f, y),
-                    end = GraphitePoint(width, y),
+                    start = Offset(0f, y),
+                    end = Offset(width, y),
                     paint = gridPaint,
                 )
                 y += spacing
@@ -58,7 +58,7 @@ internal object DualRecorderScene {
                 val particleY = ((index * 47) % max(1, pixelSize.height)).toFloat()
                 val size = 2f + (index % 3)
                 drawRect(
-                    rect = GraphiteRect(
+                    rect = Rect(
                         left = particleX,
                         top = particleY,
                         right = particleX + size,
@@ -75,16 +75,16 @@ internal object DualRecorderScene {
         val outerRadius = extent * 0.27f
         val innerRadius = extent * 0.12f
         val violet = GraphitePaint(
-            color = GraphiteColor.rgba(181, 140, 255, 235),
+            color = Color(181, 140, 255, 235),
             style = GraphitePaint.Style.Stroke,
             strokeWidth = max(2f, extent * 0.008f),
         )
-        val blue = GraphitePaint(GraphiteColor.rgba(110, 168, 254, 220))
-        val white = GraphitePaint(GraphiteColor.rgba(255, 255, 255, 235))
+        val blue = GraphitePaint(Color(110, 168, 254, 220))
+        val white = GraphitePaint(Color(255, 255, 255, 235))
 
         return GraphiteDisplayList.build {
             drawPath(
-                path = GraphitePath.build {
+                path = Path().apply {
                     moveTo(0f, -outerRadius)
                     lineTo(outerRadius, 0f)
                     lineTo(0f, outerRadius)
@@ -94,7 +94,7 @@ internal object DualRecorderScene {
                 paint = violet,
             )
             drawPath(
-                path = GraphitePath.build {
+                path = Path().apply {
                     moveTo(-innerRadius, -innerRadius)
                     lineTo(innerRadius, -innerRadius)
                     lineTo(innerRadius, innerRadius)
@@ -104,7 +104,7 @@ internal object DualRecorderScene {
                 paint = blue,
             )
             drawRect(
-                rect = GraphiteRect(-7f, -7f, 7f, 7f),
+                rect = Rect(-7f, -7f, 7f, 7f),
                 paint = white,
             )
             repeat(SATELLITE_COUNT) { index ->
@@ -113,7 +113,7 @@ internal object DualRecorderScene {
                 val centerX = directionX * outerRadius * 0.72f
                 val centerY = directionY * outerRadius * 0.72f
                 drawRect(
-                    rect = GraphiteRect(
+                    rect = Rect(
                         left = centerX - 5f,
                         top = centerY - 5f,
                         right = centerX + 5f,
