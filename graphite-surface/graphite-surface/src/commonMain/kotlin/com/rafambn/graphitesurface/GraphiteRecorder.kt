@@ -32,15 +32,13 @@ class GraphiteRecorder internal constructor(
         }
         val admittedAt = platformMonotonicNanos()
         metrics.admitted((admittedAt - queuedAt).coerceAtLeast(0))
-        var encoderBlockCompleted = false
         var submittedToWorker = false
         try {
             val completedProgram = execution.withLock {
                 runtime.requireReady()
                 val job = currentCoroutineContext()[Job]
-                val writer = GraphiteCommandWriter(runtime.maxCommandBufferBytes.bytes)
+                val writer = GraphiteCommandWriter(GraphiteCommandBufferLimit.Default.bytes)
                 GraphiteEncoderImpl(writer) { job?.ensureActive() }.block()
-                encoderBlockCompleted = true
                 writer.finish().also { encoded ->
                     val message = runtime.prepareRecording(encoded, index)
                     submittedToWorker = true
@@ -55,9 +53,7 @@ class GraphiteRecorder internal constructor(
         } catch (error: Throwable) {
             metrics.failed(elapsedSince(admittedAt))
             if (submittedToWorker) {
-                runtime.failFromRecorderWorker(index, error)
-            } else if (encoderBlockCompleted) {
-                runtime.recordingFailed(index, error)
+                runtime.failFromRecorderWorker(error)
             }
             throw error
         } finally {

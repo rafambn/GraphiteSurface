@@ -17,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.viewinterop.AndroidView
 import com.rafambn.graphitesurface.engine.AndroidGraphiteNative
 import java.util.concurrent.atomic.AtomicBoolean
@@ -90,7 +91,7 @@ private class GraphiteSurfaceView(
     private var surfaceReady = false
     private var rendererCreated = false
     private var disposed = false
-    private var lastSize = GraphiteSize.Zero
+    private var lastSize = IntSize.Zero
 
     init {
         holder.addCallback(this)
@@ -236,7 +237,7 @@ private class GraphiteSurfaceView(
     }
 
     private fun updateSize(width: Int, height: Int) {
-        val size = GraphiteSize(width, height)
+        val size = IntSize(width, height)
         if (size != lastSize) {
             lastSize = size
             renderer.onSurfaceChanged(size)
@@ -284,7 +285,7 @@ private class AndroidGraphiteDrawContext(
         )
     }
 
-    override fun drawPath(path: GraphitePathData, paint: GraphitePaint) {
+    override fun drawPath(path: GraphitePathData, paint: GraphitePaintData) {
         AndroidGraphiteNative.drawImmutablePath(
             engineHandle,
             path.verbs,
@@ -292,17 +293,17 @@ private class AndroidGraphiteDrawContext(
             path.weights,
             path.fillType,
             paint.color.toArgbLong().toInt(),
-            paint.style == GraphitePaint.Style.Stroke,
-            paint.strokeWidth,
+            paint.strokeWidth != null,
+            paint.strokeWidth ?: 0f,
             paint.antiAlias,
         )
     }
 
-    override fun drawRect(rect: Rect, paint: GraphitePaint) {
+    override fun drawRect(rect: Rect, paint: GraphitePaintData) {
         AndroidGraphiteNative.drawRect(
             engineHandle, rect.left, rect.top, rect.right, rect.bottom,
-            paint.color.toArgbLong().toInt(), paint.style == GraphitePaint.Style.Stroke,
-            paint.strokeWidth, paint.antiAlias,
+            paint.color.toArgbLong().toInt(), paint.strokeWidth != null,
+            paint.strokeWidth ?: 0f, paint.antiAlias,
         )
     }
 
@@ -310,35 +311,35 @@ private class AndroidGraphiteDrawContext(
         rect: Rect,
         radiusX: Float,
         radiusY: Float,
-        paint: GraphitePaint,
+        paint: GraphitePaintData,
     ) {
         AndroidGraphiteNative.drawRoundRect(
             engineHandle, rect.left, rect.top, rect.right, rect.bottom, radiusX, radiusY,
-            paint.color.toArgbLong().toInt(), paint.style == GraphitePaint.Style.Stroke,
-            paint.strokeWidth, paint.antiAlias,
+            paint.color.toArgbLong().toInt(), paint.strokeWidth != null,
+            paint.strokeWidth ?: 0f, paint.antiAlias,
         )
     }
 
-    override fun drawOval(rect: Rect, paint: GraphitePaint) {
+    override fun drawOval(rect: Rect, paint: GraphitePaintData) {
         AndroidGraphiteNative.drawOval(
             engineHandle, rect.left, rect.top, rect.right, rect.bottom,
-            paint.color.toArgbLong().toInt(), paint.style == GraphitePaint.Style.Stroke,
-            paint.strokeWidth, paint.antiAlias,
+            paint.color.toArgbLong().toInt(), paint.strokeWidth != null,
+            paint.strokeWidth ?: 0f, paint.antiAlias,
         )
     }
 
-    override fun drawCircle(center: Offset, radius: Float, paint: GraphitePaint) {
+    override fun drawCircle(center: Offset, radius: Float, paint: GraphitePaintData) {
         AndroidGraphiteNative.drawCircle(
             engineHandle, center.x, center.y, radius,
-            paint.color.toArgbLong().toInt(), paint.style == GraphitePaint.Style.Stroke,
-            paint.strokeWidth, paint.antiAlias,
+            paint.color.toArgbLong().toInt(), paint.strokeWidth != null,
+            paint.strokeWidth ?: 0f, paint.antiAlias,
         )
     }
 
-    override fun drawLine(start: Offset, end: Offset, paint: GraphitePaint) {
+    override fun drawLine(start: Offset, end: Offset, paint: GraphitePaintData) {
         AndroidGraphiteNative.drawLine(
             engineHandle, start.x, start.y, end.x, end.y,
-            paint.color.toArgbLong().toInt(), paint.strokeWidth, paint.antiAlias,
+            paint.color.toArgbLong().toInt(), paint.strokeWidth ?: 0f, paint.antiAlias,
         )
     }
 }

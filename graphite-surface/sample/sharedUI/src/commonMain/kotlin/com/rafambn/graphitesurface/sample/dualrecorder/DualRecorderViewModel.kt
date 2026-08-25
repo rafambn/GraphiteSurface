@@ -74,12 +74,11 @@ internal class DualRecorderViewModel : ViewModel() {
                     launch {
                         recordings[0].store(
                             recorders[0].record {
-                                draw(
-                                    displayList = prepared.background,
-                                    transform = GraphiteTransform.translation(centerX, centerY) *
+                                withTransform(
+                                    GraphiteTransform.translation(centerX, centerY) *
                                         GraphiteTransform.rotationDegrees(-rotation * 0.08f) *
                                         GraphiteTransform.translation(-centerX, -centerY),
-                                )
+                                ) { draw(prepared.background) }
                             },
                         )
                     }
@@ -88,24 +87,22 @@ internal class DualRecorderViewModel : ViewModel() {
                     launch {
                         recordings[1].store(
                             recorders[1].record {
-                                draw(
-                                    displayList = prepared.foreground,
-                                    transform = GraphiteTransform.translation(centerX, centerY) *
+                                withTransform(
+                                    GraphiteTransform.translation(centerX, centerY) *
                                         GraphiteTransform.rotationDegrees(rotation),
-                                )
+                                ) { draw(prepared.foreground) }
                             },
                         )
                     }
                 }
             }
 
-            val frame = createFrame(
+            present(
                 presentation = presentation,
                 clearColor = Color(16, 17, 20),
             ) {
                 recordings.forEach { slot -> slot.load()?.let(::insert) }
             }
-            present(frame)
 
             if (renderedFrames.addAndFetch(1) % METRICS_REFRESH_FRAMES == 0L) {
                 publishMetrics(this)
@@ -118,7 +115,7 @@ internal class DualRecorderViewModel : ViewModel() {
     }
 
     private fun publishMetrics(runtime: GraphiteEngine) {
-        val snapshot = runtime.metricsSnapshot()
+        val snapshot = runtime.diagnostics.snapshot()
         mutableUiState.value = DualRecorderUiState(
             recorders = snapshot.recorders.map { metrics ->
                 metrics.toUiState(enabled = recorderEnabled[metrics.index].load())

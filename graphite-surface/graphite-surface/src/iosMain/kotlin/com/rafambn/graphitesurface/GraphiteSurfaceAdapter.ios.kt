@@ -5,6 +5,7 @@
 
 package com.rafambn.graphitesurface
 
+import androidx.compose.ui.unit.IntSize
 import com.rafambn.graphitesurface.engine.GraphiteEngineGraphiteEngineView_iosKt
 import platform.UIKit.UIView
 
@@ -14,7 +15,7 @@ internal class GraphiteSurfaceAdapter(
 ) {
     private var engineView: UIView? = null
     private var surfaceCreated = false
-    private var lastSize = GraphiteSize.Zero
+    private var lastSize = IntSize.Zero
 
     val view: UIView
         get() {
@@ -49,7 +50,7 @@ internal class GraphiteSurfaceAdapter(
     private fun onFrame(view: UIView) {
         val width = GraphiteEngineGraphiteEngineView_iosKt.gsDrawableWidthView(view)
         val height = GraphiteEngineGraphiteEngineView_iosKt.gsDrawableHeightView(view)
-        val size = GraphiteSize(width, height)
+        val size = IntSize(width, height)
         if (!surfaceCreated) {
             surfaceCreated = true
             renderer.onSurfaceCreated()

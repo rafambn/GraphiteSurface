@@ -2,6 +2,8 @@ package com.rafambn.graphitesurface
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 
 /**
@@ -15,15 +17,43 @@ interface GraphiteEncoder {
     fun withTransform(transform: GraphiteTransform, block: GraphiteEncoder.() -> Unit)
     fun withClip(rect: Rect, antiAlias: Boolean = false, block: GraphiteEncoder.() -> Unit)
     /** References and draws [displayList]; its command bytes are not copied into this recording. */
-    fun draw(
-        displayList: GraphiteDisplayList,
-        transform: GraphiteTransform = GraphiteTransform.Identity,
-        clip: Rect? = null,
+    fun draw(displayList: GraphiteDisplayList)
+    fun drawRect(
+        rect: Rect,
+        color: Color,
+        style: GraphiteDrawStyle = GraphiteDrawStyle.Fill,
+        antiAlias: Boolean = true,
     )
-    fun drawRect(rect: Rect, paint: GraphitePaint)
-    fun drawRoundRect(rect: Rect, radiusX: Float, radiusY: Float, paint: GraphitePaint)
-    fun drawOval(rect: Rect, paint: GraphitePaint)
-    fun drawCircle(center: Offset, radius: Float, paint: GraphitePaint)
-    fun drawLine(start: Offset, end: Offset, paint: GraphitePaint)
-    fun drawPath(path: Path, paint: GraphitePaint)
+    fun drawRoundRect(
+        roundRect: RoundRect,
+        color: Color,
+        style: GraphiteDrawStyle = GraphiteDrawStyle.Fill,
+        antiAlias: Boolean = true,
+    )
+    fun drawOval(
+        rect: Rect,
+        color: Color,
+        style: GraphiteDrawStyle = GraphiteDrawStyle.Fill,
+        antiAlias: Boolean = true,
+    )
+    fun drawCircle(
+        center: Offset,
+        radius: Float,
+        color: Color,
+        style: GraphiteDrawStyle = GraphiteDrawStyle.Fill,
+        antiAlias: Boolean = true,
+    )
+    fun drawLine(
+        start: Offset,
+        end: Offset,
+        color: Color,
+        strokeWidth: Float = 1f,
+        antiAlias: Boolean = true,
+    )
+    fun drawPath(
+        path: Path,
+        color: Color,
+        style: GraphiteDrawStyle = GraphiteDrawStyle.Fill,
+        antiAlias: Boolean = true,
+    )
 }

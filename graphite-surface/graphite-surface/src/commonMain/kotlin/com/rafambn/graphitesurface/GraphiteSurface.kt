@@ -3,10 +3,7 @@ package com.rafambn.graphitesurface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -23,16 +20,6 @@ internal expect fun PlatformGraphiteSurface(
     state: GraphiteSurfaceState = rememberGraphiteSurfaceState(),
 )
 
-/** Attaches a user-owned [runtime] to one Compose presentation target. */
-@Composable
-@ExperimentalGraphiteSurfaceApi
-fun GraphiteSurface(
-    runtime: GraphiteEngine,
-    modifier: Modifier = Modifier,
-) {
-    GraphiteSurfaceHost(runtime, frameRenderer = null, modifier)
-}
-
 /** Attaches [renderer] to one Compose presentation target and drives its configured render mode. */
 @Composable
 @ExperimentalGraphiteSurfaceApi
@@ -40,38 +27,22 @@ fun GraphiteSurface(
     renderer: GraphiteRenderer,
     modifier: Modifier = Modifier,
 ) {
-    GraphiteSurfaceHost(renderer.runtime, renderer, modifier)
-}
-
-@Composable
-@ExperimentalGraphiteSurfaceApi
-private fun GraphiteSurfaceHost(
-    runtime: GraphiteEngine,
-    frameRenderer: GraphiteRenderer?,
-    modifier: Modifier,
-) {
+    val runtime = renderer.runtime
     val density = LocalDensity.current.density
     val surfaceState = rememberGraphiteSurfaceState()
     val presentationRenderer = remember(runtime) { GraphiteEngineRenderer(runtime) }
-    var ownsAttachment by remember(runtime) { mutableStateOf(false) }
 
     DisposableEffect(runtime, presentationRenderer, density) {
         val attachmentId = runtime.attachPresentation(surfaceState::requestFrame)
-        ownsAttachment = attachmentId != null
-        if (attachmentId != null) {
-            presentationRenderer.bind(attachmentId, density)
-            surfaceState.requestFrame()
-        }
+        presentationRenderer.bind(attachmentId, density)
+        surfaceState.requestFrame()
         onDispose {
-            ownsAttachment = false
-            if (attachmentId != null) runtime.detachPresentation(attachmentId)
+            runtime.detachPresentation(attachmentId)
             presentationRenderer.unbind(attachmentId)
         }
     }
 
-    if (ownsAttachment && frameRenderer != null) {
-        DriveGraphiteRenderer(frameRenderer)
-    }
+    DriveGraphiteRenderer(renderer)
 
     PlatformGraphiteSurface(
         renderer = presentationRenderer,
@@ -85,30 +56,28 @@ private fun GraphiteSurfaceHost(
 @ExperimentalGraphiteSurfaceApi
 private fun DriveGraphiteRenderer(renderer: GraphiteRenderer) {
     LaunchedEffect(renderer) {
-        renderer.renderModes.collectLatest { renderMode ->
-            if (renderMode == GraphiteRenderMode.Manual) return@collectLatest
-            renderer.runtime.presentation.collectLatest presentation@{ state ->
-                val info = (state as? GraphitePresentationState.Attached)?.info
-                    ?: return@presentation
-                when (renderMode) {
-                    GraphiteRenderMode.Continuous -> {
-                        while (isActive) {
-                            val frameTimeNanos = withFrameNanos { it }
-                            renderer.renderScheduled(frameTimeNanos, renderMode, info)
-                        }
+        val renderMode = renderer.renderMode
+        if (renderMode == GraphiteRenderMode.Manual) return@LaunchedEffect
+        renderer.runtime.presentation.collectLatest presentation@{ info ->
+            info ?: return@presentation
+            when (renderMode) {
+                GraphiteRenderMode.Continuous -> {
+                    while (isActive) {
+                        val frameTimeNanos = withFrameNanos { it }
+                        renderer.renderScheduled(frameTimeNanos, renderMode, info)
                     }
-
-                    GraphiteRenderMode.OnDemand -> {
-                        renderer.requestAttachedFrame()
-                        while (isActive) {
-                            renderer.awaitRenderRequest()
-                            val frameTimeNanos = withFrameNanos { it }
-                            renderer.renderScheduled(frameTimeNanos, renderMode, info)
-                        }
-                    }
-
-                    GraphiteRenderMode.Manual -> Unit
                 }
+
+                GraphiteRenderMode.OnDemand -> {
+                    renderer.requestAttachedFrame()
+                    while (isActive) {
+                        renderer.awaitRenderRequest()
+                        val frameTimeNanos = withFrameNanos { it }
+                        renderer.renderScheduled(frameTimeNanos, renderMode, info)
+                    }
+                }
+
+                GraphiteRenderMode.Manual -> Unit
             }
         }
     }

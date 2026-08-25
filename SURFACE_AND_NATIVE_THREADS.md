@@ -12,12 +12,12 @@ implementation may use a documented platform adaptation when a backend makes
 the literal topology impossible, but it must preserve the observable queue,
 ordering, cancellation, ownership, and failure semantics.
 
-## Implementation checkpoint (2026-08-22)
+## Implementation checkpoint (2026-08-25)
 
 - `GraphiteEngine`, explicit recorder handles, bounded suspending FIFO
   admission, portable immutable command buffers, display lists, recordings,
-  frames, latest-wins presentation, state flows, events, metrics, and Scribe
-  integration now exist in the common API.
+  latest-wins presentation, runtime diagnostics, and metrics now exist in the
+  common API.
 - Android presentation remains on its dedicated `HandlerThread`; JVM uses a
   dedicated single native render thread; Apple uses a dedicated serial native
   dispatch queue; browser presentation transfers the `OffscreenCanvas` to one
@@ -56,26 +56,25 @@ ordering, cancellation, ownership, and failure semantics.
   serialized suspending callback. `GraphiteSurface` supplies display-aligned
   scheduling for `Continuous` and `OnDemand`; `Manual` is driven only by the
   caller. The renderer owns neither the runtime nor the platform worker.
-- Cache limits are validated configuration placeholders in this slice. They
-  are not enforced and `trimGpuCaches()` is not exposed. Metrics now report
+- Cache limits are not public until backends enforce them. Metrics report
   portable-resource registrations, publications, bytes, cache hits, and
   releases; native GPU-cache, submission, and GPU-completion metrics remain
   future work.
 - Display lists are built without a runtime. Recordings store fixed-size local
   resource-table indices, runtimes assign their own monotonic resource IDs on
   first use, and each recorder worker receives a resource payload only once.
-  Display lists are immutable command graphs managed by the garbage collector.
-  Recordings, frames, and pending snapshots retain closeable handles.
+  Display lists, recordings, and internal frames are immutable command graphs
+  managed by the garbage collector.
 - Sample scenes compile display lists for each frame. The runtime deduplicates
   equivalent command programs by content.
 - The implemented encoder covers transforms, clips, reusable display lists,
-  rectangles, ovals, lines, paths, and basic fill/stroke paint. Images,
+  rectangles, rounded rectangles, ovals, lines, paths, solid colors, and
+  fill/stroke styles. Images,
   prepared glyph runs, gradients, effects, and blends remain work after this
   first usable runtime rather than silently accepted no-ops.
 - `GraphiteEngine()` starts recorder workers but does not probe WebGPU
   while detached. Browser capability failure is currently reported through
   terminal runtime state when `GraphiteSurface` attaches.
-- Scribe 0.7.0 is consumed from Maven Central for all requested targets.
 - Chrome for Testing 152.0.7977.54 validates both JS and Wasm builds with two
   recorder Workers and one render Worker. The animated sample presents through
   Graphite, canvas resize updates the physical backing size, animation produces
@@ -218,9 +217,6 @@ public interface GraphitePresentationHost : AutoCloseable {
   GraphiteSurface(renderer, Modifier)
   ```
 
-  Low-level callers that own scheduling may instead use
-  `GraphiteSurface(runtime, Modifier)`.
-
 - A runtime may exist without a surface and may create recordings for local
   targets while detached. Display lists are runtime-independent CPU values and
   may be built before a runtime exists or after one has closed.
@@ -242,23 +238,24 @@ public interface GraphitePresentationHost : AutoCloseable {
 - `Continuous` requests one callback per available display frame and never
   overlaps callbacks. `OnDemand` conflates requests and schedules them on the
   display clock. `Manual` invokes the callback only from `render()` and uses
-  the caller-provided time when present.
-- `present(frame)` remains explicit and latest-wins in every scheduling mode.
+  the current monotonic time.
+- `present(presentation) { ... }` builds and submits a frame atomically and
+  remains latest-wins in every scheduling mode.
   Render mode controls when a frame is produced, not how it is submitted.
 
 ## Runtime lifecycle
 
 **Accepted**
 
-- The public lifecycle state is observable:
+- Public lifecycle state and metrics live under diagnostics:
 
   ```kotlin
-  public val state: StateFlow<GraphiteEngineState>
-  public val presentation: StateFlow<GraphitePresentationState>
+  runtime.diagnostics.state: StateFlow<GraphiteEngineState>
+  runtime.diagnostics.snapshot(): GraphiteMetricsSnapshot
   ```
 
-- Runtime states are `Ready`, `DeviceLost`, `Failed`, `Closing`, and
-  `Closed`. Absence of a presentation target is not a runtime failure.
+- Runtime states are `Ready`, `Failed`, `Closing`, and `Closed`. Presentation
+  attachment state is internal.
 - Device loss is terminal for a runtime in version 1. Display lists remain
   usable because they are backend-independent; recordings become invalid. The
   application creates a new runtime.
@@ -266,14 +263,12 @@ public interface GraphitePresentationHost : AutoCloseable {
   violations move the complete runtime to terminal `Failed`. Pending calls
   fail, the runtime shuts down its remaining workers, and recordings from that
   runtime become unusable. Runtime-independent CPU resources remain usable.
-- `DeviceLost(error)` and `Failed(error)` remain the final observable
-  states after automatic cleanup. `awaitClosed()` indicates that cleanup has
-  completed. Calling `close()` remains idempotent and does not erase the
-  terminal cause by replacing either state with `Closed`.
+- `Failed(error)` remains the final observable state after automatic cleanup.
+  `awaitClosed()` indicates that cleanup has completed.
 - `Closed` represents normal user-requested shutdown.
 - `close()` is thread-safe, idempotent, and non-blocking.
 - `awaitClosed()` waits for shutdown.
-- `awaitIdle()` exists for tests, diagnostics, and readback workflows, not for
+- `awaitRecordersIdle()` exists for tests, diagnostics, and readback workflows, not for
   the normal frame loop.
 - Normal shutdown proceeds in this order:
   1. new `record()` calls are rejected;
@@ -285,8 +280,7 @@ public interface GraphitePresentationHost : AutoCloseable {
   6. in-flight GPU work finishes or is abandoned according to backend
      guarantees;
   7. native caches and resources are freed on their owning workers;
-  8. Scribe drains and closes last;
-  9. `awaitClosed()` completes.
+  8. `awaitClosed()` completes.
 - Shutdown never forcefully terminates a native thread while it is inside a
   Skia call. A caller may apply its own timeout while awaiting closure, but
   cleanup continues after that caller stops waiting.
@@ -320,16 +314,11 @@ public interface GraphitePresentationHost : AutoCloseable {
   GraphiteEngine(
       recorderCount = 1,
       recorderQueueCapacity = 1,
-      maxFramesInFlight = 2,
-      gpuCache = GraphiteGpuCacheConfig.Default,
-      maxCommandBufferBytes = GraphiteCommandBufferLimit.Default,
-      archivist = null,
   )
   ```
 
-- Configuration validates `recorderCount` in `1..64`,
-  `recorderQueueCapacity` in `1..1024`, `maxFramesInFlight` in `1..8`, and
-  byte limits as positive values.
+- Configuration validates `recorderCount` in `1..64` and
+  `recorderQueueCapacity` in `1..1024`.
 - The pending-frame queue remains a fixed one-slot `ReplaceOldest` mailbox; it
   is not another public capacity setting.
 - If any worker fails during `create()`, the runtime closes every worker that
@@ -418,10 +407,9 @@ public interface GraphitePresentationHost : AutoCloseable {
 - A scoped transform affects only its scope:
 
   ```kotlin
-  encoder.draw(displayList, transform = cameraMatrix)
   encoder.withTransform(cameraMatrix) {
       draw(displayList)
-      draw(path, paint)
+      drawPath(path, Color.Red)
   }
   ```
 
@@ -435,9 +423,8 @@ public interface GraphitePresentationHost : AutoCloseable {
 
 - `GraphiteDisplayList` is a public, immutable, garbage-collected command
   program. It is backend-independent and reusable between workers and runtimes.
-- It is constructed with `GraphiteDisplayList.build { ... }`; construction
-  does not consult runtime state. Its builder has an independent command-buffer
-  limit.
+- It is constructed with `graphiteDisplayList { ... }`; construction does not
+  consult runtime state. Command-buffer limits remain internal.
 - Its internal representation is opaque and has no stable serialized format in
   version 1.
 - Direct recording and reusable display-list creation use the same drawing DSL.
@@ -453,7 +440,7 @@ public interface GraphitePresentationHost : AutoCloseable {
   copy-on-write, interning, or deduplication.
 - Version 1 snapshots CPU-backed resources:
   - paths;
-  - paints and gradients;
+  - colors and draw styles;
   - image bytes or pixels;
   - font data;
   - prepared text layouts and glyph runs.
@@ -557,12 +544,11 @@ Primary and local references:
 
 **Accepted**
 
-- `GraphiteFrame` is public, immutable, closeable, and built synchronously
-  from already completed recordings.
-- Frames are created with:
+- `GraphiteFrame` is internal and built synchronously from already completed
+  recordings while they are submitted:
 
   ```kotlin
-  runtime.createFrame(
+  runtime.present(
       presentation = presentationInfo,
       clearColor = Color.Transparent,
   ) {
@@ -573,35 +559,33 @@ Primary and local references:
 - The builder accepts zero recordings to create a clear-only frame.
 - It validates runtime identity, target-profile compatibility, closed handles,
   integer translation, and integer clip.
-- The builder does not require the presentation generation to remain current
-  while building. `present()` performs the definitive generation check.
+- `present()` checks the presentation generation before running the builder.
 - A frame retains its recordings.
 - Recording insertion order is visual order.
 - The same recording may be inserted more than once with integer translation
   and clip.
-- A frame is tied to one presentation generation. Presenting the frame directly
-  to a different generation is rejected.
+- A frame is tied to one presentation generation internally.
 - Version 1 always clears the target before drawing a frame.
 - Presentation is immediate and non-suspending:
 
   ```kotlin
-  val result: GraphitePresentResult = runtime.present(frame)
+  val result = runtime.present(presentationInfo) {
+      insert(recording)
+  }
   ```
 
 - The result distinguishes at least `Accepted`, `ReplacedPending`,
   `NoPresentation`, `StalePresentation`, and `RuntimeUnavailable`.
-- `present` does not consume the caller's frame reference and does not wait
-  for GPU completion.
-- `Accepted` means only that the frame entered the runtime queue. Later
-  insertion, submission, or GPU-completion failure is observable through
-  runtime state, `GraphiteEvent`, and Scribe.
+- `present` does not wait for GPU completion.
+- `Accepted` means only that the frame entered the runtime queue. A later fatal
+  failure is observable through `runtime.diagnostics.state`.
 - Version 1 has no per-frame completion callback or mutable frame status.
 - With no attached surface, `present` immediately returns
   `NoPresentation`; it does not accumulate a hidden backlog.
 - The default pending-frame capacity is 1 with latest-wins
   (`ReplaceOldest`) behavior.
-- `maxFramesInFlight` is configurable and defaults to 2.
-- At the in-flight limit, only the newest pending frame is retained.
+- Backends conservatively keep one frame in flight. Only the newest pending
+  frame is retained.
 - The runtime does not retain the last completed frame.
 - All finalized public handles and runtime entry points are thread-safe.
   Builders and encoders are confined to their documented call scope.
@@ -610,28 +594,17 @@ Primary and local references:
 
 **Accepted**
 
-- Presentation state is:
-  - `Detached`;
-  - `Attaching`;
-  - `Attached(info)`;
-  - `Failed(error)`.
-- Presentation failure does not change a `Ready` runtime into runtime
-  `Failed`.
-- A new attachment attempt moves presentation state from `Failed` to
-  `Attaching`.
-- A second `GraphiteSurface` attachment does not disturb the already attached
-  surface. The runtime rejects it, emits
-  `GraphiteEvent.PresentationAttachRejected`, and writes one structured log.
-  The rejected composable does not wait to acquire ownership later.
+- Presentation attachment state is internal. A second `GraphiteSurface`
+  attachment does not disturb the already attached surface. The runtime
+  rejects it with `IllegalStateException`; it does not wait to acquire
+  ownership later.
 - Presentation metadata contains at least:
   - physical pixel size;
   - density;
   - monotonically changing generation.
 - Each host receives an internal monotonically increasing `attachmentId`.
   Delayed callbacks from any older attachment ID are ignored.
-- Presentation generation and attachment identity are separate. Generation is
-  public metadata; attachment ID remains internal and may appear only in
-  diagnostics.
+- Presentation generation and attachment identity are separate internal values.
 - Initial attachment, physical-pixel resize, density change, and target
   recreation each create a new monotonically increasing generation. Target
   recreation changes it even if size and density stay equal.
@@ -685,10 +658,9 @@ The m152 status contracts support a strict version 1 policy:
   operation;
 - `snap() == null` is fatal because Skia does not preserve enough cause
   information to prove recovery is safe;
-- `submit() == false` becomes `DeviceLost` when the backend confirms device
-  loss and fatal backend failure otherwise;
+- `submit() == false` becomes a fatal runtime failure;
 - WebGPU validation, out-of-memory, and internal errors are fatal;
-- unexpected `GPUDevice.lost` becomes `DeviceLost`.
+- unexpected `GPUDevice.lost` becomes a fatal runtime failure.
 
 Image materialization must never fail silently by omitting a draw. A native
 image provider records a sticky error which the worker checks before returning
@@ -706,15 +678,8 @@ Primary references:
 
 **Accepted**
 
-- Public fatal runtime failures are:
-  - `InternalInvariant`;
-  - `BackendValidation`;
-  - `ResourceExhausted`;
-  - `BackendFailure`;
-  - `WorkerTerminated`.
-- Each failure includes a stage. Stages cover at least resource
-  materialization, deferred-canvas creation, snap, recording insertion,
-  submission, GPU completion, and worker execution.
+- Public fatal runtime failures use `GraphiteEngineState.Failed(error)` and
+  preserve the original cause without a speculative kind or stage taxonomy.
 - The following fail only the current operation:
   - invalid arguments rejected before native work;
   - invalid font data;
@@ -729,8 +694,7 @@ Primary references:
   - WebGPU validation, out-of-memory, or internal error;
   - submission failure without confirmed device loss;
   - unexpected worker termination.
-- Confirmed device loss uses terminal `GraphiteEngineState.DeviceLost`
-  instead of `Failed`.
+- Confirmed device loss also uses terminal `GraphiteEngineState.Failed`.
 - Version 1 isolates a failure only when the library knows it happened before
   native state mutation. It performs no automatic retry of native recording or
   submission work.
@@ -742,21 +706,19 @@ Primary references:
 Version 1 exposes one encoder with:
 
 - scoped 4x4 transforms;
-- rectangle and path clipping;
+- rectangle clipping;
 - internal save/restore used by scoped APIs;
 - nested display-list drawing;
 - rectangle, rounded rectangle, oval, circle, line, and path geometry;
-- image and source/destination image-rectangle drawing with sampling options;
-- prepared text-layout and glyph-run drawing;
-- immutable fill and stroke paints;
-- color, alpha, antialiasing, stroke width, cap, join, and miter;
-- gradients and image patterns;
-- dash/path effects;
-- blur sufficient for text halos;
-- blend modes.
+- immutable fill and stroke styles;
+- solid color, alpha, antialiasing, and stroke width.
 
 Deferred encoder features:
 
+- path clipping;
+- images and prepared text;
+- gradients and image patterns;
+- dash/path effects, blur, and blend modes;
 - custom SkSL;
 - complex image filters;
 - external textures and video.
@@ -765,8 +727,8 @@ Deferred encoder features:
 
 **Accepted**
 
-- Paints, paths, text layouts, glyph runs, images, display lists, recordings,
-  and frames are immutable after their builders finish.
+- Paths are snapshotted while a DSL command runs. Display lists and recordings
+  are immutable after compilation.
 - The core API requires callers to provide prepared CPU inputs whenever the
   operation can reasonably happen outside GraphiteSurface.
 - The core runtime has no preparation-worker pool.
@@ -809,7 +771,7 @@ Deferred encoder features:
 
 **Accepted**
 
-- A public font, image, path, paint, or display list owns an immutable,
+- A public font, image, path, or display list owns an immutable,
   runtime-independent CPU representation.
 - A runtime assigns an internal resource ID on first use.
 - Each recorder worker materializes and caches its own local Skia object.
@@ -872,35 +834,19 @@ Primary references:
 
 **Accepted**
 
-- `GraphiteGpuCacheConfig` contains a Context byte limit and one aggregate
-  byte limit for all public Recorder caches.
-- The runtime divides the Recorder total across `recorderCount`; adding
-  Recorders does not multiply the configured total.
-- Metrics expose limit, current budgeted bytes, and purgeable bytes for the
-  Context and each Recorder.
-- Prototype measurements choose the version 1 default byte values.
-- `suspend GraphiteEngine.trimGpuCaches()` schedules
-  `freeGpuResources()` on the render worker and every recorder worker, then
-  returns after all have executed it.
-- Trimming is best-effort and retains resources used by frames or GPU work in
-  flight. Users may call `awaitIdle()` first when they need the most complete
-  cleanup.
-- Version 1 does not run automatic periodic cache cleanup.
+- GPU cache configuration is not public until every backend enforces it.
+- Version 1 exposes neither a cache-size promise nor a trim operation.
 
 ### Explicit and garbage-collected lifetimes
 
 **Accepted**
 
-- `GraphiteEngine`, `GraphiteFontFace`, `GraphiteImage`,
-  `GraphiteRecording`, and `GraphiteFrame` require explicit, idempotent
-  `close()`.
-- `GraphiteFont`, `GraphitePaint`,
-  `GraphiteGlyphRun`, `GraphiteTextLayout`,
-  `GraphitePixelBuffer`, and `GraphiteDisplayList` are immutable
-  garbage-collected values.
+- `GraphiteEngine` requires explicit, idempotent `close()`.
+- `GraphiteRecording` and `GraphiteDisplayList` are immutable
+  garbage-collected values. Frames are internal transient values.
 - A display list snapshots or strongly references every immutable command
-  resource it uses. Recordings, frames, and GPU submissions retain their own
-  closeable handles.
+  resource it uses. Recordings, internal frames, and GPU submissions retain
+  the command programs they need.
 
 ### Glyph-run validation
 
@@ -941,7 +887,7 @@ Primary references:
 **Accepted**
 
 - Version 1 presentation is standard dynamic range, 8-bit sRGB.
-- Public paint colors are unpremultiplied sRGB values.
+- Public command colors are unpremultiplied sRGB values.
 - Compose `Color` values are converted synchronously to canonical 8-bit sRGB
   command values. The command stream stores them as `0xAARRGGBB`.
 - `GraphitePixelBuffer` contains width, height, row bytes, copied immutable
@@ -959,54 +905,23 @@ Primary references:
 
 **Accepted**
 
-- Persistent correctness state remains in `StateFlow`.
-- Rare asynchronous runtime events use a typed `SharedFlow<GraphiteEvent>`.
-- The event flow has capacity 64 with `DROP_OLDEST`. Workers never suspend to
-  publish diagnostics.
-- Runtime lifecycle and device loss remain observable through `StateFlow`;
-  events are not a control protocol.
+- `runtime.diagnostics.state` exposes persistent correctness state through a
+  `StateFlow`.
 - A synchronous metrics snapshot exposes:
   - current depth and capacity for each queue;
   - submitted, completed, cancelled, and failed recording counts;
   - total and maximum queue-wait and recording times;
   - accepted, replaced, and rejected frame counts;
-  - current pending and in-flight frame counts;
-  - total and maximum submission and presentation times;
+  - current pending frame count;
   - resource counts and estimated resource bytes;
-  - dropped log count;
-  - device-loss count.
-- `metricsSnapshot()` is synchronous and best-effort. It reads atomic worker
-  counters without pausing workers and includes a monotonic capture timestamp.
+  - resource publication and validation costs.
+- `runtime.diagnostics.snapshot()` is synchronous and best-effort. It reads
+  atomic worker counters without pausing workers and includes a monotonic
+  capture timestamp.
 - Cumulative counters remain monotonic. Timing uses monotonic clocks only at
   job boundaries, never for individual drawing commands.
 - Return values, typed exceptions, and runtime state remain authoritative.
-- Internal logs use Rafael's Scribe library.
-- Scribe's `Archivist` is a `fun interface` with
-  `suspend fun write(event: Entry)`, so an archivist lambda is a natural
-  configuration input.
-- GraphiteSurface depends on the published Scribe 0.7.0 artifact, including its
-  JS and Wasm targets.
-- `GraphiteEngine` accepts one optional `Archivist`. The runtime
-  passes it directly to its internally owned Scribe instance.
-- Runtime creation starts Scribe. Runtime shutdown retires it, and
-  `awaitClosed()` waits for its queue to drain.
-- Graphite never invokes, wraps, or transfers the archivist lambda.
-- Recorder and render workers create portable structured log records. The
-  runtime side that owns Scribe converts those records into `Scroll` values
-  and seals them into Scribe.
-- Scribe owns archivist invocation and its execution behavior.
-- Logging is best-effort and never applies backpressure to recorder or render
-  workers. Queue drops are counted in metrics.
-- Graphite emits one structured completion event for a meaningful operation,
-  such as runtime creation, a failed or unusually slow recording, device loss,
-  or shutdown. It does not log every frame by default.
-- `GraphiteEvent` and metrics remain independent of logs because Scribe may
-  drop queued entries.
-- Graphite adds no logging levels or filter abstraction in version 1. The
-  supplied archivist controls filtering and destinations.
-- An archivist failure increments `archiveFailures` and publishes
-  `GraphiteEvent.ArchiveFailure`. It does not throw into rendering or change
-  runtime state.
+- Version 1 has no logging dependency or public logging configuration.
 
 ## Worker command buffers
 
@@ -1021,15 +936,14 @@ Primary references:
   resource and later command messages reference cached runtime-local IDs.
 - `GraphiteDisplayList` encapsulates commands but does not expose a stable
   binary format. Internal format changes do not create a persistence contract.
-- `GraphiteEngine.maxCommandBufferBytes` limits one recording command
-  buffer. `GraphiteDisplayList.build(maxCommandBufferBytes = ...)` independently
-  limits one display-list command buffer.
+- An internal fixed limit applies independently to each recording and display
+  list command buffer.
 - Exceeding the limit throws
   `GraphiteEncodingException.CommandBufferTooLarge` before publication. It
   releases the recorder queue slot and leaves the runtime `Ready`.
 - Font and image payloads use the separate resource registry and do not count
   toward command-buffer bytes.
-- Prototype measurements choose the version 1 default byte limit.
+- Version 1 uses a 4 MiB limit.
 - Recorder workers validate and interpret the buffer, perform Skia calls, and
   snap the result.
 - The parser validates magic, internal version, total length, opcode, payload
@@ -1057,23 +971,8 @@ Primary references:
 
 **Accepted**
 
-- `GraphiteUnsupportedPlatformException` carries a
-  `GraphiteSupportReport` with the platform, missing capabilities, and
-  actionable details such as missing cross-origin isolation or adapter
-  rejection.
-- `GraphiteInitializationException` represents an unexpected failure at a
-  typed initialization stage and retains its cause.
-- Unsupported capability and unexpected initialization failure remain
-  separate categories.
-
-Scribe references:
-
-- Published artifact:
-  <https://central.sonatype.com/artifact/com.rafambn/scribe/0.6.0>
-- Archivist API:
-  <https://github.com/rafambn/Scribe/blob/0.6.0/scribe/src/commonMain/kotlin/com/rafambn/scribe/Archivist.kt>
-- Supported targets:
-  <https://github.com/rafambn/Scribe/blob/0.6.0/scribe/build.gradle.kts>
+- `GraphiteInitializationException` represents an unexpected worker or runtime
+  construction failure and retains its cause.
 
 ## KMaP boundary
 
@@ -1238,7 +1137,8 @@ Useful primary references:
 - A later surface attachment may start a new loading attempt after such a
   transient failure.
 - Missing WebGPU, cross-origin isolation, Wasm thread support, or another
-  required capability throws `GraphiteUnsupportedPlatformException` instead.
+  required capability fails runtime construction with
+  `GraphiteInitializationException`.
 - Once the shared module is ready, failure to initialize one runtime affects
   only that runtime unless the failure corrupts or terminates the shared
   module.
@@ -1565,11 +1465,9 @@ explicit preservation mechanism, not by assuming swapchain contents survive.
 - The common contract requires identical observable semantics, not identical
   internal topology. This resolves the Emdawn cross-worker restriction without
   weakening native implementations or moving browser rendering to main.
-- The first implementation defaults are a 4 MiB command buffer, 128 MiB
-  Context cache budget, 128 MiB aggregate recorder budget, one recorder, one
-  queued recorder job, and two frames in flight. Cache limits remain pending
-  backend plumbing and must not be described as enforced until that bridge is
-  complete.
+- The first implementation uses an internal 4 MiB command-buffer limit, one
+  recorder, and one queued recorder job by default. Cache and frame-in-flight
+  limits are not public until backends enforce them.
 - The explicit implementation request supersedes the earlier instruction to
   wait for another approval round. Remaining naming and lifecycle corrections
   may be made from build and runtime evidence without reopening settled API

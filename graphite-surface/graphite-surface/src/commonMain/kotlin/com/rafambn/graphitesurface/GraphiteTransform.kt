@@ -71,7 +71,7 @@ class GraphiteTransform private constructor(values: FloatArray) {
             ),
         )
 
-        fun rotation(degrees: Float): GraphiteTransform {
+        fun rotationDegrees(degrees: Float): GraphiteTransform {
             require(degrees.isFinite()) { "degrees must be finite" }
             val radians = degrees * (kotlin.math.PI.toFloat() / 180f)
             val cosine = cos(radians)
@@ -86,6 +86,5 @@ class GraphiteTransform private constructor(values: FloatArray) {
             )
         }
 
-        fun rotationDegrees(degrees: Float): GraphiteTransform = rotation(degrees)
     }
 }

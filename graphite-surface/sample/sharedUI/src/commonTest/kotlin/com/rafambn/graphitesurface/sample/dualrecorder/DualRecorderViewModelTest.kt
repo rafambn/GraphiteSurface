@@ -28,7 +28,7 @@ class DualRecorderViewModelTest {
 
             viewModel.onCleared()
             renderer.runtime.awaitClosed()
-            assertEquals(GraphiteEngineState.Closed, renderer.runtime.state.value)
+            assertEquals(GraphiteEngineState.Closed, renderer.runtime.diagnostics.state.value)
         } finally {
             viewModel.onCleared()
             renderer.runtime.awaitClosed()

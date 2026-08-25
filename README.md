@@ -51,14 +51,19 @@ val renderer = GraphiteRenderer(
 GraphiteSurface(renderer, Modifier.fillMaxSize())
 ```
 
-Change policy without rebuilding the surface:
+The scheduling policy is immutable. Create the renderer with the mode its owner
+needs:
 
 ```kotlin
-renderer.renderMode = GraphiteRenderMode.OnDemand
-renderer.requestRender() // Coalesced and aligned to the next display frame.
+val onDemandRenderer = GraphiteRenderer(runtime, GraphiteRenderMode.OnDemand) { time, target ->
+    renderFrame(time, target)
+}
+onDemandRenderer.requestRender() // Coalesced and aligned to the next display frame.
 
-renderer.renderMode = GraphiteRenderMode.Manual
-renderer.render(frameTimeNanos) // Runs immediately with the caller's time.
+val manualRenderer = GraphiteRenderer(runtime, GraphiteRenderMode.Manual) { time, target ->
+    renderFrame(time, target)
+}
+manualRenderer.render()
 ```
 
 The render callback uses the runtime as its receiver, is suspending and serialized, and is
@@ -71,16 +76,9 @@ Each callback still records and presents explicitly:
 
 ```kotlin
 val recording = recorders[0].record {
-    draw(roads, transform = cameraMatrix)
+    withTransform(cameraMatrix) { draw(roads) }
 }
-val frame = createFrame(presentation) { insert(recording) }
-present(frame)
-```
-
-Low-level callers that own scheduling themselves can attach only the runtime:
-
-```kotlin
-GraphiteSurface(runtime, Modifier.fillMaxSize())
+present(presentation) { insert(recording) }
 ```
 
 Recorder queues are bounded and suspending. Calls to distinct recorder handles

@@ -1,10 +1,12 @@
 package com.rafambn.graphitesurface
 
+import androidx.compose.ui.unit.IntSize
+
 /** Immutable metadata for the currently attached presentation target. */
 class GraphitePresentationInfo internal constructor(
-    val pixelSize: GraphiteSize,
+    val pixelSize: IntSize,
     val density: Float,
-    val generation: Long,
+    internal val generation: Long,
     internal val runtimeToken: Any,
 ) {
     init {

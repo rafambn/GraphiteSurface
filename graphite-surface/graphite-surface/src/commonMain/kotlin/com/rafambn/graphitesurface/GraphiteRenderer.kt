@@ -1,9 +1,6 @@
 package com.rafambn.graphitesurface
 
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -15,25 +12,14 @@ import kotlinx.coroutines.sync.withLock
  */
 class GraphiteRenderer(
     val runtime: GraphiteEngine,
-    renderMode: GraphiteRenderMode = GraphiteRenderMode.Continuous,
+    val renderMode: GraphiteRenderMode = GraphiteRenderMode.Continuous,
     private val renderFrame: suspend GraphiteEngine.(
         frameTimeNanos: Long,
         presentation: GraphitePresentationInfo,
     ) -> Unit,
 ) {
-    private val mutableRenderMode =
-        MutableStateFlow(renderMode)
     private val renderRequests = Channel<Unit>(Channel.CONFLATED)
     private val renderMutex = Mutex()
-
-    /** The current scheduling mode. Changing it updates an attached [GraphiteSurface]. */
-    var renderMode: GraphiteRenderMode
-        get() = mutableRenderMode.value
-        set(value) {
-            mutableRenderMode.value = value
-        }
-
-    internal val renderModes: StateFlow<GraphiteRenderMode> = mutableRenderMode.asStateFlow()
 
     /**
      * Requests one display-aligned frame in [GraphiteRenderMode.OnDemand].
@@ -43,13 +29,15 @@ class GraphiteRenderer(
      * thread.
      */
     fun requestRender() {
-        if (renderMode == GraphiteRenderMode.OnDemand) {
-            renderRequests.trySend(Unit)
+        check(renderMode == GraphiteRenderMode.OnDemand) {
+            "requestRender() requires GraphiteRenderMode.OnDemand"
         }
+        renderRequests.trySend(Unit)
     }
 
     /**
-     * Produces one frame with the current monotonic time in [GraphiteRenderMode.Manual].
+     * Invokes the frame producer once with the current monotonic time in
+     * [GraphiteRenderMode.Manual].
      *
      * Returns `false` without invoking the callback when no presentation target is attached or the
      * runtime is unavailable.
@@ -57,12 +45,12 @@ class GraphiteRenderer(
     suspend fun render(): Boolean = render(platformMonotonicNanos())
 
     /**
-     * Produces one frame with [frameTimeNanos] in [GraphiteRenderMode.Manual].
+     * Invokes the frame producer once with [frameTimeNanos] in [GraphiteRenderMode.Manual].
      *
      * Returns `false` without invoking the callback when no presentation target is attached or the
      * runtime is unavailable. Concurrent calls are executed sequentially.
      */
-    suspend fun render(frameTimeNanos: Long): Boolean {
+    internal suspend fun render(frameTimeNanos: Long): Boolean {
         check(renderMode == GraphiteRenderMode.Manual) {
             "render() requires GraphiteRenderMode.Manual"
         }
@@ -95,12 +83,10 @@ class GraphiteRenderer(
         expectedMode: GraphiteRenderMode,
         expectedPresentation: GraphitePresentationInfo?,
     ): Boolean = renderMutex.withLock {
-        if (renderMode != expectedMode || runtime.state.value != GraphiteEngineState.Ready) {
+        if (renderMode != expectedMode || !runtime.isReady) {
             return@withLock false
         }
-        val attached = runtime.presentation.value as? GraphitePresentationState.Attached
-            ?: return@withLock false
-        val presentation = attached.info
+        val presentation = runtime.presentation.value ?: return@withLock false
         if (expectedPresentation != null &&
             presentation.generation != expectedPresentation.generation
         ) {

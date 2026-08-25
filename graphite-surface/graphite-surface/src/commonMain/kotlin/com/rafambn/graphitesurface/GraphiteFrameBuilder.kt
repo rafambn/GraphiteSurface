@@ -1,5 +1,8 @@
 package com.rafambn.graphitesurface
 
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+
 /** Builder for an ordered frame made from completed recordings. */
 class GraphiteFrameBuilder internal constructor(private val runtimeToken: Any) {
     private val insertions = mutableListOf<GraphiteFrameInsertion>()
@@ -7,8 +10,8 @@ class GraphiteFrameBuilder internal constructor(private val runtimeToken: Any) {
 
     fun insert(
         recording: GraphiteRecording,
-        translation: GraphiteIntOffset = GraphiteIntOffset.Zero,
-        clip: GraphiteIntRect? = null,
+        translation: IntOffset = IntOffset.Zero,
+        clip: IntRect? = null,
     ) {
         if (recording.runtimeToken !== runtimeToken) {
             throw GraphitePresentationException("recording belongs to a different runtime")

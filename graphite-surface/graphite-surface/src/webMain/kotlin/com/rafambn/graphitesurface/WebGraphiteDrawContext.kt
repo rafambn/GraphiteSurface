@@ -35,24 +35,24 @@ internal class WebGraphiteDrawContext(
         delegate.clipRect(rect.left, rect.top, rect.right, rect.bottom, antiAlias)
     }
 
-    override fun drawPath(path: GraphitePathData, paint: GraphitePaint) {
+    override fun drawPath(path: GraphitePathData, paint: GraphitePaintData) {
         delegate.drawPath(
             path.verbs,
             path.points,
             path.weights,
             path.fillType,
             paint.color.toArgbLong(),
-            paint.style == GraphitePaint.Style.Stroke,
-            paint.strokeWidth,
+            paint.strokeWidth != null,
+            paint.strokeWidth ?: 0f,
             paint.antiAlias,
         )
     }
 
-    override fun drawRect(rect: Rect, paint: GraphitePaint) {
+    override fun drawRect(rect: Rect, paint: GraphitePaintData) {
         delegate.drawRect(
             rect.left, rect.top, rect.right, rect.bottom,
-            paint.color.toArgbLong(), paint.style == GraphitePaint.Style.Stroke,
-            paint.strokeWidth, paint.antiAlias,
+            paint.color.toArgbLong(), paint.strokeWidth != null,
+            paint.strokeWidth ?: 0f, paint.antiAlias,
         )
     }
 
@@ -60,35 +60,35 @@ internal class WebGraphiteDrawContext(
         rect: Rect,
         radiusX: Float,
         radiusY: Float,
-        paint: GraphitePaint,
+        paint: GraphitePaintData,
     ) {
         delegate.drawRoundRect(
             rect.left, rect.top, rect.right, rect.bottom, radiusX, radiusY,
-            paint.color.toArgbLong(), paint.style == GraphitePaint.Style.Stroke,
-            paint.strokeWidth, paint.antiAlias,
+            paint.color.toArgbLong(), paint.strokeWidth != null,
+            paint.strokeWidth ?: 0f, paint.antiAlias,
         )
     }
 
-    override fun drawOval(rect: Rect, paint: GraphitePaint) {
+    override fun drawOval(rect: Rect, paint: GraphitePaintData) {
         delegate.drawOval(
             rect.left, rect.top, rect.right, rect.bottom,
-            paint.color.toArgbLong(), paint.style == GraphitePaint.Style.Stroke,
-            paint.strokeWidth, paint.antiAlias,
+            paint.color.toArgbLong(), paint.strokeWidth != null,
+            paint.strokeWidth ?: 0f, paint.antiAlias,
         )
     }
 
-    override fun drawCircle(center: Offset, radius: Float, paint: GraphitePaint) {
+    override fun drawCircle(center: Offset, radius: Float, paint: GraphitePaintData) {
         delegate.drawCircle(
             center.x, center.y, radius,
-            paint.color.toArgbLong(), paint.style == GraphitePaint.Style.Stroke,
-            paint.strokeWidth, paint.antiAlias,
+            paint.color.toArgbLong(), paint.strokeWidth != null,
+            paint.strokeWidth ?: 0f, paint.antiAlias,
         )
     }
 
-    override fun drawLine(start: Offset, end: Offset, paint: GraphitePaint) {
+    override fun drawLine(start: Offset, end: Offset, paint: GraphitePaintData) {
         delegate.drawLine(
             start.x, start.y, end.x, end.y,
-            paint.color.toArgbLong(), paint.strokeWidth, paint.antiAlias,
+            paint.color.toArgbLong(), paint.strokeWidth ?: 0f, paint.antiAlias,
         )
     }
 }

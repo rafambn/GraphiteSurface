@@ -2,6 +2,8 @@ package com.rafambn.graphitesurface
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 
 internal class GraphiteEncoderImpl(
@@ -19,54 +21,67 @@ internal class GraphiteEncoderImpl(
         }, block)
     }
 
-    override fun draw(displayList: GraphiteDisplayList, transform: GraphiteTransform, clip: Rect?) {
+    override fun draw(displayList: GraphiteDisplayList) {
         cancellationProbe()
-        withTransform(transform) {
-            if (clip == null) {
-                writeDisplayList(displayList)
-            } else {
-                withClip(clip) { writeDisplayList(displayList) }
-            }
-        }
+        writeDisplayList(displayList)
     }
 
-    override fun drawRect(rect: Rect, paint: GraphitePaint) {
-        geometry(GraphiteCommandOpcode.DrawRect, paint) { writeRect(rect) }
+    override fun drawRect(
+        rect: Rect,
+        color: Color,
+        style: GraphiteDrawStyle,
+        antiAlias: Boolean,
+    ) {
+        geometry(GraphiteCommandOpcode.DrawRect, paint(color, style, antiAlias)) { writeRect(rect) }
     }
 
     override fun drawRoundRect(
-        rect: Rect,
-        radiusX: Float,
-        radiusY: Float,
-        paint: GraphitePaint,
+        roundRect: RoundRect,
+        color: Color,
+        style: GraphiteDrawStyle,
+        antiAlias: Boolean,
     ) {
-        require(radiusX.isFinite() && radiusX >= 0f) { "radiusX must be finite and non-negative" }
-        require(radiusY.isFinite() && radiusY >= 0f) { "radiusY must be finite and non-negative" }
-        geometry(GraphiteCommandOpcode.DrawRoundRect, paint) {
-            writeRect(rect)
-            writeFloat(radiusX)
-            writeFloat(radiusY)
-        }
+        drawPath(Path().apply { addRoundRect(roundRect) }, color, style, antiAlias)
     }
 
-    override fun drawOval(rect: Rect, paint: GraphitePaint) {
-        geometry(GraphiteCommandOpcode.DrawOval, paint) { writeRect(rect) }
+    override fun drawOval(
+        rect: Rect,
+        color: Color,
+        style: GraphiteDrawStyle,
+        antiAlias: Boolean,
+    ) {
+        geometry(GraphiteCommandOpcode.DrawOval, paint(color, style, antiAlias)) { writeRect(rect) }
     }
 
-    override fun drawCircle(center: Offset, radius: Float, paint: GraphitePaint) {
+    override fun drawCircle(
+        center: Offset,
+        radius: Float,
+        color: Color,
+        style: GraphiteDrawStyle,
+        antiAlias: Boolean,
+    ) {
         require(center.x.isFinite() && center.y.isFinite()) { "center must be finite" }
         require(radius.isFinite() && radius >= 0f) { "radius must be finite and non-negative" }
-        geometry(GraphiteCommandOpcode.DrawCircle, paint) {
+        geometry(GraphiteCommandOpcode.DrawCircle, paint(color, style, antiAlias)) {
             writeFloat(center.x)
             writeFloat(center.y)
             writeFloat(radius)
         }
     }
 
-    override fun drawLine(start: Offset, end: Offset, paint: GraphitePaint) {
+    override fun drawLine(
+        start: Offset,
+        end: Offset,
+        color: Color,
+        strokeWidth: Float,
+        antiAlias: Boolean,
+    ) {
         require(start.x.isFinite() && start.y.isFinite()) { "start must be finite" }
         require(end.x.isFinite() && end.y.isFinite()) { "end must be finite" }
-        geometry(GraphiteCommandOpcode.DrawLine, paint) {
+        require(strokeWidth.isFinite() && strokeWidth >= 0f) {
+            "stroke width must be finite and non-negative"
+        }
+        geometry(GraphiteCommandOpcode.DrawLine, GraphitePaintData(color, strokeWidth, antiAlias)) {
             writeFloat(start.x)
             writeFloat(start.y)
             writeFloat(end.x)
@@ -74,9 +89,16 @@ internal class GraphiteEncoderImpl(
         }
     }
 
-    override fun drawPath(path: Path, paint: GraphitePaint) {
+    override fun drawPath(
+        path: Path,
+        color: Color,
+        style: GraphiteDrawStyle,
+        antiAlias: Boolean,
+    ) {
         val snapshot = GraphitePathData.fromComposePath(path, cancellationProbe)
-        geometry(GraphiteCommandOpcode.DrawPath, paint) { writePath(snapshot) }
+        geometry(GraphiteCommandOpcode.DrawPath, paint(color, style, antiAlias)) {
+            writePath(snapshot)
+        }
     }
 
     private fun scoped(
@@ -96,7 +118,7 @@ internal class GraphiteEncoderImpl(
 
     private fun geometry(
         opcode: GraphiteCommandOpcode,
-        paint: GraphitePaint,
+        paint: GraphitePaintData,
         geometry: GraphiteCommandWriter.() -> Unit,
     ) {
         cancellationProbe()
@@ -112,4 +134,14 @@ internal class GraphiteEncoderImpl(
             writeInt(resourceIndex)
         }
     }
+
+    private fun paint(
+        color: Color,
+        style: GraphiteDrawStyle,
+        antiAlias: Boolean,
+    ): GraphitePaintData = GraphitePaintData(
+        color = color,
+        strokeWidth = (style as? GraphiteDrawStyle.Stroke)?.width,
+        antiAlias = antiAlias,
+    )
 }

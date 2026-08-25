@@ -37,10 +37,10 @@ internal interface GraphiteDrawContext {
     }
 
     /** Draws an immutable path snapshot with [paint]. */
-    fun drawPath(path: GraphitePathData, paint: GraphitePaint)
+    fun drawPath(path: GraphitePathData, paint: GraphitePaintData)
 
     /** Draws an axis-aligned rectangle. */
-    fun drawRect(rect: Rect, paint: GraphitePaint) {
+    fun drawRect(rect: Rect, paint: GraphitePaintData) {
         drawPath(
             GraphitePathData.fromComposePath(Path().apply {
                 moveTo(rect.left, rect.top)
@@ -58,23 +58,23 @@ internal interface GraphiteDrawContext {
         rect: Rect,
         radiusX: Float,
         radiusY: Float,
-        paint: GraphitePaint,
+        paint: GraphitePaintData,
     ) {
         throw UnsupportedOperationException("rounded rectangles are not supported by this backend")
     }
 
     /** Draws an oval bounded by [rect]. */
-    fun drawOval(rect: Rect, paint: GraphitePaint) {
+    fun drawOval(rect: Rect, paint: GraphitePaintData) {
         throw UnsupportedOperationException("ovals are not supported by this backend")
     }
 
     /** Draws a circle. */
-    fun drawCircle(center: Offset, radius: Float, paint: GraphitePaint) {
+    fun drawCircle(center: Offset, radius: Float, paint: GraphitePaintData) {
         throw UnsupportedOperationException("circles are not supported by this backend")
     }
 
     /** Draws a line segment. */
-    fun drawLine(start: Offset, end: Offset, paint: GraphitePaint) {
+    fun drawLine(start: Offset, end: Offset, paint: GraphitePaintData) {
         drawPath(
             GraphitePathData.fromComposePath(Path().apply {
                 moveTo(start.x, start.y)

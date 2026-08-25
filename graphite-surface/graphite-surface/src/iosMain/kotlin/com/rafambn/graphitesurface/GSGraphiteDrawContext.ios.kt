@@ -67,7 +67,7 @@ internal class GSGraphiteDrawContext(
         GraphiteEngineGraphiteEngineView_iosKt.gsClosePathView(view)
     }
 
-    override fun drawPath(path: GraphitePathData, paint: GraphitePaint) {
+    override fun drawPath(path: GraphitePathData, paint: GraphitePaintData) {
         beginPath()
         GraphiteEngineGraphiteEngineView_iosKt.gsSetPathFillTypeView(view, path.fillType)
         var pointIndex = 0
@@ -100,16 +100,16 @@ internal class GSGraphiteDrawContext(
             view,
             paint.color.toArgbLong().toUInt(),
             paint.isStroke.toNativeInt(),
-            paint.strokeWidth,
+            paint.strokeWidth ?: 0f,
             paint.antiAlias.toNativeInt(),
         )
     }
 
-    override fun drawRect(rect: Rect, paint: GraphitePaint) {
+    override fun drawRect(rect: Rect, paint: GraphitePaintData) {
         GraphiteEngineGraphiteEngineView_iosKt.gsDrawRectView(
             view, rect.left, rect.top, rect.right, rect.bottom,
             paint.color.toArgbLong().toUInt(), paint.isStroke.toNativeInt(),
-            paint.strokeWidth, paint.antiAlias.toNativeInt(),
+            paint.strokeWidth ?: 0f, paint.antiAlias.toNativeInt(),
         )
     }
 
@@ -117,40 +117,40 @@ internal class GSGraphiteDrawContext(
         rect: Rect,
         radiusX: Float,
         radiusY: Float,
-        paint: GraphitePaint,
+        paint: GraphitePaintData,
     ) {
         GraphiteEngineGraphiteEngineView_iosKt.gsDrawRoundRectView(
             view, rect.left, rect.top, rect.right, rect.bottom, radiusX, radiusY,
             paint.color.toArgbLong().toUInt(), paint.isStroke.toNativeInt(),
-            paint.strokeWidth, paint.antiAlias.toNativeInt(),
+            paint.strokeWidth ?: 0f, paint.antiAlias.toNativeInt(),
         )
     }
 
-    override fun drawOval(rect: Rect, paint: GraphitePaint) {
+    override fun drawOval(rect: Rect, paint: GraphitePaintData) {
         GraphiteEngineGraphiteEngineView_iosKt.gsDrawOvalView(
             view, rect.left, rect.top, rect.right, rect.bottom,
             paint.color.toArgbLong().toUInt(), paint.isStroke.toNativeInt(),
-            paint.strokeWidth, paint.antiAlias.toNativeInt(),
+            paint.strokeWidth ?: 0f, paint.antiAlias.toNativeInt(),
         )
     }
 
-    override fun drawCircle(center: Offset, radius: Float, paint: GraphitePaint) {
+    override fun drawCircle(center: Offset, radius: Float, paint: GraphitePaintData) {
         GraphiteEngineGraphiteEngineView_iosKt.gsDrawCircleView(
             view, center.x, center.y, radius,
             paint.color.toArgbLong().toUInt(), paint.isStroke.toNativeInt(),
-            paint.strokeWidth, paint.antiAlias.toNativeInt(),
+            paint.strokeWidth ?: 0f, paint.antiAlias.toNativeInt(),
         )
     }
 
-    override fun drawLine(start: Offset, end: Offset, paint: GraphitePaint) {
+    override fun drawLine(start: Offset, end: Offset, paint: GraphitePaintData) {
         GraphiteEngineGraphiteEngineView_iosKt.gsDrawLineView(
             view, start.x, start.y, end.x, end.y,
-            paint.color.toArgbLong().toUInt(), paint.strokeWidth, paint.antiAlias.toNativeInt(),
+            paint.color.toArgbLong().toUInt(), paint.strokeWidth ?: 0f, paint.antiAlias.toNativeInt(),
         )
     }
 }
 
-private val GraphitePaint.isStroke: Boolean
-    get() = style == GraphitePaint.Style.Stroke
+private val GraphitePaintData.isStroke: Boolean
+    get() = strokeWidth != null
 
 private fun Boolean.toNativeInt(): Int = if (this) 1 else 0

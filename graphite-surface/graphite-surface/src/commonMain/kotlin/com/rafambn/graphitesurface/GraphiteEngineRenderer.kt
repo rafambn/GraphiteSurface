@@ -2,6 +2,8 @@
 
 package com.rafambn.graphitesurface
 
+import androidx.compose.ui.unit.IntSize
+
 import androidx.compose.ui.geometry.Rect
 
 import kotlin.concurrent.atomics.AtomicLong
@@ -24,7 +26,7 @@ internal class GraphiteEngineRenderer(private val runtime: GraphiteEngine) :
 
     override fun onSurfaceCreated() = Unit
 
-    override fun onSurfaceChanged(size: GraphiteSize) {
+    override fun onSurfaceChanged(size: IntSize) {
         val id = attachmentId.load()
         if (id != 0L) runtime.updatePresentation(id, size, density.load())
     }

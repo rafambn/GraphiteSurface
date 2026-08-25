@@ -10,8 +10,6 @@ kotlinxBrowser = "0.5.0"
 # The engine owns this Skiko/Graphite version independently from the adapter.
 graphiteEngineSkiko = "0.152.0-alpha01"
 kotlinxCoroutines = "1.11.0"
-scribe = "0.7.0"
-kotlinxSerialization = "1.11.0"
 
 [libraries]
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeAdapter" }
@@ -26,8 +24,6 @@ engine-skiko-graphite = { module = "org.jetbrains.skiko:skiko-graphite", version
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
 kotlinx-coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "kotlinxCoroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
-scribe = { module = "com.rafambn:scribe", version.ref = "scribe" }
-kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

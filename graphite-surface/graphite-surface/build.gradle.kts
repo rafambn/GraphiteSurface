@@ -38,8 +38,6 @@ kotlin {
             api(libs.compose.runtime)
             api(libs.compose.ui)
             api(libs.kotlinx.coroutines.core)
-            api(libs.scribe)
-            implementation(libs.kotlinx.serialization.json)
             implementation(libs.compose.foundation)
         }
 

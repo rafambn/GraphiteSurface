@@ -5,15 +5,15 @@
 All eight points in [`GRAPHITE_API_OPTIMIZATION_PLAN.md`](GRAPHITE_API_OPTIMIZATION_PLAN.md)
 were implemented on 2026-08-24.
 
-- `GraphiteDisplayList.build` is runtime-independent and has its own buffer
-  limit. `GraphiteEngine.createDisplayList` was removed.
+- `graphiteDisplayList` is runtime-independent. Command-buffer limits are
+  internal. `GraphiteEngine.createDisplayList` was removed.
 - A command program owns command bytes plus an immutable local resource table.
   `DrawDisplayList` contains a four-byte table index, never nested list bytes.
 - Each runtime assigns monotonic 64-bit IDs and publishes each immutable
   command program once to each consuming recorder worker. Later jobs carry IDs.
-- Display lists are garbage-collected immutable command graphs. Recordings,
-  frames, frame insertions, pending frames, and in-flight snapshots retain
-  explicit handles where asynchronous lifecycle requires them.
+- Display lists and recordings are garbage-collected immutable command graphs.
+  Internal frames, pending frames, and in-flight snapshots retain their command
+  programs while asynchronous work needs them.
 - Direct drawing and retained drawing are documented as separate choices.
 - The continuous, on-demand, and manual sample screens each have their own
   ViewModel. Every ViewModel owns its runtime creation, scene resources,
@@ -29,13 +29,12 @@ were implemented on 2026-08-24.
 
 ## Renderer scheduling revision
 
-The later renderer revision keeps the asynchronous recording and explicit
-presentation model while moving frame-clock plumbing out of applications.
-`GraphiteRendererTest` covers manual attachment checks and caller time,
-on-demand request conflation, mode validation, callback serialization, and
-discarding scheduled work after mode or presentation-generation changes. The
-sample now passes its renderer directly to `GraphiteSurface` and contains no
-frame-driving `LaunchedEffect`.
+The later renderer revision keeps asynchronous recording and explicit
+presentation. Render modes are immutable. `GraphiteRendererTest` covers manual
+attachment checks, on-demand request conflation, mode validation, callback
+serialization, and discarding scheduled work after mode or presentation
+generation mismatches. Continuous and on-demand scheduling live in
+`GraphiteSurface`; the manual sample owns its frame-driving `LaunchedEffect`.
 
 The JVM library and sample tests, the public dependency-boundary check, and the
 Android, JS, Wasm, iOS device, and iOS simulator compilation matrix passed for
@@ -63,19 +62,19 @@ format assertion. One run on the development Mac produced:
 
 | Measurement | Result |
 | --- | ---: |
-| Display-list command bytes | 204,008 B |
-| Root drawing that list once | 96 B |
-| Root drawing it 100 times | 8,808 B |
-| First worker message | 204,148 B |
-| Cached worker message | 124 B |
-| Direct-path encoding average | 1,293 ns |
-| Display-list draw encoding average | 3,185 ns |
-| 100 display-list draws average | 36,868 ns |
-| Nested-list draw encoding average | 1,182 ns |
-| First runtime use | 10,117,333 ns |
-| Cached runtime use | 371,916 ns |
-| Validation time accumulated across both uses | 3,701,792 ns |
-| Runtime preparation accumulated across both uses | 4,500,417 ns |
+| Display-list command bytes | 340,008 B |
+| Root drawing that list once | 17 B |
+| Root drawing it 100 times | 908 B |
+| First worker message | 340,069 B |
+| Cached worker message | 45 B |
+| Direct-path encoding average | 2,357 ns |
+| Display-list draw encoding average | 1,003 ns |
+| 100 display-list draws average | 9,355 ns |
+| Nested-list draw encoding average | 5,126 ns |
+| First runtime use | 9,253,916 ns |
+| Cached runtime use | 454,750 ns |
+| Validation time accumulated across both uses | 3,602,334 ns |
+| Runtime preparation accumulated across both uses | 4,560,042 ns |
 
 Timing values are comparative development measurements, not stable performance
 guarantees. The byte counts are protocol assertions and are deterministic.

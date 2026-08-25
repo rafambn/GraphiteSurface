@@ -1,7 +1,9 @@
 package com.rafambn.graphitesurface
 
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathFillType
@@ -13,6 +15,29 @@ import kotlin.test.assertNotEquals
 
 class GraphiteComposeGraphicsTest {
     @Test
+    fun roundRectSnapshotsEveryComposeCornerAsAPath() {
+        val writer = GraphiteCommandWriter(GraphiteCommandBufferLimit.Default.bytes)
+        GraphiteEncoderImpl(writer, cancellationProbe = {}).drawRoundRect(
+            roundRect = RoundRect(
+                left = 0f,
+                top = 0f,
+                right = 20f,
+                bottom = 30f,
+                topLeftCornerRadius = CornerRadius(1f, 2f),
+                topRightCornerRadius = CornerRadius(3f, 4f),
+                bottomRightCornerRadius = CornerRadius(5f, 6f),
+                bottomLeftCornerRadius = CornerRadius(7f, 8f),
+            ),
+            color = Color.Red,
+        )
+
+        val reader = GraphiteCommandReader(writer.finish().commands)
+        reader.readInt()
+        reader.readInt()
+        assertEquals(GraphiteCommandOpcode.DrawPath, GraphiteCommandOpcode.fromCode(reader.readByte()))
+    }
+
+    @Test
     fun pathIsSnapshottedWhileTheDslCallRuns() {
         val path = Path().apply {
             fillType = PathFillType.EvenOdd
@@ -23,7 +48,7 @@ class GraphiteComposeGraphicsTest {
             close()
         }
         val writer = GraphiteCommandWriter(GraphiteCommandBufferLimit.Default.bytes)
-        GraphiteEncoderImpl(writer, cancellationProbe = {}).drawPath(path, GraphitePaint(Color.White))
+        GraphiteEncoderImpl(writer, cancellationProbe = {}).drawPath(path, Color.White)
         path.reset()
 
         val program = writer.finish()
@@ -66,7 +91,7 @@ class GraphiteComposeGraphicsTest {
         val writer = GraphiteCommandWriter(GraphiteCommandBufferLimit.Default.bytes)
         writer.command(GraphiteCommandOpcode.DrawPath) {
             writePath(path)
-            writePaint(GraphitePaint(Color.Red))
+            writePaint(GraphitePaintData(Color.Red, strokeWidth = null, antiAlias = true))
         }
         val program = writer.finish()
         GraphiteCommandBuffer.validate(program.commands)
@@ -87,7 +112,7 @@ class GraphiteComposeGraphicsTest {
         val writer = GraphiteCommandWriter(GraphiteCommandBufferLimit.Default.bytes)
         writer.command(GraphiteCommandOpcode.DrawRect) {
             writeRect(Rect(0f, 0f, 1f, 1f))
-            writePaint(GraphitePaint(Color(1, 2, 3, 4)))
+            writePaint(GraphitePaintData(Color(1, 2, 3, 4), null, true))
         }
         val program = writer.finish()
         val reader = GraphiteCommandReader(program.commands)
@@ -107,13 +132,11 @@ class GraphiteComposeGraphicsTest {
     fun offsetsMustBeFinite() {
         val writer = GraphiteCommandWriter(GraphiteCommandBufferLimit.Default.bytes)
         val encoder = GraphiteEncoderImpl(writer, cancellationProbe = {})
-        val paint = GraphitePaint(Color.White)
-
         assertFailsWith<IllegalArgumentException> {
-            encoder.drawCircle(Offset(Float.NaN, 0f), 1f, paint)
+            encoder.drawCircle(Offset(Float.NaN, 0f), 1f, Color.White)
         }
         assertFailsWith<IllegalArgumentException> {
-            encoder.drawLine(Offset.Zero, Offset(Float.POSITIVE_INFINITY, 0f), paint)
+            encoder.drawLine(Offset.Zero, Offset(Float.POSITIVE_INFINITY, 0f), Color.White)
         }
     }
 }

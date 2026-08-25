@@ -8,7 +8,6 @@ data class GraphiteMetricsSnapshot(
     val replacedFrames: Long,
     val rejectedFrames: Long,
     val pendingFrames: Int,
-    val archiveFailures: Long,
     val resources: Resources,
 ) {
     data class Recorder(

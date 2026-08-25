@@ -16,19 +16,18 @@ class GraphiteOptimizationBenchmarkTest {
             lineTo(100f, 0f)
             close()
         }
-        val paint = GraphitePaint(Color.White)
-        val displayList = GraphiteDisplayList.build {
-            repeat(4_000) { drawPath(path, paint) }
+        val displayList = graphiteDisplayList {
+            repeat(4_000) { drawPath(path, Color.White) }
         }
-        val nested = GraphiteDisplayList.build { draw(displayList) }
+        val nested = graphiteDisplayList { draw(displayList) }
 
         repeat(WARM_UP_ITERATIONS) {
-            encode { drawPath(path, paint) }
+            encode { drawPath(path, Color.White) }
             encode { draw(displayList) }
         }
 
         val directNanos = averageNanos {
-            encode { drawPath(path, paint) }
+            encode { drawPath(path, Color.White) }
         }
         val retainedOnceNanos = averageNanos {
             encode { draw(displayList) }
@@ -47,15 +46,15 @@ class GraphiteOptimizationBenchmarkTest {
             val firstStarted = System.nanoTime()
             runtime.recorders.single().record { draw(displayList) }
             val firstUseNanos = System.nanoTime() - firstStarted
-            val firstMetrics = runtime.metricsSnapshot().resources
+            val firstMetrics = runtime.diagnostics.snapshot().resources
 
             val cachedStarted = System.nanoTime()
             runtime.recorders.single().record { draw(displayList) }
             val cachedUseNanos = System.nanoTime() - cachedStarted
-            val cachedMetrics = runtime.metricsSnapshot().resources
+            val cachedMetrics = runtime.diagnostics.snapshot().resources
 
-            assertEquals(96, root.commands.size)
-            assertEquals(8_808, repeatedRoot.commands.size)
+            assertEquals(17, root.commands.size)
+            assertEquals(908, repeatedRoot.commands.size)
             assertEquals(1, repeatedRoot.resources.size)
             assertEquals(1, firstMetrics.publications)
             assertEquals(1, cachedMetrics.publications)

@@ -10,13 +10,12 @@ val renderer = GraphiteRenderer(
     renderMode = GraphiteRenderMode.Continuous,
 ) { frameTimeNanos, presentation ->
     val recording = recorders[0].record {
-        draw(roads, transform = cameraAt(frameTimeNanos))
-        drawPath(route, routePaint)
+        withTransform(cameraAt(frameTimeNanos)) { draw(roads) }
+        drawPath(route, Color.Red, GraphiteDrawStyle.Stroke(4f))
     }
-    val frame = createFrame(presentation, Color.White) {
+    present(presentation, Color.White) {
         insert(recording)
     }
-    present(frame)
 }
 
 GraphiteSurface(renderer, Modifier.fillMaxSize())
@@ -32,22 +31,18 @@ It reads them synchronously and stores only portable command bytes. A Compose
 path never crosses into a recorder or render worker. The engine reconstructs a
 native path locally with its private Skiko implementation.
 
-`GraphiteRenderer` offers three scheduling policies:
+`GraphiteRenderer` offers three immutable scheduling policies:
 
 - `Continuous` invokes the serialized callback once per available display
   frame. A slow callback naturally skips display opportunities instead of
   overlapping work.
 - `OnDemand` invokes it after `requestRender()`. Requests are conflated and an
   attached surface automatically requests its first frame.
-- `Manual` invokes it only through the suspending `render()` or
-  `render(frameTimeNanos)` functions. The call returns `false` if no target is
-  attached or the runtime is unavailable.
+- `Manual` invokes it only through the suspending `render()` function. The call
+  returns `false` if no target is attached or the runtime is unavailable.
 
-Changing `renderer.renderMode` takes effect on the attached surface. The
-renderer callback runs only while attached and receives its runtime and the
+The renderer callback runs only while attached and receives its runtime and the
 matching `GraphitePresentationInfo`; the renderer never owns or closes its runtime.
-Low-level callers may continue using `GraphiteSurface(runtime)` and schedule
-their own calls to `present()`.
 
 In this first implementation, recorder workers validate and publish the
 immutable portable command program. The dedicated platform render worker owns

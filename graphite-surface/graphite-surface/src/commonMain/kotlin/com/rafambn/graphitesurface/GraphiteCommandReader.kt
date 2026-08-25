@@ -59,14 +59,17 @@ internal class GraphiteCommandReader(
         FloatArray(16) { readFloat() },
     )
 
-    internal fun readPaint(): GraphitePaint {
+    internal fun readPaint(): GraphitePaintData {
         val color = readInt().toLong().toComposeColor()
-        val style = GraphitePaint.Style.entries.getOrNull(readByte())
-            ?: error("invalid paint style")
-        return GraphitePaint(
+        val isStroke = when (val value = readByte()) {
+            0 -> false
+            1 -> true
+            else -> error("invalid paint style: $value")
+        }
+        val strokeWidth = readFloat()
+        return GraphitePaintData(
             color = color,
-            style = style,
-            strokeWidth = readFloat(),
+            strokeWidth = if (isStroke) strokeWidth else null,
             antiAlias = when (val value = readByte()) {
                 0 -> false
                 1 -> true

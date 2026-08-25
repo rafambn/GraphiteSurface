@@ -18,18 +18,18 @@ class GraphiteDisplayListTest {
         runtime.close()
         runtime.awaitClosed()
 
-        GraphiteDisplayList.build {}
+        graphiteDisplayList {}
 
         assertFailsWith<GraphiteEncodingException.CommandBufferTooLarge> {
-            GraphiteDisplayList.build(GraphiteCommandBufferLimit(Int.SIZE_BYTES * 2)) {
-                drawRect(Rect(0f, 0f, 1f, 1f), GraphitePaint(Color.White))
+            graphiteDisplayList(GraphiteCommandBufferLimit(Int.SIZE_BYTES * 2)) {
+                drawRect(Rect(0f, 0f, 1f, 1f), Color.White)
             }
         }
     }
 
     @Test
     fun displayListCanBeReusedForNewWork() {
-        val displayList = GraphiteDisplayList.build {}
+        val displayList = graphiteDisplayList {}
         val first = programDrawing(displayList)
         val second = programDrawing(displayList)
 
@@ -39,11 +39,11 @@ class GraphiteDisplayListTest {
 
     @Test
     fun equivalentDisplayListsShareOneResourceReference() {
-        val first = GraphiteDisplayList.build {
-            drawCircle(Offset(4f, 4f), 2f, GraphitePaint(Color.White))
+        val first = graphiteDisplayList {
+            drawCircle(Offset(4f, 4f), 2f, Color.White)
         }
-        val second = GraphiteDisplayList.build {
-            drawCircle(Offset(4f, 4f), 2f, GraphitePaint(Color.White))
+        val second = graphiteDisplayList {
+            drawCircle(Offset(4f, 4f), 2f, Color.White)
         }
         val writer = GraphiteCommandWriter(GraphiteCommandBufferLimit.Default.bytes)
         GraphiteEncoderImpl(writer, cancellationProbe = {}).apply {
@@ -65,15 +65,15 @@ class GraphiteDisplayListTest {
 
     @Test
     fun recordingStoresAFixedSizeReferenceInsteadOfNestedCommandBytes() {
-        val small = GraphiteDisplayList.build {
-            drawCircle(Offset(0f, 0f), 1f, GraphitePaint(Color.White))
+        val small = graphiteDisplayList {
+            drawCircle(Offset(0f, 0f), 1f, Color.White)
         }
-        val large = GraphiteDisplayList.build {
+        val large = graphiteDisplayList {
             repeat(4_000) { index ->
                 drawCircle(
                     Offset(index.toFloat(), index.toFloat()),
                     1f,
-                    GraphitePaint(Color.White),
+                    Color.White,
                 )
             }
         }
@@ -87,14 +87,14 @@ class GraphiteDisplayListTest {
 
     @Test
     fun nestedListsValidateUpToTheMaximumDepth() {
-        var displayList = GraphiteDisplayList.build {}
+        var displayList = graphiteDisplayList {}
         repeat(63) {
             val child = displayList
-            displayList = GraphiteDisplayList.build { draw(child) }
+            displayList = graphiteDisplayList { draw(child) }
         }
         displayList.program.validate()
 
-        val tooDeep = GraphiteDisplayList.build { draw(displayList) }
+        val tooDeep = graphiteDisplayList { draw(displayList) }
         assertFailsWith<IllegalArgumentException> { tooDeep.program.validate() }
     }
 

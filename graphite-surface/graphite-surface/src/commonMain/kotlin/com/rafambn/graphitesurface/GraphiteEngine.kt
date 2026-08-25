@@ -2,8 +2,8 @@
 
 package com.rafambn.graphitesurface
 
-import com.rafambn.scribe.Archivist
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.IntSize
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.AtomicReference
@@ -12,12 +12,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
@@ -27,19 +23,10 @@ class GraphiteEngine(
     val recorderCount: Int = 1,
     /** Maximum number of calls waiting behind the active call of each recorder. */
     val recorderQueueCapacity: Int = 1,
-    /** Submission upper bound. Current backends conservatively keep at most one frame in flight. */
-    val maxFramesInFlight: Int = 2,
-    /** Reserved cache policy. Current backends validate but do not enforce these limits. */
-    val gpuCache: GraphiteGpuCacheConfig = GraphiteGpuCacheConfig.Default,
-    /** Maximum encoded bytes in one recording command program. */
-    val maxCommandBufferBytes: GraphiteCommandBufferLimit = GraphiteCommandBufferLimit.Default,
-    /** Optional Scribe destination owned and retired by this runtime. */
-    val archivist: Archivist? = null,
 ) : AutoCloseable {
     init {
         require(recorderCount in 1..64) { "recorderCount must be in 1..64" }
         require(recorderQueueCapacity in 1..1024) { "recorderQueueCapacity must be in 1..1024" }
-        require(maxFramesInFlight in 1..8) { "maxFramesInFlight must be in 1..8" }
     }
 
     internal val token = Any()
@@ -47,74 +34,41 @@ class GraphiteEngine(
     private val closing = AtomicBoolean(false)
     private val attachmentIds = AtomicLong(0)
     private val generations = AtomicLong(0)
-    private val attachment: AtomicReference<GraphitePresentationAttachment?> = AtomicReference(null)
-    private val pendingFrame: AtomicReference<GraphiteFrame?> = AtomicReference(null)
+    private val attachment = AtomicReference<GraphitePresentationAttachment?>(null)
+    private val pendingFrame = AtomicReference<GraphiteFrame?>(null)
     private val acceptedFrames = AtomicLong(0)
     private val replacedFrames = AtomicLong(0)
     private val rejectedFrames = AtomicLong(0)
-    private val archiveFailures = AtomicLong(0)
     private val resources = GraphiteResourceRegistry()
     private val closed = CompletableDeferred<Unit>()
     internal val shutdownRequested = CompletableDeferred<Unit>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val mutableState: MutableStateFlow<GraphiteEngineState> =
-        MutableStateFlow(GraphiteEngineState.Ready)
-    private val mutablePresentation: MutableStateFlow<GraphitePresentationState> =
-        MutableStateFlow(GraphitePresentationState.Detached)
-    private val mutableEvents: MutableSharedFlow<GraphiteEvent> = MutableSharedFlow(
-        extraBufferCapacity = EVENT_CAPACITY,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST,
-    )
+    private val mutableState = MutableStateFlow<GraphiteEngineState>(GraphiteEngineState.Ready)
+    private val mutablePresentation = MutableStateFlow<GraphitePresentationInfo?>(null)
 
-    val state: StateFlow<GraphiteEngineState> = mutableState.asStateFlow()
-    val presentation: StateFlow<GraphitePresentationState> = mutablePresentation.asStateFlow()
-    val events: SharedFlow<GraphiteEvent> = mutableEvents.asSharedFlow()
+    internal val presentation: StateFlow<GraphitePresentationInfo?> =
+        mutablePresentation.asStateFlow()
+    internal val isReady: Boolean
+        get() = mutableState.value == GraphiteEngineState.Ready
+
+    /** Lifecycle state and best-effort counters kept outside the rendering API. */
+    val diagnostics = GraphiteDiagnostics(mutableState.asStateFlow(), ::metricsSnapshot)
+    /** Stable recorder queues owned by this engine. */
     val recorders: List<GraphiteRecorder> = try {
         createRecorders()
     } catch (error: Throwable) {
         resources.close()
         scope.cancel()
-        throw GraphiteInitializationException(GraphiteFailure.Stage.Initialization, error)
-    }
-    private val logger = try {
-        GraphiteEngineLogger(archivist) { error ->
-            archiveFailures.addAndFetch(1)
-            mutableEvents.tryEmit(GraphiteEvent.ArchiveFailure(error))
-        }
-    } catch (error: Throwable) {
-        recorders.forEach(GraphiteRecorder::close)
-        resources.close()
-        scope.cancel()
-        throw GraphiteInitializationException(GraphiteFailure.Stage.Initialization, error)
+        throw GraphiteInitializationException(error)
     }
 
-    init {
-        logger.emit(
-            operation = "runtime_lifecycle",
-            outcome = "ready",
-            fields = mapOf(
-                "recorder_count" to recorderCount,
-                "recorder_queue_capacity" to recorderQueueCapacity,
-                "max_frames_in_flight" to maxFramesInFlight,
-            ),
-        )
-    }
-
-    fun createFrame(
+    /** Builds a frame and places it in the latest-wins presentation mailbox. */
+    fun present(
         presentation: GraphitePresentationInfo,
         clearColor: Color = Color.Transparent,
         block: GraphiteFrameBuilder.() -> Unit = {},
-    ): GraphiteFrame {
-        requireReady()
-        if (presentation.runtimeToken !== token) {
-            throw GraphitePresentationException("presentation belongs to a different runtime")
-        }
-        val insertions = GraphiteFrameBuilder(token).apply(block).build()
-        return GraphiteFrame(presentation, clearColor, insertions)
-    }
-
-    fun present(frame: GraphiteFrame): GraphitePresentResult {
-        if (mutableState.value != GraphiteEngineState.Ready) {
+    ): GraphitePresentResult {
+        if (!isReady) {
             rejectedFrames.addAndFetch(1)
             return GraphitePresentResult.RuntimeUnavailable
         }
@@ -124,13 +78,16 @@ class GraphiteEngine(
             rejectedFrames.addAndFetch(1)
             return GraphitePresentResult.NoPresentation
         }
-        if (frame.presentation.runtimeToken !== token ||
-            frame.presentation.generation != currentInfo.generation
-        ) {
+        if (presentation.runtimeToken !== token || presentation.generation != currentInfo.generation) {
             rejectedFrames.addAndFetch(1)
             return GraphitePresentResult.StalePresentation
         }
 
+        val frame = GraphiteFrame(
+            presentation = presentation,
+            clearColor = clearColor,
+            insertions = GraphiteFrameBuilder(token).apply(block).build(),
+        )
         val previous = pendingFrame.exchange(frame)
         val result = if (previous == null) {
             acceptedFrames.addAndFetch(1)
@@ -144,20 +101,9 @@ class GraphiteEngine(
     }
 
     /** Waits until every admitted recorder job has finished. It does not wait for GPU completion. */
-    suspend fun awaitIdle() {
+    suspend fun awaitRecordersIdle() {
         recorders.forEach { it.awaitIdle() }
     }
-
-    fun metricsSnapshot(): GraphiteMetricsSnapshot = GraphiteMetricsSnapshot(
-        capturedAtNanos = platformMonotonicNanos(),
-        recorders = recorders.map(GraphiteRecorder::metricsSnapshot),
-        acceptedFrames = acceptedFrames.load(),
-        replacedFrames = replacedFrames.load(),
-        rejectedFrames = rejectedFrames.load(),
-        pendingFrames = if (pendingFrame.load() == null) 0 else 1,
-        archiveFailures = archiveFailures.load(),
-        resources = resources.snapshot(),
-    )
 
     internal suspend fun prepareRecording(
         program: GraphiteCommandProgram,
@@ -170,26 +116,16 @@ class GraphiteEngine(
         mutableState.value = GraphiteEngineState.Closing
         pendingFrame.store(null)
         attachment.store(null)
-        mutablePresentation.value = GraphitePresentationState.Detached
-        logger.emit("runtime_lifecycle", "closing")
+        mutablePresentation.value = null
         recorders.forEach(GraphiteRecorder::close)
         scope.launch {
             try {
                 recorders.forEach { it.awaitClosed() }
                 resources.close()
-                logger.emit("runtime_lifecycle", "closed")
-                logger.retire()
                 mutableState.value = GraphiteEngineState.Closed
                 closed.complete(Unit)
             } catch (error: Throwable) {
-                val failure = GraphiteFailure(
-                    kind = GraphiteFailure.Kind.WorkerTerminated,
-                    stage = GraphiteFailure.Stage.Shutdown,
-                    message = "worker shutdown failed",
-                    cause = error,
-                )
-                mutableState.value = GraphiteEngineState.Failed(failure)
-                mutableEvents.tryEmit(GraphiteEvent.FatalFailure(failure))
+                mutableState.value = GraphiteEngineState.Failed(error)
                 closed.complete(Unit)
             } finally {
                 scope.cancel()
@@ -211,57 +147,18 @@ class GraphiteEngine(
         }
     }
 
-    internal fun recordingFailed(index: Int, error: Throwable) {
-        mutableEvents.tryEmit(GraphiteEvent.RecordingFailed(index, error))
-        logger.emit(
-            operation = "recording",
-            outcome = "failed",
-            fields = mapOf("recorder_index" to index, "error" to (error.message ?: error)),
-        )
-    }
-
     internal fun failFromRenderWorker(error: Throwable) {
-        failRuntime(
-            GraphiteFailure(
-                kind = GraphiteFailure.Kind.BackendFailure,
-                stage = GraphiteFailure.Stage.Presentation,
-                message = "render worker failed while executing a frame",
-                cause = error,
-            ),
-            operation = "render_frame",
-        )
+        failRuntime(error)
     }
 
-    internal fun failFromRecorderWorker(index: Int, error: Throwable) {
-        failRuntime(
-            GraphiteFailure(
-                kind = GraphiteFailure.Kind.InternalInvariant,
-                stage = GraphiteFailure.Stage.CommandValidation,
-                message = "recorder worker $index rejected an internally encoded command buffer",
-                cause = error,
-            ),
-            operation = "recorder_worker",
-            fields = mapOf("recorder_index" to index),
-        )
+    internal fun failFromRecorderWorker(error: Throwable) {
+        failRuntime(error)
     }
 
-    private fun failRuntime(
-        failure: GraphiteFailure,
-        operation: String,
-        fields: Map<String, Any?> = emptyMap(),
-    ) {
+    private fun failRuntime(error: Throwable) {
         if (!closing.compareAndSet(false, true)) return
         shutdownRequested.complete(Unit)
-        mutableState.value = GraphiteEngineState.Failed(failure)
-        mutableEvents.tryEmit(GraphiteEvent.FatalFailure(failure))
-        logger.emit(
-            operation = operation,
-            outcome = "failed",
-            fields = fields + mapOf(
-                "failure_kind" to failure.kind,
-                "error" to (failure.cause?.message ?: failure.cause ?: failure.message),
-            ),
-        )
+        mutableState.value = GraphiteEngineState.Failed(error)
         pendingFrame.store(null)
         recorders.forEach(GraphiteRecorder::close)
         scope.launch {
@@ -269,34 +166,28 @@ class GraphiteEngine(
                 recorders.forEach { it.awaitClosed() }
             } finally {
                 resources.close()
-                logger.retire()
                 closed.complete(Unit)
                 scope.cancel()
             }
         }
     }
 
-    internal fun attachPresentation(requestFrame: () -> Unit): Long? {
+    internal fun attachPresentation(requestFrame: () -> Unit): Long {
         requireReady()
         val id = attachmentIds.addAndFetch(1)
         val candidate = GraphitePresentationAttachment(id, requestFrame, info = null)
-        if (!attachment.compareAndSet(null, candidate)) {
-            mutableEvents.tryEmit(
-                GraphiteEvent.PresentationAttachRejected("runtime already has an attached surface"),
-            )
-            logger.emit("presentation_attach", "rejected", mapOf("reason" to "already_attached"))
-            return null
+        check(attachment.compareAndSet(null, candidate)) {
+            "GraphiteEngine already has an attached surface"
         }
-        mutablePresentation.value = GraphitePresentationState.Attaching
         return id
     }
 
     internal fun updatePresentation(
         attachmentId: Long,
-        pixelSize: GraphiteSize,
+        pixelSize: IntSize,
         density: Float,
     ): GraphitePresentationInfo? {
-        if (pixelSize == GraphiteSize.Zero) {
+        if (pixelSize == IntSize.Zero) {
             detachPresentationTarget(attachmentId)
             return null
         }
@@ -316,7 +207,7 @@ class GraphiteEngine(
             val updated = GraphitePresentationAttachment(current.id, current.requestFrame, info)
             if (attachment.compareAndSet(current, updated)) {
                 pendingFrame.store(null)
-                mutablePresentation.value = GraphitePresentationState.Attached(info)
+                mutablePresentation.value = info
                 return info
             }
         }
@@ -327,7 +218,7 @@ class GraphiteEngine(
         if (current.id != attachmentId) return
         if (attachment.compareAndSet(current, null)) {
             pendingFrame.store(null)
-            mutablePresentation.value = GraphitePresentationState.Detached
+            mutablePresentation.value = null
         }
     }
 
@@ -351,7 +242,7 @@ class GraphiteEngine(
             val updated = GraphitePresentationAttachment(current.id, current.requestFrame, info = null)
             if (attachment.compareAndSet(current, updated)) {
                 pendingFrame.store(null)
-                mutablePresentation.value = GraphitePresentationState.Detached
+                mutablePresentation.value = null
                 return
             }
         }
@@ -376,7 +267,13 @@ class GraphiteEngine(
         }
     }
 
-    private companion object {
-        private const val EVENT_CAPACITY: Int = 64
-    }
+    private fun metricsSnapshot(): GraphiteMetricsSnapshot = GraphiteMetricsSnapshot(
+        capturedAtNanos = platformMonotonicNanos(),
+        recorders = recorders.map(GraphiteRecorder::metricsSnapshot),
+        acceptedFrames = acceptedFrames.load(),
+        replacedFrames = replacedFrames.load(),
+        rejectedFrames = rejectedFrames.load(),
+        pendingFrames = if (pendingFrame.load() == null) 0 else 1,
+        resources = resources.snapshot(),
+    )
 }

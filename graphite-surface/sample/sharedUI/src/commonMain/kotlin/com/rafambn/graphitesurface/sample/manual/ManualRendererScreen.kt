@@ -25,8 +25,8 @@ internal fun ManualRendererScreen(
 
     LaunchedEffect(renderer) {
         while (isActive) {
-            val frameTimeNanos = withFrameNanos { it }
-            renderer.render(frameTimeNanos)
+            withFrameNanos { }
+            renderer.render()
         }
     }
     RendererDemoScreen(

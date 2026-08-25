@@ -1,5 +1,6 @@
 package com.rafambn.graphitesurface
 
+import androidx.compose.ui.unit.IntSize
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -18,7 +19,7 @@ class GraphiteRendererTest {
         try {
             val attachmentId = requireNotNull(runtime.attachPresentation {})
             val presentation = requireNotNull(
-                runtime.updatePresentation(attachmentId, GraphiteSize(640, 480), density = 2f),
+                runtime.updatePresentation(attachmentId, IntSize(640, 480), density = 2f),
             )
             var observedRuntime: GraphiteEngine? = null
             var observedTime = -1L
@@ -63,11 +64,10 @@ class GraphiteRendererTest {
     fun manualRenderRejectsOtherModesAndNegativeTime() = runTest {
         val runtime = GraphiteEngine()
         try {
-            val renderer = GraphiteRenderer(runtime) { _, _ -> }
-            assertFailsWith<IllegalStateException> { renderer.render(0L) }
-
-            renderer.renderMode = GraphiteRenderMode.Manual
-            assertFailsWith<IllegalArgumentException> { renderer.render(-1L) }
+            val continuous = GraphiteRenderer(runtime) { _, _ -> }
+            assertFailsWith<IllegalStateException> { continuous.render(0L) }
+            val manual = GraphiteRenderer(runtime, GraphiteRenderMode.Manual) { _, _ -> }
+            assertFailsWith<IllegalArgumentException> { manual.render(-1L) }
         } finally {
             runtime.close()
             runtime.awaitClosed()
@@ -75,7 +75,7 @@ class GraphiteRendererTest {
     }
 
     @Test
-    fun onDemandRequestsAreCoalescedAndIgnoredByOtherModes() = runTest {
+    fun onDemandRequestsAreCoalescedAndRejectedByOtherModes() = runTest {
         val runtime = GraphiteEngine()
         try {
             val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.OnDemand) { _, _ -> }
@@ -85,9 +85,8 @@ class GraphiteRendererTest {
             assertTrue(renderer.tryConsumeRenderRequest())
             assertFalse(renderer.tryConsumeRenderRequest())
 
-            renderer.renderMode = GraphiteRenderMode.Continuous
-            renderer.requestRender()
-            assertFalse(renderer.tryConsumeRenderRequest())
+            val continuous = GraphiteRenderer(runtime) { _, _ -> }
+            assertFailsWith<IllegalStateException> { continuous.requestRender() }
         } finally {
             runtime.close()
             runtime.awaitClosed()
@@ -99,7 +98,7 @@ class GraphiteRendererTest {
         val runtime = GraphiteEngine()
         try {
             val attachmentId = requireNotNull(runtime.attachPresentation {})
-            runtime.updatePresentation(attachmentId, GraphiteSize(32, 32), density = 1f)
+            runtime.updatePresentation(attachmentId, IntSize(32, 32), density = 1f)
             val firstStarted = CompletableDeferred<Unit>()
             val releaseFirst = CompletableDeferred<Unit>()
             var activeCallbacks = 0
@@ -130,12 +129,12 @@ class GraphiteRendererTest {
     }
 
     @Test
-    fun scheduledFrameIsDiscardedAfterModeOrGenerationChanges() = runTest {
+    fun scheduledFrameIsDiscardedAfterModeOrGenerationMismatch() = runTest {
         val runtime = GraphiteEngine()
         try {
             val attachmentId = requireNotNull(runtime.attachPresentation {})
             val firstPresentation = requireNotNull(
-                runtime.updatePresentation(attachmentId, GraphiteSize(32, 32), density = 1f),
+                runtime.updatePresentation(attachmentId, IntSize(32, 32), density = 1f),
             )
             var renderCount = 0
             val renderer = GraphiteRenderer(runtime, GraphiteRenderMode.Continuous) { _, _ ->
@@ -149,19 +148,18 @@ class GraphiteRendererTest {
                     presentation = firstPresentation,
                 ),
             )
-            renderer.renderMode = GraphiteRenderMode.OnDemand
             assertFalse(
                 renderer.renderScheduled(
                     frameTimeNanos = 2L,
-                    mode = GraphiteRenderMode.Continuous,
+                    mode = GraphiteRenderMode.OnDemand,
                     presentation = firstPresentation,
                 ),
             )
-            runtime.updatePresentation(attachmentId, GraphiteSize(64, 64), density = 1f)
+            runtime.updatePresentation(attachmentId, IntSize(64, 64), density = 1f)
             assertFalse(
                 renderer.renderScheduled(
                     frameTimeNanos = 3L,
-                    mode = GraphiteRenderMode.OnDemand,
+                    mode = GraphiteRenderMode.Continuous,
                     presentation = firstPresentation,
                 ),
             )

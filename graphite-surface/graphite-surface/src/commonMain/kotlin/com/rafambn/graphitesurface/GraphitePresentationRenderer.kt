@@ -1,10 +1,12 @@
 package com.rafambn.graphitesurface
 
+import androidx.compose.ui.unit.IntSize
+
 /** Internal synchronous bridge consumed by platform presentation hosts. */
 internal interface GraphitePresentationRenderer {
     fun onSurfaceCreated()
 
-    fun onSurfaceChanged(size: GraphiteSize)
+    fun onSurfaceChanged(size: IntSize)
 
     fun hasPendingFrame(): Boolean
 

@@ -4,8 +4,9 @@
 
 Implemented on 2026-08-25. The migration was explicitly requested and completed
 in the current tree. The document remains as its design and verification
-record. `GraphiteTransform` and `GraphitePaint` remain deliberate compact
-command values; the other duplicate types listed below were removed.
+record. A later API simplification removed `GraphitePaint`, `GraphiteSize`,
+`GraphiteIntOffset`, and `GraphiteIntRect`. `GraphiteTransform` remains the one
+compact command value because Compose `Matrix` is mutable.
 
 The goal is to remove public Graphite value types that duplicate public Compose
 graphics types. The command stream remains the boundary between application

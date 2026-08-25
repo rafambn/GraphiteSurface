@@ -23,10 +23,10 @@ internal class GraphiteCommandWriter(private val limitBytes: Int) {
         setInt(lengthOffset, size - payloadOffset)
     }
 
-    internal fun writePaint(paint: GraphitePaint) {
+    internal fun writePaint(paint: GraphitePaintData) {
         writeInt(paint.color.toArgbLong().toInt())
-        writeByte(paint.style.ordinal)
-        writeFloat(paint.strokeWidth)
+        writeByte(if (paint.strokeWidth == null) 0 else 1)
+        writeFloat(paint.strokeWidth ?: 0f)
         writeByte(if (paint.antiAlias) 1 else 0)
     }
 

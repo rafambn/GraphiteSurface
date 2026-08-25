@@ -4,7 +4,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import com.rafambn.scribe.Archivist
+import androidx.compose.ui.unit.IntSize
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -17,41 +17,52 @@ import kotlinx.coroutines.test.runTest
 
 class GraphiteEngineTest {
     @Test
-    fun constructorRejectsInvalidWorkerAndSubmissionLimits() {
+    fun rejectsASecondPresentationAttachment() = runTest {
+        val runtime = GraphiteEngine()
+        try {
+            runtime.attachPresentation {}
+            assertFailsWith<IllegalStateException> { runtime.attachPresentation {} }
+        } finally {
+            runtime.close()
+            runtime.awaitClosed()
+        }
+    }
+
+    @Test
+    fun constructorRejectsInvalidWorkerLimits() {
         assertFailsWith<IllegalArgumentException> { GraphiteEngine(recorderCount = 0) }
         assertFailsWith<IllegalArgumentException> { GraphiteEngine(recorderCount = 65) }
         assertFailsWith<IllegalArgumentException> { GraphiteEngine(recorderQueueCapacity = 0) }
         assertFailsWith<IllegalArgumentException> { GraphiteEngine(recorderQueueCapacity = 1025) }
-        assertFailsWith<IllegalArgumentException> { GraphiteEngine(maxFramesInFlight = 0) }
-        assertFailsWith<IllegalArgumentException> { GraphiteEngine(maxFramesInFlight = 9) }
     }
 
     @Test
     fun recorderBuildsReusableCommandsAsynchronously() = runTest {
         val runtime = GraphiteEngine(recorderCount = 2)
         try {
-            val roads = GraphiteDisplayList.build {
+            val roads = graphiteDisplayList {
                 drawPath(
                     Path().apply {
                         moveTo(0f, 0f)
                         lineTo(100f, 100f)
                     },
-                    GraphitePaint(Color.White, GraphitePaint.Style.Stroke, strokeWidth = 4f),
+                    Color.White,
+                    GraphiteDrawStyle.Stroke(4f),
                 )
             }
 
             val recording = runtime.recorders[1].record {
-                draw(roads, GraphiteTransform.translation(8f, 12f))
-                drawCircle(Offset(20f, 30f), 5f, GraphitePaint(Color.Black))
+                withTransform(GraphiteTransform.translation(8f, 12f)) { draw(roads) }
+                drawCircle(Offset(20f, 30f), 5f, Color.Black)
             }
 
-            assertEquals(1, runtime.metricsSnapshot().recorders[1].completed)
+            assertEquals(1, runtime.diagnostics.snapshot().recorders[1].completed)
             recording.program.validate()
         } finally {
             runtime.close()
             runtime.awaitClosed()
         }
-        assertEquals(GraphiteEngineState.Closed, runtime.state.value)
+        assertEquals(GraphiteEngineState.Closed, runtime.diagnostics.state.value)
     }
 
     @Test
@@ -61,20 +72,21 @@ class GraphiteEngineTest {
             var requests = 0
             val attachmentId = requireNotNull(runtime.attachPresentation { requests += 1 })
             val presentation = requireNotNull(
-                runtime.updatePresentation(attachmentId, GraphiteSize(640, 480), density = 2f),
+                runtime.updatePresentation(attachmentId, IntSize(640, 480), density = 2f),
             )
-            val first = runtime.createFrame(presentation, Color.Black)
-            val second = runtime.createFrame(presentation, Color.White)
 
             assertFalse(runtime.hasPendingFrame(attachmentId))
-            assertEquals(GraphitePresentResult.Accepted, runtime.present(first))
+            assertEquals(GraphitePresentResult.Accepted, runtime.present(presentation, Color.Black))
             assertTrue(runtime.hasPendingFrame(attachmentId))
-            assertEquals(GraphitePresentResult.ReplacedPending, runtime.present(second))
+            assertEquals(
+                GraphitePresentResult.ReplacedPending,
+                runtime.present(presentation, Color.White),
+            )
             val pending = runtime.takePendingFrame(attachmentId)
             assertEquals(Color.White, pending?.clearColor)
             assertFalse(runtime.hasPendingFrame(attachmentId))
             assertEquals(2, requests)
-            assertEquals(0, runtime.metricsSnapshot().pendingFrames)
+            assertEquals(0, runtime.diagnostics.snapshot().pendingFrames)
         } finally {
             runtime.close()
             runtime.awaitClosed()
@@ -88,11 +100,11 @@ class GraphiteEngineTest {
         try {
             suspend fun recordTwice(runtime: GraphiteEngine) {
                 repeat(2) {
-                    val displayList = GraphiteDisplayList.build {
+                    val displayList = graphiteDisplayList {
                         drawCircle(
                             Offset(4f, 4f),
                             2f,
-                            GraphitePaint(Color.White),
+                            Color.White,
                         )
                     }
                     runtime.recorders.single().record { draw(displayList) }
@@ -102,8 +114,8 @@ class GraphiteEngineTest {
             recordTwice(first)
             recordTwice(second)
 
-            val firstMetrics = first.metricsSnapshot().resources
-            val secondMetrics = second.metricsSnapshot().resources
+            val firstMetrics = first.diagnostics.snapshot().resources
+            val secondMetrics = second.diagnostics.snapshot().resources
             assertEquals(1, firstMetrics.registered)
             assertEquals(1, firstMetrics.publications)
             assertEquals(1, firstMetrics.cacheHits)
@@ -117,8 +129,8 @@ class GraphiteEngineTest {
             first.awaitClosed()
             second.awaitClosed()
         }
-        assertEquals(1, first.metricsSnapshot().resources.released)
-        assertEquals(1, second.metricsSnapshot().resources.released)
+        assertEquals(1, first.diagnostics.snapshot().resources.released)
+        assertEquals(1, second.diagnostics.snapshot().resources.released)
     }
 
     @Test
@@ -127,17 +139,18 @@ class GraphiteEngineTest {
         try {
             val attachmentId = requireNotNull(runtime.attachPresentation {})
             val presentation = requireNotNull(
-                runtime.updatePresentation(attachmentId, GraphiteSize(16, 16), density = 1f),
+                runtime.updatePresentation(attachmentId, IntSize(16, 16), density = 1f),
             )
-            val displayList = GraphiteDisplayList.build {
-                drawRect(Rect(0f, 0f, 8f, 8f), GraphitePaint(Color.White))
+            val displayList = graphiteDisplayList {
+                drawRect(Rect(0f, 0f, 8f, 8f), Color.White)
             }
             val recording = runtime.recorders.single().record {
                 draw(displayList)
             }
-            val frame = runtime.createFrame(presentation) { insert(recording) }
-
-            assertEquals(GraphitePresentResult.Accepted, runtime.present(frame))
+            assertEquals(
+                GraphitePresentResult.Accepted,
+                runtime.present(presentation) { insert(recording) },
+            )
 
             val pending = requireNotNull(runtime.takePendingFrame(attachmentId))
             val insertion = pending.insertions.single()
@@ -150,9 +163,9 @@ class GraphiteEngineTest {
 
     @Test
     fun runtimeResourceIdsAreMonotonicWithinOneNamespace() = runTest {
-        val first = GraphiteDisplayList.build {}
-        val second = GraphiteDisplayList.build {
-            drawCircle(Offset(4f, 4f), 2f, GraphitePaint(Color.White))
+        val first = graphiteDisplayList {}
+        val second = graphiteDisplayList {
+            drawCircle(Offset(4f, 4f), 2f, Color.White)
         }
         val rootWriter = GraphiteCommandWriter(GraphiteCommandBufferLimit.Default.bytes)
         GraphiteEncoderImpl(rootWriter, cancellationProbe = {}).apply {
@@ -180,12 +193,12 @@ class GraphiteEngineTest {
     @Test
     fun cancellationDoesNotCorruptTheWorkerResourceCache() = runTest {
         val runtime = GraphiteEngine(recorderQueueCapacity = 4)
-        val displayList = GraphiteDisplayList.build {
+        val displayList = graphiteDisplayList {
             repeat(1_000) { index ->
                 drawCircle(
                     Offset(index.toFloat(), index.toFloat()),
                     1f,
-                    GraphitePaint(Color.White),
+                    Color.White,
                 )
             }
         }
@@ -198,7 +211,7 @@ class GraphiteEngineTest {
             jobs.forEach { it.cancelAndJoin() }
 
             runtime.recorders.single().record { draw(displayList) }
-            assertIs<GraphiteEngineState.Ready>(runtime.state.value)
+            assertIs<GraphiteEngineState.Ready>(runtime.diagnostics.state.value)
         } finally {
             runtime.close()
             runtime.awaitClosed()
@@ -212,11 +225,11 @@ class GraphiteEngineTest {
         try {
             val attachmentId = requireNotNull(second.attachPresentation {})
             val presentation = requireNotNull(
-                second.updatePresentation(attachmentId, GraphiteSize(1, 1), density = 1f),
+                second.updatePresentation(attachmentId, IntSize(1, 1), density = 1f),
             )
             val recording = first.recorders.single().record { }
             assertFailsWith<GraphitePresentationException> {
-                second.createFrame(presentation) { insert(recording) }
+                second.present(presentation) { insert(recording) }
             }
         } finally {
             first.close()
@@ -224,40 +237,6 @@ class GraphiteEngineTest {
             first.awaitClosed()
             second.awaitClosed()
         }
-    }
-
-    @Test
-    fun commandLimitFailsOnlyTheEncodingOperation() = runTest {
-        val runtime = GraphiteEngine(
-            maxCommandBufferBytes = GraphiteCommandBufferLimit(32),
-        )
-        try {
-            assertFailsWith<GraphiteEncodingException.CommandBufferTooLarge> {
-                runtime.recorders.single().record {
-                    drawRect(
-                        Rect(0f, 0f, 1f, 1f),
-                        GraphitePaint(Color.White),
-                    )
-                }
-            }
-            assertIs<GraphiteEngineState.Ready>(runtime.state.value)
-        } finally {
-            runtime.close()
-            runtime.awaitClosed()
-        }
-    }
-
-    @Test
-    fun runtimeDrainsArchivistDuringShutdown() = runTest {
-        val entries = mutableListOf<Map<String, *>>()
-        val runtime = GraphiteEngine(
-            archivist = Archivist { entry -> entries += entry },
-        )
-
-        runtime.close()
-        runtime.awaitClosed()
-
-        assertEquals(3, entries.size)
     }
 
     @Test

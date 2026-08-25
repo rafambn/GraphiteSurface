@@ -35,7 +35,6 @@ internal class ManualRendererViewModel : ViewModel() {
 
     internal fun setRotationSpeed(speed: Float) {
         rotationSpeed.update(speed)
-        renderer?.requestRender()
     }
 
     private suspend fun GraphiteEngine.renderFrame(
@@ -45,20 +44,18 @@ internal class ManualRendererViewModel : ViewModel() {
         try {
             val displayList = prepareGraphiteSampleScene(presentation.pixelSize)
             val recording = recorders.first().record {
-                draw(
-                    displayList,
-                    transform = GraphiteTransform.translation(
+                withTransform(
+                    GraphiteTransform.translation(
                         presentation.pixelSize.width / 2f,
                         presentation.pixelSize.height / 2f,
                     ) * GraphiteTransform.rotationDegrees(
                         loopingRotationDegrees(frameTimeNanos, rotationSpeed.read()),
                     ),
-                )
+                ) { draw(displayList) }
             }
-            val frame = createFrame(presentation, Color.White) {
+            present(presentation, Color.White) {
                 insert(recording)
             }
-            present(frame)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Throwable) {

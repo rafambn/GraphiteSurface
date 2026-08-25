@@ -1,18 +1,18 @@
 package com.rafambn.graphitesurface.sample
 
 import com.rafambn.graphitesurface.GraphiteDisplayList
-import com.rafambn.graphitesurface.GraphitePaint
-import com.rafambn.graphitesurface.GraphiteSize
+import com.rafambn.graphitesurface.graphiteDisplayList
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.unit.IntSize
 import kotlin.math.min
 
 internal fun prepareGraphiteSampleScene(
-    pixelSize: GraphiteSize,
+    pixelSize: IntSize,
 ): GraphiteDisplayList {
     val extent = min(pixelSize.width, pixelSize.height).toFloat()
     val halfWidth = extent * 0.35f
-    return GraphiteDisplayList.build {
+    return graphiteDisplayList {
         drawPath(
             Path().apply {
                 moveTo(0f, -halfWidth * 4f / 3f)
@@ -20,7 +20,7 @@ internal fun prepareGraphiteSampleScene(
                 lineTo(-halfWidth, halfWidth * 2f / 3f)
                 close()
             },
-            GraphitePaint(Color.Red),
+            Color.Red,
         )
     }
 }

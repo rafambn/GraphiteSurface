@@ -37,13 +37,4 @@ class GraphiteSurfaceApiTest {
         assertEquals(0, firstSurfaceRequests)
         assertEquals(1, secondSurfaceRequests)
     }
-
-    @Test
-    fun graphiteSizeIsLibraryOwnedAndRejectsNegativeDimensions() {
-        assertEquals(GraphiteSize(640, 480), GraphiteSize(640, 480))
-
-        kotlin.test.assertFailsWith<IllegalArgumentException> {
-            GraphiteSize(-1, 480)
-        }
-    }
 }

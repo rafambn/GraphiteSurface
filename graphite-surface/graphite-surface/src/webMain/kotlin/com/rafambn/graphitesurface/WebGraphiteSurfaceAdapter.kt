@@ -2,6 +2,7 @@
 
 package com.rafambn.graphitesurface
 
+import androidx.compose.ui.unit.IntSize
 import com.rafambn.graphitesurface.engine.WebGraphiteEngine
 import kotlinx.browser.document
 import kotlinx.browser.window
@@ -40,7 +41,7 @@ internal class WebGraphiteSurfaceAdapter(
             continuously = engineContinuously,
             onSurfaceCreated = renderer::onSurfaceCreated,
             onSurfaceChanged = { width, height ->
-                renderer.onSurfaceChanged(GraphiteSize(width, height))
+        renderer.onSurfaceChanged(IntSize(width, height))
             },
             onDrawFrame = { context ->
                 renderer.onDrawFrame(WebGraphiteDrawContext(context))
