@@ -1,7 +1,7 @@
 package com.rafambn.graphitesurface
 
 /** Immutable path data copied from a [GraphitePathBuilder]. */
-public class GraphitePath internal constructor(
+class GraphitePath internal constructor(
     internal val verbs: ByteArray,
     internal val points: FloatArray,
 ) {
@@ -20,8 +20,8 @@ public class GraphitePath internal constructor(
         require(points.all(Float::isFinite)) { "path coordinates must be finite" }
     }
 
-    public companion object {
-        public fun build(block: GraphitePathBuilder.() -> Unit): GraphitePath =
+    companion object {
+        fun build(block: GraphitePathBuilder.() -> Unit): GraphitePath =
             GraphitePathBuilder().apply(block).build()
     }
 }

@@ -1,7 +1,7 @@
 package com.rafambn.graphitesurface
 
 /** Immutable recorder result that may be inserted into more than one frame. */
-public class GraphiteRecording internal constructor(
+class GraphiteRecording internal constructor(
     internal val runtimeToken: Any,
     internal val program: GraphiteCommandProgram,
 )

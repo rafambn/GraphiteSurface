@@ -52,15 +52,15 @@ private const val GS_RENDER_MODE_CONTINUOUS = 0
 private const val GS_RENDER_MODE_ON_DEMAND = 1
 
 @Suppress("unused")
-public fun gsCreateView(renderMode: Int): UIView = GraphiteEngineView(renderMode)
+fun gsCreateView(renderMode: Int): UIView = GraphiteEngineView(renderMode)
 
 @Suppress("unused")
-public fun gsDisposeView(view: UIView) {
+fun gsDisposeView(view: UIView) {
     (view as? GraphiteEngineView)?.dispose()
 }
 
 @Suppress("unused")
-public fun gsStartRendering(
+fun gsStartRendering(
     view: UIView,
     callback: GSFrameCallback,
     failureCallback: GSFailureCallback,
@@ -69,50 +69,50 @@ public fun gsStartRendering(
 }
 
 @Suppress("unused")
-public fun gsStopRendering(view: UIView) {
+fun gsStopRendering(view: UIView) {
     (view as? GraphiteEngineView)?.stopRendering()
 }
 
 @Suppress("unused")
-public fun gsRequestRender(view: UIView) {
+fun gsRequestRender(view: UIView) {
     (view as? GraphiteEngineView)?.requestRender()
 }
 
 @Suppress("unused")
-public fun gsDrawableWidth(view: UIView): Int =
+fun gsDrawableWidth(view: UIView): Int =
     frameContextOf(view).width
 
 @Suppress("unused")
-public fun gsDrawableHeight(view: UIView): Int =
+fun gsDrawableHeight(view: UIView): Int =
     frameContextOf(view).height
 
 @Suppress("unused")
-public fun gsClear(view: UIView, color: UInt) {
+fun gsClear(view: UIView, color: UInt) {
     frameContextOf(view).canvas.clear(color.toInt())
 }
 
 @Suppress("unused")
-public fun gsSave(view: UIView) {
+fun gsSave(view: UIView) {
     frameContextOf(view).canvas.save()
 }
 
 @Suppress("unused")
-public fun gsRestore(view: UIView) {
+fun gsRestore(view: UIView) {
     frameContextOf(view).canvas.restore()
 }
 
 @Suppress("unused")
-public fun gsTranslate(view: UIView, x: Float, y: Float) {
+fun gsTranslate(view: UIView, x: Float, y: Float) {
     frameContextOf(view).canvas.translate(x, y)
 }
 
 @Suppress("unused")
-public fun gsRotate(view: UIView, degrees: Float) {
+fun gsRotate(view: UIView, degrees: Float) {
     frameContextOf(view).canvas.rotate(degrees)
 }
 
 @Suppress("unused", "LongParameterList")
-public fun gsConcat(
+fun gsConcat(
     view: UIView,
     m0: Float, m1: Float, m2: Float, m3: Float,
     m4: Float, m5: Float, m6: Float, m7: Float,
@@ -130,7 +130,7 @@ public fun gsConcat(
 }
 
 @Suppress("unused")
-public fun gsClipRect(
+fun gsClipRect(
     view: UIView,
     left: Float,
     top: Float,
@@ -142,32 +142,32 @@ public fun gsClipRect(
 }
 
 @Suppress("unused")
-public fun gsBeginPath(view: UIView) {
+fun gsBeginPath(view: UIView) {
     frameContextOf(view).path = PathBuilder()
 }
 
 @Suppress("unused")
-public fun gsMoveTo(view: UIView, x: Float, y: Float) {
+fun gsMoveTo(view: UIView, x: Float, y: Float) {
     frameContextOf(view).path.moveTo(x, y)
 }
 
 @Suppress("unused")
-public fun gsLineTo(view: UIView, x: Float, y: Float) {
+fun gsLineTo(view: UIView, x: Float, y: Float) {
     frameContextOf(view).path.lineTo(x, y)
 }
 
 @Suppress("unused")
-public fun gsClosePath(view: UIView) {
+fun gsClosePath(view: UIView) {
     frameContextOf(view).path.closePath()
 }
 
 @Suppress("unused")
-public fun gsDrawPath(view: UIView, color: UInt, antiAlias: Int) {
+fun gsDrawPath(view: UIView, color: UInt, antiAlias: Int) {
     gsDrawStyledPath(view, color, 0, 1f, antiAlias)
 }
 
 @Suppress("unused")
-public fun gsDrawStyledPath(
+fun gsDrawStyledPath(
     view: UIView,
     color: UInt,
     stroke: Int,
@@ -183,7 +183,7 @@ public fun gsDrawStyledPath(
 }
 
 @Suppress("unused", "LongParameterList")
-public fun gsDrawRect(
+fun gsDrawRect(
     view: UIView,
     left: Float,
     top: Float,
@@ -200,7 +200,7 @@ public fun gsDrawRect(
 }
 
 @Suppress("unused", "LongParameterList")
-public fun gsDrawRoundRect(
+fun gsDrawRoundRect(
     view: UIView,
     left: Float,
     top: Float,
@@ -226,7 +226,7 @@ public fun gsDrawRoundRect(
 }
 
 @Suppress("unused", "LongParameterList")
-public fun gsDrawOval(
+fun gsDrawOval(
     view: UIView,
     left: Float,
     top: Float,
@@ -243,7 +243,7 @@ public fun gsDrawOval(
 }
 
 @Suppress("unused", "LongParameterList")
-public fun gsDrawCircle(
+fun gsDrawCircle(
     view: UIView,
     x: Float,
     y: Float,
@@ -259,7 +259,7 @@ public fun gsDrawCircle(
 }
 
 @Suppress("unused", "LongParameterList")
-public fun gsDrawLine(
+fun gsDrawLine(
     view: UIView,
     x0: Float,
     y0: Float,

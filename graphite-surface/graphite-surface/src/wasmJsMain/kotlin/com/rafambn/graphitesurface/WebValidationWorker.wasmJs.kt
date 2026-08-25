@@ -9,7 +9,7 @@ import org.khronos.webgl.Int8Array
 import org.khronos.webgl.get
 
 internal actual class WebValidationWorker actual constructor(index: Int) {
-    private val worker: JsAny = createWorker(index)
+    private val worker = createWorker(index)
 
     internal actual fun process(
         commands: ByteArray,

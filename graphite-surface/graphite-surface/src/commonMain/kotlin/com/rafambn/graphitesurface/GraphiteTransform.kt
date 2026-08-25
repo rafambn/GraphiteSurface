@@ -4,15 +4,15 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /** An immutable column-major 4x4 transform. */
-public class GraphiteTransform private constructor(values: FloatArray) {
-    private val values: FloatArray = values.copyOf()
+class GraphiteTransform private constructor(values: FloatArray) {
+    private val values = values.copyOf()
 
     init {
         require(values.size == ELEMENT_COUNT) { "a transform requires 16 values" }
         require(values.all(Float::isFinite)) { "transform values must be finite" }
     }
 
-    public operator fun get(column: Int, row: Int): Float {
+    operator fun get(column: Int, row: Int): Float {
         require(column in 0..3 && row in 0..3) { "matrix indices must be in 0..3" }
         return values[column * 4 + row]
     }
@@ -20,7 +20,7 @@ public class GraphiteTransform private constructor(values: FloatArray) {
     internal fun copyValues(): FloatArray = values.copyOf()
 
     /** Returns this transform composed with [other]. */
-    public operator fun times(other: GraphiteTransform): GraphiteTransform {
+    operator fun times(other: GraphiteTransform): GraphiteTransform {
         val result = FloatArray(ELEMENT_COUNT)
         for (column in 0..3) {
             for (row in 0..3) {
@@ -39,10 +39,10 @@ public class GraphiteTransform private constructor(values: FloatArray) {
 
     override fun toString(): String = "GraphiteTransform(${values.joinToString()})"
 
-    public companion object {
+    companion object {
         private const val ELEMENT_COUNT: Int = 16
 
-        public val Identity: GraphiteTransform = GraphiteTransform(
+        val Identity: GraphiteTransform = GraphiteTransform(
             floatArrayOf(
                 1f, 0f, 0f, 0f,
                 0f, 1f, 0f, 0f,
@@ -51,9 +51,9 @@ public class GraphiteTransform private constructor(values: FloatArray) {
             ),
         )
 
-        public fun fromColumnMajor(values: FloatArray): GraphiteTransform = GraphiteTransform(values)
+        fun fromColumnMajor(values: FloatArray): GraphiteTransform = GraphiteTransform(values)
 
-        public fun translation(x: Float, y: Float): GraphiteTransform = GraphiteTransform(
+        fun translation(x: Float, y: Float): GraphiteTransform = GraphiteTransform(
             floatArrayOf(
                 1f, 0f, 0f, 0f,
                 0f, 1f, 0f, 0f,
@@ -62,7 +62,7 @@ public class GraphiteTransform private constructor(values: FloatArray) {
             ),
         )
 
-        public fun scale(x: Float, y: Float = x): GraphiteTransform = GraphiteTransform(
+        fun scale(x: Float, y: Float = x): GraphiteTransform = GraphiteTransform(
             floatArrayOf(
                 x, 0f, 0f, 0f,
                 0f, y, 0f, 0f,
@@ -71,7 +71,7 @@ public class GraphiteTransform private constructor(values: FloatArray) {
             ),
         )
 
-        public fun rotation(degrees: Float): GraphiteTransform {
+        fun rotation(degrees: Float): GraphiteTransform {
             require(degrees.isFinite()) { "degrees must be finite" }
             val radians = degrees * (kotlin.math.PI.toFloat() / 180f)
             val cosine = cos(radians)
@@ -86,6 +86,6 @@ public class GraphiteTransform private constructor(values: FloatArray) {
             )
         }
 
-        public fun rotationDegrees(degrees: Float): GraphiteTransform = rotation(degrees)
+        fun rotationDegrees(degrees: Float): GraphiteTransform = rotation(degrees)
     }
 }

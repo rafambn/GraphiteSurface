@@ -4,7 +4,7 @@ internal class GraphiteCommandProgram(
     internal val commands: ByteArray,
     internal val resources: List<GraphiteCommandProgram>,
 ) {
-    private val contentHashCode: Int = 31 * commands.contentHashCode() + resources.hashCode()
+    private val contentHashCode = 31 * commands.contentHashCode() + resources.hashCode()
 
     override fun equals(other: Any?): Boolean =
         this === other ||

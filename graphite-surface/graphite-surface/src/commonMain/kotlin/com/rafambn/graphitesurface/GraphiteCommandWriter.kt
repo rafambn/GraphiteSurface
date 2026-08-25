@@ -1,11 +1,11 @@
 package com.rafambn.graphitesurface
 
 internal class GraphiteCommandWriter(private val limitBytes: Int) {
-    private var bytes: ByteArray = ByteArray(minOf(INITIAL_CAPACITY, limitBytes))
-    private var size: Int = 0
-    private val resources: MutableList<GraphiteCommandProgram> = mutableListOf()
-    private val resourceIndices: MutableMap<GraphiteCommandProgram, Int> = mutableMapOf()
-    private var finished: Boolean = false
+    private var bytes = ByteArray(minOf(INITIAL_CAPACITY, limitBytes))
+    private var size = 0
+    private val resources = mutableListOf<GraphiteCommandProgram>()
+    private val resourceIndices = mutableMapOf<GraphiteCommandProgram, Int>()
+    private var finished = false
 
     init {
         writeInt(GraphiteCommandBuffer.Magic)

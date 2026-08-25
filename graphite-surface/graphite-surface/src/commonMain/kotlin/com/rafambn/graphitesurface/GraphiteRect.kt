@@ -1,11 +1,11 @@
 package com.rafambn.graphitesurface
 
 /** An axis-aligned rectangle in encoder-local coordinates. */
-public data class GraphiteRect(
-    public val left: Float,
-    public val top: Float,
-    public val right: Float,
-    public val bottom: Float,
+data class GraphiteRect(
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float,
 ) {
     init {
         require(left.isFinite() && top.isFinite() && right.isFinite() && bottom.isFinite()) {
@@ -15,6 +15,6 @@ public data class GraphiteRect(
         require(top <= bottom) { "top must not exceed bottom" }
     }
 
-    public val width: Float get() = right - left
-    public val height: Float get() = bottom - top
+    val width: Float get() = right - left
+    val height: Float get() = bottom - top
 }

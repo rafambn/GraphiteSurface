@@ -7,19 +7,19 @@ package com.rafambn.graphitesurface
  * [GraphiteDisplayList] for an immutable command group that is reused across recordings,
  * transforms, workers, or engines. A recording strongly references every display list it draws.
  */
-public interface GraphiteEncoder {
-    public fun withTransform(transform: GraphiteTransform, block: GraphiteEncoder.() -> Unit)
-    public fun withClip(rect: GraphiteRect, antiAlias: Boolean = false, block: GraphiteEncoder.() -> Unit)
+interface GraphiteEncoder {
+    fun withTransform(transform: GraphiteTransform, block: GraphiteEncoder.() -> Unit)
+    fun withClip(rect: GraphiteRect, antiAlias: Boolean = false, block: GraphiteEncoder.() -> Unit)
     /** References and draws [displayList]; its command bytes are not copied into this recording. */
-    public fun draw(
+    fun draw(
         displayList: GraphiteDisplayList,
         transform: GraphiteTransform = GraphiteTransform.Identity,
         clip: GraphiteRect? = null,
     )
-    public fun drawRect(rect: GraphiteRect, paint: GraphitePaint)
-    public fun drawRoundRect(rect: GraphiteRect, radiusX: Float, radiusY: Float, paint: GraphitePaint)
-    public fun drawOval(rect: GraphiteRect, paint: GraphitePaint)
-    public fun drawCircle(center: GraphitePoint, radius: Float, paint: GraphitePaint)
-    public fun drawLine(start: GraphitePoint, end: GraphitePoint, paint: GraphitePaint)
-    public fun drawPath(path: GraphitePath, paint: GraphitePaint)
+    fun drawRect(rect: GraphiteRect, paint: GraphitePaint)
+    fun drawRoundRect(rect: GraphiteRect, radiusX: Float, radiusY: Float, paint: GraphitePaint)
+    fun drawOval(rect: GraphiteRect, paint: GraphitePaint)
+    fun drawCircle(center: GraphitePoint, radius: Float, paint: GraphitePaint)
+    fun drawLine(start: GraphitePoint, end: GraphitePoint, paint: GraphitePaint)
+    fun drawPath(path: GraphitePath, paint: GraphitePaint)
 }

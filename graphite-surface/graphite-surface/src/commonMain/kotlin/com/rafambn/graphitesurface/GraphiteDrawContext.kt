@@ -8,47 +8,47 @@ package com.rafambn.graphitesurface
  */
 internal interface GraphiteDrawContext {
     /** Fills the whole surface with [color] in 0xAARRGGBB format. */
-    public fun clear(color: Long)
+    fun clear(color: Long)
 
     /** Pushes a copy of the current drawing state. */
-    public fun save()
+    fun save()
 
     /** Restores the most recently saved drawing state. */
-    public fun restore()
+    fun restore()
 
     /** Translates the drawing origin by [x] and [y] pixels. */
-    public fun translate(x: Float, y: Float)
+    fun translate(x: Float, y: Float)
 
     /** Rotates the drawing state by [degrees] around the current origin. */
-    public fun rotate(degrees: Float)
+    fun rotate(degrees: Float)
 
     /** Concatenates an arbitrary 4x4 transform. */
-    public fun concat(transform: GraphiteTransform) {
+    fun concat(transform: GraphiteTransform) {
         throw UnsupportedOperationException("4x4 transforms are not supported by this backend")
     }
 
     /** Intersects the current clip with [rect]. */
-    public fun clipRect(rect: GraphiteRect, antiAlias: Boolean) {
+    fun clipRect(rect: GraphiteRect, antiAlias: Boolean) {
         throw UnsupportedOperationException("rectangle clipping is not supported by this backend")
     }
 
     /** Starts a new path. */
-    public fun beginPath()
+    fun beginPath()
 
     /** Moves the current path to [x] and [y] without drawing. */
-    public fun moveTo(x: Float, y: Float)
+    fun moveTo(x: Float, y: Float)
 
     /** Draws a line from the current point to [x] and [y]. */
-    public fun lineTo(x: Float, y: Float)
+    fun lineTo(x: Float, y: Float)
 
     /** Closes the current path with a line back to its start. */
-    public fun closePath()
+    fun closePath()
 
     /** Fills and strokes the current path with [color]. */
-    public fun drawPath(color: Long, antiAlias: Boolean)
+    fun drawPath(color: Long, antiAlias: Boolean)
 
     /** Draws an immutable path with [paint]. */
-    public fun drawPath(path: GraphitePath, paint: GraphitePaint) {
+    fun drawPath(path: GraphitePath, paint: GraphitePaint) {
         beginPath()
         var pointIndex = 0
         path.verbs.forEach { code ->
@@ -68,7 +68,7 @@ internal interface GraphiteDrawContext {
     }
 
     /** Draws an axis-aligned rectangle. */
-    public fun drawRect(rect: GraphiteRect, paint: GraphitePaint) {
+    fun drawRect(rect: GraphiteRect, paint: GraphitePaint) {
         drawPath(
             GraphitePath.build {
                 moveTo(rect.left, rect.top)
@@ -82,7 +82,7 @@ internal interface GraphiteDrawContext {
     }
 
     /** Draws a rounded rectangle. */
-    public fun drawRoundRect(
+    fun drawRoundRect(
         rect: GraphiteRect,
         radiusX: Float,
         radiusY: Float,
@@ -92,17 +92,17 @@ internal interface GraphiteDrawContext {
     }
 
     /** Draws an oval bounded by [rect]. */
-    public fun drawOval(rect: GraphiteRect, paint: GraphitePaint) {
+    fun drawOval(rect: GraphiteRect, paint: GraphitePaint) {
         throw UnsupportedOperationException("ovals are not supported by this backend")
     }
 
     /** Draws a circle. */
-    public fun drawCircle(center: GraphitePoint, radius: Float, paint: GraphitePaint) {
+    fun drawCircle(center: GraphitePoint, radius: Float, paint: GraphitePaint) {
         throw UnsupportedOperationException("circles are not supported by this backend")
     }
 
     /** Draws a line segment. */
-    public fun drawLine(start: GraphitePoint, end: GraphitePoint, paint: GraphitePaint) {
+    fun drawLine(start: GraphitePoint, end: GraphitePoint, paint: GraphitePaint) {
         drawPath(
             GraphitePath.build {
                 moveTo(start.x, start.y)

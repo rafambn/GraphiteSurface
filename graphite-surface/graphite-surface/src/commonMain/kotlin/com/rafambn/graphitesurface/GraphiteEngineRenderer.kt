@@ -7,8 +7,8 @@ import kotlin.concurrent.atomics.AtomicReference
 
 internal class GraphiteEngineRenderer(private val runtime: GraphiteEngine) :
     GraphitePresentationRenderer {
-    private val attachmentId: AtomicLong = AtomicLong(0)
-    private val density: AtomicReference<Float> = AtomicReference(1f)
+    private val attachmentId = AtomicLong(0)
+    private val density = AtomicReference(1f)
 
     internal fun bind(id: Long, density: Float) {
         this.density.store(density)

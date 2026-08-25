@@ -6,15 +6,15 @@ import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.AtomicLong
 
 internal class GraphiteRecorderMetrics(private val capacity: Int) {
-    private val depth: AtomicInt = AtomicInt(0)
-    private val submitted: AtomicLong = AtomicLong(0)
-    private val completed: AtomicLong = AtomicLong(0)
-    private val cancelled: AtomicLong = AtomicLong(0)
-    private val failed: AtomicLong = AtomicLong(0)
-    private val totalQueueWaitNanos: AtomicLong = AtomicLong(0)
-    private val maximumQueueWaitNanos: AtomicLong = AtomicLong(0)
-    private val totalRecordingNanos: AtomicLong = AtomicLong(0)
-    private val maximumRecordingNanos: AtomicLong = AtomicLong(0)
+    private val depth = AtomicInt(0)
+    private val submitted = AtomicLong(0)
+    private val completed = AtomicLong(0)
+    private val cancelled = AtomicLong(0)
+    private val failed = AtomicLong(0)
+    private val totalQueueWaitNanos = AtomicLong(0)
+    private val maximumQueueWaitNanos = AtomicLong(0)
+    private val totalRecordingNanos = AtomicLong(0)
+    private val maximumRecordingNanos = AtomicLong(0)
 
     internal fun admitted(queueWaitNanos: Long) {
         depth.addAndFetch(1)

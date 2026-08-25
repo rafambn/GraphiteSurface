@@ -1,11 +1,11 @@
 package com.rafambn.graphitesurface
 
 /** Immutable paint used by geometry commands. */
-public class GraphitePaint(
-    public val color: GraphiteColor,
-    public val style: Style = Style.Fill,
-    public val strokeWidth: Float = 1f,
-    public val antiAlias: Boolean = true,
+class GraphitePaint(
+    val color: GraphiteColor,
+    val style: Style = Style.Fill,
+    val strokeWidth: Float = 1f,
+    val antiAlias: Boolean = true,
 ) {
     init {
         require(strokeWidth.isFinite() && strokeWidth >= 0f) {
@@ -13,7 +13,7 @@ public class GraphitePaint(
         }
     }
 
-    public enum class Style {
+    enum class Style {
         Fill,
         Stroke,
     }

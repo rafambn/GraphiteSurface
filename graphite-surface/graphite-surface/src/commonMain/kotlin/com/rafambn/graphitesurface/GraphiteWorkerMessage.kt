@@ -28,8 +28,8 @@ internal object GraphiteWorkerMessage {
     }
 
     private class Writer {
-        private var bytes: ByteArray = ByteArray(256)
-        private var size: Int = 0
+        private var bytes = ByteArray(256)
+        private var size = 0
 
         fun writeInt(value: Int) {
             ensureCapacity(Int.SIZE_BYTES)

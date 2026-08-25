@@ -24,7 +24,7 @@ import org.jetbrains.skiko.graphite.GraphiteMetalHost
 import org.jetbrains.skiko.graphite.GraphiteVulkanHost
 
 /** A JVM Graphite surface backed by Metal on macOS or Vulkan on Linux. */
-public class JvmGraphiteSurface(
+class JvmGraphiteSurface(
     private val renderer: JvmGraphiteRenderer,
 ) : AutoCloseable {
     private val backend: Backend = when {
@@ -54,11 +54,11 @@ public class JvmGraphiteSurface(
     }
 
     /** AWT component that owns the native GPU presentation surface. */
-    public val component: Component
+    val component: Component
         get() = backend.component
 
     /** Records and presents one Graphite frame when the AWT component has a size. */
-    public fun render() {
+    fun render() {
         if (closed.get() || failed.get()) return
         renderRequested.set(true)
         scheduleRender()
@@ -97,8 +97,8 @@ public class JvmGraphiteSurface(
     }
 
     /** Whether this JVM implementation has a native Graphite presentation backend. */
-    public companion object {
-        public val isSupported: Boolean = isMacOs || isLinux
+    companion object {
+        val isSupported: Boolean = isMacOs || isLinux
 
         private val isMacOs: Boolean
             get() = System.getProperty("os.name").equals("Mac OS X", ignoreCase = true)
@@ -414,7 +414,7 @@ public class JvmGraphiteSurface(
             antiAlias: Boolean,
         ) {
             makePaint(color, stroke, strokeWidth, antiAlias).use { paint ->
-            canvas.drawRect(left, top, right, bottom, paint)
+                canvas.drawRect(left, top, right, bottom, paint)
             }
         }
 

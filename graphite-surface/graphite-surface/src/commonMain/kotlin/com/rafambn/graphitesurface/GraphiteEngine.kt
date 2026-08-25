@@ -21,19 +21,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /** User-owned asynchronous Graphite engine and worker group. */
-public class GraphiteEngine(
+class GraphiteEngine(
     /** Number of stable recorder queues and their dedicated workers. */
-    public val recorderCount: Int = 1,
+    val recorderCount: Int = 1,
     /** Maximum number of calls waiting behind the active call of each recorder. */
-    public val recorderQueueCapacity: Int = 1,
+    val recorderQueueCapacity: Int = 1,
     /** Submission upper bound. Current backends conservatively keep at most one frame in flight. */
-    public val maxFramesInFlight: Int = 2,
+    val maxFramesInFlight: Int = 2,
     /** Reserved cache policy. Current backends validate but do not enforce these limits. */
-    public val gpuCache: GraphiteGpuCacheConfig = GraphiteGpuCacheConfig.Default,
+    val gpuCache: GraphiteGpuCacheConfig = GraphiteGpuCacheConfig.Default,
     /** Maximum encoded bytes in one recording command program. */
-    public val maxCommandBufferBytes: GraphiteCommandBufferLimit = GraphiteCommandBufferLimit.Default,
+    val maxCommandBufferBytes: GraphiteCommandBufferLimit = GraphiteCommandBufferLimit.Default,
     /** Optional Scribe destination owned and retired by this runtime. */
-    public val archivist: Archivist? = null,
+    val archivist: Archivist? = null,
 ) : AutoCloseable {
     init {
         require(recorderCount in 1..64) { "recorderCount must be in 1..64" }
@@ -41,21 +41,21 @@ public class GraphiteEngine(
         require(maxFramesInFlight in 1..8) { "maxFramesInFlight must be in 1..8" }
     }
 
-    internal val token: Any = Any()
+    internal val token = Any()
 
-    private val closing: AtomicBoolean = AtomicBoolean(false)
-    private val attachmentIds: AtomicLong = AtomicLong(0)
-    private val generations: AtomicLong = AtomicLong(0)
+    private val closing = AtomicBoolean(false)
+    private val attachmentIds = AtomicLong(0)
+    private val generations = AtomicLong(0)
     private val attachment: AtomicReference<GraphitePresentationAttachment?> = AtomicReference(null)
     private val pendingFrame: AtomicReference<GraphiteFrame?> = AtomicReference(null)
-    private val acceptedFrames: AtomicLong = AtomicLong(0)
-    private val replacedFrames: AtomicLong = AtomicLong(0)
-    private val rejectedFrames: AtomicLong = AtomicLong(0)
-    private val archiveFailures: AtomicLong = AtomicLong(0)
-    private val resources: GraphiteResourceRegistry = GraphiteResourceRegistry()
-    private val closed: CompletableDeferred<Unit> = CompletableDeferred()
-    internal val shutdownRequested: CompletableDeferred<Unit> = CompletableDeferred()
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val acceptedFrames = AtomicLong(0)
+    private val replacedFrames = AtomicLong(0)
+    private val rejectedFrames = AtomicLong(0)
+    private val archiveFailures = AtomicLong(0)
+    private val resources = GraphiteResourceRegistry()
+    private val closed = CompletableDeferred<Unit>()
+    internal val shutdownRequested = CompletableDeferred<Unit>()
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val mutableState: MutableStateFlow<GraphiteEngineState> =
         MutableStateFlow(GraphiteEngineState.Ready)
     private val mutablePresentation: MutableStateFlow<GraphitePresentationState> =
@@ -65,17 +65,17 @@ public class GraphiteEngine(
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
 
-    public val state: StateFlow<GraphiteEngineState> = mutableState.asStateFlow()
-    public val presentation: StateFlow<GraphitePresentationState> = mutablePresentation.asStateFlow()
-    public val events: SharedFlow<GraphiteEvent> = mutableEvents.asSharedFlow()
-    public val recorders: List<GraphiteRecorder> = try {
+    val state: StateFlow<GraphiteEngineState> = mutableState.asStateFlow()
+    val presentation: StateFlow<GraphitePresentationState> = mutablePresentation.asStateFlow()
+    val events: SharedFlow<GraphiteEvent> = mutableEvents.asSharedFlow()
+    val recorders: List<GraphiteRecorder> = try {
         createRecorders()
     } catch (error: Throwable) {
         resources.close()
         scope.cancel()
         throw GraphiteInitializationException(GraphiteFailure.Stage.Initialization, error)
     }
-    private val logger: GraphiteEngineLogger = try {
+    private val logger = try {
         GraphiteEngineLogger(archivist) { error ->
             archiveFailures.addAndFetch(1)
             mutableEvents.tryEmit(GraphiteEvent.ArchiveFailure(error))
@@ -99,7 +99,7 @@ public class GraphiteEngine(
         )
     }
 
-    public fun createFrame(
+    fun createFrame(
         presentation: GraphitePresentationInfo,
         clearColor: GraphiteColor = GraphiteColor.Transparent,
         block: GraphiteFrameBuilder.() -> Unit = {},
@@ -112,7 +112,7 @@ public class GraphiteEngine(
         return GraphiteFrame(presentation, clearColor, insertions)
     }
 
-    public fun present(frame: GraphiteFrame): GraphitePresentResult {
+    fun present(frame: GraphiteFrame): GraphitePresentResult {
         if (mutableState.value != GraphiteEngineState.Ready) {
             rejectedFrames.addAndFetch(1)
             return GraphitePresentResult.RuntimeUnavailable
@@ -143,11 +143,11 @@ public class GraphiteEngine(
     }
 
     /** Waits until every admitted recorder job has finished. It does not wait for GPU completion. */
-    public suspend fun awaitIdle() {
+    suspend fun awaitIdle() {
         recorders.forEach { it.awaitIdle() }
     }
 
-    public fun metricsSnapshot(): GraphiteMetricsSnapshot = GraphiteMetricsSnapshot(
+    fun metricsSnapshot(): GraphiteMetricsSnapshot = GraphiteMetricsSnapshot(
         capturedAtNanos = platformMonotonicNanos(),
         recorders = recorders.map(GraphiteRecorder::metricsSnapshot),
         acceptedFrames = acceptedFrames.load(),
@@ -196,7 +196,7 @@ public class GraphiteEngine(
         }
     }
 
-    public suspend fun awaitClosed() {
+    suspend fun awaitClosed() {
         closed.await()
     }
 

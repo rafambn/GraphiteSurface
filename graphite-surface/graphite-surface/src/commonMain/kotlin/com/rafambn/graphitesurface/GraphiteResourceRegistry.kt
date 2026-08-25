@@ -8,21 +8,21 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 internal class GraphiteResourceRegistry : AutoCloseable {
-    private val mutex: Mutex = Mutex()
-    private val closed: AtomicBoolean = AtomicBoolean(false)
-    private val nextId: AtomicLong = AtomicLong(0)
-    private val entries: MutableMap<GraphiteCommandProgram, Entry> = mutableMapOf()
-    private val registeredResources: AtomicLong = AtomicLong(0)
-    private val registeredResourceBytes: AtomicLong = AtomicLong(0)
-    private val resourcePublications: AtomicLong = AtomicLong(0)
-    private val publishedResourceBytes: AtomicLong = AtomicLong(0)
-    private val resourceCacheHits: AtomicLong = AtomicLong(0)
-    private val releasedResources: AtomicLong = AtomicLong(0)
-    private val workerMessageBytes: AtomicLong = AtomicLong(0)
-    private val totalPreparationNanos: AtomicLong = AtomicLong(0)
-    private val maximumPreparationNanos: AtomicLong = AtomicLong(0)
-    private val totalValidationNanos: AtomicLong = AtomicLong(0)
-    private val maximumValidationNanos: AtomicLong = AtomicLong(0)
+    private val mutex = Mutex()
+    private val closed = AtomicBoolean(false)
+    private val nextId = AtomicLong(0)
+    private val entries = mutableMapOf<GraphiteCommandProgram, Entry>()
+    private val registeredResources = AtomicLong(0)
+    private val registeredResourceBytes = AtomicLong(0)
+    private val resourcePublications = AtomicLong(0)
+    private val publishedResourceBytes = AtomicLong(0)
+    private val resourceCacheHits = AtomicLong(0)
+    private val releasedResources = AtomicLong(0)
+    private val workerMessageBytes = AtomicLong(0)
+    private val totalPreparationNanos = AtomicLong(0)
+    private val maximumPreparationNanos = AtomicLong(0)
+    private val totalValidationNanos = AtomicLong(0)
+    private val maximumValidationNanos = AtomicLong(0)
 
     internal suspend fun prepare(
         program: GraphiteCommandProgram,

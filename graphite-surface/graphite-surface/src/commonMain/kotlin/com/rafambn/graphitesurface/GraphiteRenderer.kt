@@ -13,21 +13,21 @@ import kotlinx.coroutines.sync.withLock
  * The renderer does not own or close the runtime. Its callback uses that runtime as receiver, is
  * serialized, and runs only while the runtime has an attached presentation target.
  */
-public class GraphiteRenderer(
-    public val runtime: GraphiteEngine,
+class GraphiteRenderer(
+    val runtime: GraphiteEngine,
     renderMode: GraphiteRenderMode = GraphiteRenderMode.Continuous,
     private val renderFrame: suspend GraphiteEngine.(
         frameTimeNanos: Long,
         presentation: GraphitePresentationInfo,
     ) -> Unit,
 ) {
-    private val mutableRenderMode: MutableStateFlow<GraphiteRenderMode> =
+    private val mutableRenderMode =
         MutableStateFlow(renderMode)
-    private val renderRequests: Channel<Unit> = Channel(Channel.CONFLATED)
-    private val renderMutex: Mutex = Mutex()
+    private val renderRequests = Channel<Unit>(Channel.CONFLATED)
+    private val renderMutex = Mutex()
 
     /** The current scheduling mode. Changing it updates an attached [GraphiteSurface]. */
-    public var renderMode: GraphiteRenderMode
+    var renderMode: GraphiteRenderMode
         get() = mutableRenderMode.value
         set(value) {
             mutableRenderMode.value = value
@@ -42,7 +42,7 @@ public class GraphiteRenderer(
      * being produced retain at most one additional frame. This method may be called from any
      * thread.
      */
-    public fun requestRender() {
+    fun requestRender() {
         if (renderMode == GraphiteRenderMode.OnDemand) {
             renderRequests.trySend(Unit)
         }
@@ -54,7 +54,7 @@ public class GraphiteRenderer(
      * Returns `false` without invoking the callback when no presentation target is attached or the
      * runtime is unavailable.
      */
-    public suspend fun render(): Boolean = render(platformMonotonicNanos())
+    suspend fun render(): Boolean = render(platformMonotonicNanos())
 
     /**
      * Produces one frame with [frameTimeNanos] in [GraphiteRenderMode.Manual].
@@ -62,7 +62,7 @@ public class GraphiteRenderer(
      * Returns `false` without invoking the callback when no presentation target is attached or the
      * runtime is unavailable. Concurrent calls are executed sequentially.
      */
-    public suspend fun render(frameTimeNanos: Long): Boolean {
+    suspend fun render(frameTimeNanos: Long): Boolean {
         check(renderMode == GraphiteRenderMode.Manual) {
             "render() requires GraphiteRenderMode.Manual"
         }

@@ -26,7 +26,7 @@ internal expect fun PlatformGraphiteSurface(
 /** Attaches a user-owned [runtime] to one Compose presentation target. */
 @Composable
 @ExperimentalGraphiteSurfaceApi
-public fun GraphiteSurface(
+fun GraphiteSurface(
     runtime: GraphiteEngine,
     modifier: Modifier = Modifier,
 ) {
@@ -36,7 +36,7 @@ public fun GraphiteSurface(
 /** Attaches [renderer] to one Compose presentation target and drives its configured render mode. */
 @Composable
 @ExperimentalGraphiteSurfaceApi
-public fun GraphiteSurface(
+fun GraphiteSurface(
     renderer: GraphiteRenderer,
     modifier: Modifier = Modifier,
 ) {

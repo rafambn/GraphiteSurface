@@ -1,10 +1,10 @@
 package com.rafambn.graphitesurface
 
 /** Immutable metadata for the currently attached presentation target. */
-public class GraphitePresentationInfo internal constructor(
-    public val pixelSize: GraphiteSize,
-    public val density: Float,
-    public val generation: Long,
+class GraphitePresentationInfo internal constructor(
+    val pixelSize: GraphiteSize,
+    val density: Float,
+    val generation: Long,
     internal val runtimeToken: Any,
 ) {
     init {

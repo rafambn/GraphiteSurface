@@ -7,7 +7,7 @@ import kotlin.js.js
 import kotlin.js.unsafeCast
 
 internal actual class WebValidationWorker actual constructor(index: Int) {
-    private val worker: JsAny = createWorker(index)
+    private val worker = createWorker(index)
 
     internal actual fun process(
         commands: ByteArray,

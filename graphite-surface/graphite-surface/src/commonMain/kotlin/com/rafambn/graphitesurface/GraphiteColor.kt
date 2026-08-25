@@ -4,14 +4,14 @@ import kotlin.jvm.JvmInline
 
 /** An unpremultiplied sRGB color packed as `0xRRGGBBAA`. */
 @JvmInline
-public value class GraphiteColor(public val rgba: UInt) {
-    public companion object {
-        public val Transparent: GraphiteColor = GraphiteColor(0x00000000u)
-        public val Black: GraphiteColor = GraphiteColor(0x000000FFu)
-        public val White: GraphiteColor = GraphiteColor(0xFFFFFFFFu)
-        public val Red: GraphiteColor = GraphiteColor(0xFF0000FFu)
+value class GraphiteColor(val rgba: UInt) {
+    companion object {
+        val Transparent: GraphiteColor = GraphiteColor(0x00000000u)
+        val Black: GraphiteColor = GraphiteColor(0x000000FFu)
+        val White: GraphiteColor = GraphiteColor(0xFFFFFFFFu)
+        val Red: GraphiteColor = GraphiteColor(0xFF0000FFu)
 
-        public fun rgba(red: Int, green: Int, blue: Int, alpha: Int = 255): GraphiteColor {
+        fun rgba(red: Int, green: Int, blue: Int, alpha: Int = 255): GraphiteColor {
             require(red in 0..255) { "red must be in 0..255" }
             require(green in 0..255) { "green must be in 0..255" }
             require(blue in 0..255) { "blue must be in 0..255" }

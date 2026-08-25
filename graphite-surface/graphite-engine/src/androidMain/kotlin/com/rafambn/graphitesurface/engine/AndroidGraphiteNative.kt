@@ -4,63 +4,63 @@ import android.view.Surface
 import org.jetbrains.skia.gpu.graphite.AndroidGraphiteNative as SkikoAndroidGraphiteNative
 
 /** Private engine boundary between GraphiteSurface and the Skiko Graphite Android host. */
-public object AndroidGraphiteNative {
+object AndroidGraphiteNative {
     /** Creates an Android Graphite renderer and returns its native handle. */
-    public fun create(useHardwareBuffer: Boolean): Long =
+    fun create(useHardwareBuffer: Boolean): Long =
         SkikoAndroidGraphiteNative.create(useHardwareBuffer)
 
     /** Attaches or detaches the Android presentation surface. */
-    public fun setSurface(handle: Long, surface: Surface?, width: Int, height: Int): Boolean =
+    fun setSurface(handle: Long, surface: Surface?, width: Int, height: Int): Boolean =
         SkikoAndroidGraphiteNative.setSurface(handle, surface, width, height)
 
     /** Acquires the next frame for drawing. */
-    public fun beginFrame(handle: Long): Boolean = SkikoAndroidGraphiteNative.beginFrame(handle)
+    fun beginFrame(handle: Long): Boolean = SkikoAndroidGraphiteNative.beginFrame(handle)
 
     /** Updates the animation time used by the current frame. */
-    public fun setFrameTimeNanos(handle: Long, frameTimeNanos: Long) {
+    fun setFrameTimeNanos(handle: Long, frameTimeNanos: Long) {
         SkikoAndroidGraphiteNative.setFrameTimeNanos(handle, frameTimeNanos)
     }
 
     /** Submits and presents the current frame. */
-    public fun endFrame(handle: Long): Boolean = SkikoAndroidGraphiteNative.endFrame(handle)
+    fun endFrame(handle: Long): Boolean = SkikoAndroidGraphiteNative.endFrame(handle)
 
     /** Releases the native renderer. */
-    public fun dispose(handle: Long) {
+    fun dispose(handle: Long) {
         SkikoAndroidGraphiteNative.dispose(handle)
     }
 
     /** Clears the current canvas. */
-    public fun clear(handle: Long, color: Int) {
+    fun clear(handle: Long, color: Int) {
         SkikoAndroidGraphiteNative.clear(handle, color)
     }
 
     /** Saves the current canvas state. */
-    public fun save(handle: Long) {
+    fun save(handle: Long) {
         SkikoAndroidGraphiteNative.save(handle)
     }
 
     /** Restores the previous canvas state. */
-    public fun restore(handle: Long) {
+    fun restore(handle: Long) {
         SkikoAndroidGraphiteNative.restore(handle)
     }
 
     /** Translates the current canvas transform. */
-    public fun translate(handle: Long, x: Float, y: Float) {
+    fun translate(handle: Long, x: Float, y: Float) {
         SkikoAndroidGraphiteNative.translate(handle, x, y)
     }
 
     /** Rotates the current canvas transform. */
-    public fun rotate(handle: Long, degrees: Float) {
+    fun rotate(handle: Long, degrees: Float) {
         SkikoAndroidGraphiteNative.rotate(handle, degrees)
     }
 
     /** Concatenates a column-major transform matrix. */
-    public fun concat(handle: Long, columnMajor: FloatArray) {
+    fun concat(handle: Long, columnMajor: FloatArray) {
         SkikoAndroidGraphiteNative.concat(handle, columnMajor)
     }
 
     /** Clips the current canvas to a rectangle. */
-    public fun clipRect(
+    fun clipRect(
         handle: Long,
         left: Float,
         top: Float,
@@ -72,32 +72,32 @@ public object AndroidGraphiteNative {
     }
 
     /** Starts a mutable path. */
-    public fun beginPath(handle: Long) {
+    fun beginPath(handle: Long) {
         SkikoAndroidGraphiteNative.beginPath(handle)
     }
 
     /** Moves the mutable path cursor. */
-    public fun moveTo(handle: Long, x: Float, y: Float) {
+    fun moveTo(handle: Long, x: Float, y: Float) {
         SkikoAndroidGraphiteNative.moveTo(handle, x, y)
     }
 
     /** Adds a line to the mutable path. */
-    public fun lineTo(handle: Long, x: Float, y: Float) {
+    fun lineTo(handle: Long, x: Float, y: Float) {
         SkikoAndroidGraphiteNative.lineTo(handle, x, y)
     }
 
     /** Closes the mutable path. */
-    public fun closePath(handle: Long) {
+    fun closePath(handle: Long) {
         SkikoAndroidGraphiteNative.closePath(handle)
     }
 
     /** Draws the current mutable path. */
-    public fun drawPath(handle: Long, color: Int, antiAlias: Boolean) {
+    fun drawPath(handle: Long, color: Int, antiAlias: Boolean) {
         SkikoAndroidGraphiteNative.drawPath(handle, color, antiAlias)
     }
 
     /** Draws an immutable encoded path. */
-    public fun drawImmutablePath(
+    fun drawImmutablePath(
         handle: Long,
         verbs: ByteArray,
         points: FloatArray,
@@ -118,7 +118,7 @@ public object AndroidGraphiteNative {
     }
 
     /** Draws a rectangle. */
-    public fun drawRect(
+    fun drawRect(
         handle: Long,
         left: Float,
         top: Float,
@@ -143,7 +143,7 @@ public object AndroidGraphiteNative {
     }
 
     /** Draws a rounded rectangle. */
-    public fun drawRoundRect(
+    fun drawRoundRect(
         handle: Long,
         left: Float,
         top: Float,
@@ -172,7 +172,7 @@ public object AndroidGraphiteNative {
     }
 
     /** Draws an oval. */
-    public fun drawOval(
+    fun drawOval(
         handle: Long,
         left: Float,
         top: Float,
@@ -197,7 +197,7 @@ public object AndroidGraphiteNative {
     }
 
     /** Draws a circle. */
-    public fun drawCircle(
+    fun drawCircle(
         handle: Long,
         x: Float,
         y: Float,
@@ -220,7 +220,7 @@ public object AndroidGraphiteNative {
     }
 
     /** Draws a line segment. */
-    public fun drawLine(
+    fun drawLine(
         handle: Long,
         x0: Float,
         y0: Float,

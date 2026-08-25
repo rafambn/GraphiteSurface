@@ -8,7 +8,7 @@ import kotlin.js.JsAny
 import kotlin.math.roundToInt
 
 /** Owns a browser render Worker whose Skia Graphite context owns an OffscreenCanvas. */
-public class WebGraphiteEngine(
+class WebGraphiteEngine(
     private val canvas: HTMLCanvasElement,
     private val continuously: Boolean,
     private val onSurfaceCreated: () -> Unit,
@@ -17,15 +17,15 @@ public class WebGraphiteEngine(
     private val onSurfaceError: (Throwable) -> Unit,
 ) {
     private var worker: JsAny? = null
-    private var lastWidth: Int = 0
-    private var lastHeight: Int = 0
-    private var frameScheduled: Boolean = false
-    private var pendingRender: Boolean = true
-    private var started: Boolean = false
-    private var ready: Boolean = false
-    private var disposed: Boolean = false
+    private var lastWidth = 0
+    private var lastHeight = 0
+    private var frameScheduled = false
+    private var pendingRender = true
+    private var started = false
+    private var ready = false
+    private var disposed = false
 
-    public fun start() {
+    fun start() {
         if (started || disposed) return
         started = true
         if (!supportsGraphiteRenderWorker(canvas)) {
@@ -46,17 +46,17 @@ public class WebGraphiteEngine(
         )
     }
 
-    public fun resizeToDisplaySize() {
+    fun resizeToDisplaySize() {
         resizeToDisplaySize(scheduleFrame = true)
     }
 
-    public fun requestRender() {
+    fun requestRender() {
         if (disposed) return
         pendingRender = true
         scheduleFrame()
     }
 
-    public fun dispose() {
+    fun dispose() {
         if (disposed) return
         disposed = true
         frameScheduled = false

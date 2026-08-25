@@ -1,7 +1,7 @@
 package com.rafambn.graphitesurface
 
 internal class GraphiteWorkerResourceCache {
-    private val resourceCounts: MutableMap<Long, Int> = mutableMapOf()
+    private val resourceCounts = mutableMapOf<Long, Int>()
 
     internal fun process(message: ByteArray): ByteArray {
         val reader = GraphiteCommandReader(message)

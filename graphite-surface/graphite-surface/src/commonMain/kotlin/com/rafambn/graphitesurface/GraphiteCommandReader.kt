@@ -5,7 +5,7 @@ internal class GraphiteCommandReader(
     start: Int = 0,
     private val end: Int = bytes.size,
 ) {
-    internal var position: Int = start
+    internal var position = start
         private set
 
     internal val remaining: Int get() = end - position

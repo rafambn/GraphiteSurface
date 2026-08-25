@@ -10,19 +10,19 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /** Stable handle for one asynchronous recording queue. */
-public class GraphiteRecorder internal constructor(
-    public val index: Int,
+class GraphiteRecorder internal constructor(
+    val index: Int,
     private val runtime: GraphiteEngine,
     private val worker: PlatformRecorderWorker,
     queueCapacity: Int,
 ) {
-    private val admission: Channel<Unit> = Channel<Unit>(queueCapacity + 1).also { channel ->
+    private val admission = Channel<Unit>(queueCapacity + 1).also { channel ->
         repeat(queueCapacity + 1) { check(channel.trySend(Unit).isSuccess) }
     }
-    private val execution: Mutex = Mutex()
-    private val metrics: GraphiteRecorderMetrics = GraphiteRecorderMetrics(queueCapacity)
+    private val execution = Mutex()
+    private val metrics = GraphiteRecorderMetrics(queueCapacity)
 
-    public suspend fun record(block: GraphiteEncoder.() -> Unit): GraphiteRecording {
+    suspend fun record(block: GraphiteEncoder.() -> Unit): GraphiteRecording {
         runtime.requireReady()
 
         val queuedAt = platformMonotonicNanos()

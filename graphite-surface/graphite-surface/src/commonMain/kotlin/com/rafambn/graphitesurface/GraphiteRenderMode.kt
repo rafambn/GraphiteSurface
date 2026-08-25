@@ -1,7 +1,7 @@
 package com.rafambn.graphitesurface
 
 /** Controls when a [GraphiteRenderer] produces frames. */
-public enum class GraphiteRenderMode {
+enum class GraphiteRenderMode {
     /** Produces one frame for every available display frame. */
     Continuous,
 

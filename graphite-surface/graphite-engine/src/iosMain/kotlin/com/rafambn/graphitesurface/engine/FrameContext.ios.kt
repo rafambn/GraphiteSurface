@@ -8,5 +8,5 @@ internal class FrameContext(
     val width: Int,
     val height: Int,
 ) {
-    var path: PathBuilder = PathBuilder()
+    var path = PathBuilder()
 }

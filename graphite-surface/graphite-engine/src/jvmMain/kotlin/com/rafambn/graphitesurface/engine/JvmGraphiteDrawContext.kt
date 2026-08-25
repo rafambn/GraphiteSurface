@@ -1,32 +1,32 @@
 package com.rafambn.graphitesurface.engine
 
 /** Drawing operations exposed by the JVM Graphite frame. */
-public interface JvmGraphiteDrawContext {
-    public fun clear(color: Long)
+interface JvmGraphiteDrawContext {
+    fun clear(color: Long)
 
-    public fun save()
+    fun save()
 
-    public fun restore()
+    fun restore()
 
-    public fun translate(x: Float, y: Float)
+    fun translate(x: Float, y: Float)
 
-    public fun rotate(degrees: Float)
+    fun rotate(degrees: Float)
 
-    public fun concat(columnMajor: FloatArray)
+    fun concat(columnMajor: FloatArray)
 
-    public fun clipRect(left: Float, top: Float, right: Float, bottom: Float, antiAlias: Boolean)
+    fun clipRect(left: Float, top: Float, right: Float, bottom: Float, antiAlias: Boolean)
 
-    public fun beginPath()
+    fun beginPath()
 
-    public fun moveTo(x: Float, y: Float)
+    fun moveTo(x: Float, y: Float)
 
-    public fun lineTo(x: Float, y: Float)
+    fun lineTo(x: Float, y: Float)
 
-    public fun closePath()
+    fun closePath()
 
-    public fun drawPath(color: Long, antiAlias: Boolean)
+    fun drawPath(color: Long, antiAlias: Boolean)
 
-    public fun drawPath(
+    fun drawPath(
         verbs: ByteArray,
         points: FloatArray,
         color: Long,
@@ -35,7 +35,7 @@ public interface JvmGraphiteDrawContext {
         antiAlias: Boolean,
     )
 
-    public fun drawRect(
+    fun drawRect(
         left: Float,
         top: Float,
         right: Float,
@@ -46,7 +46,7 @@ public interface JvmGraphiteDrawContext {
         antiAlias: Boolean,
     )
 
-    public fun drawRoundRect(
+    fun drawRoundRect(
         left: Float,
         top: Float,
         right: Float,
@@ -59,7 +59,7 @@ public interface JvmGraphiteDrawContext {
         antiAlias: Boolean,
     )
 
-    public fun drawOval(
+    fun drawOval(
         left: Float,
         top: Float,
         right: Float,
@@ -70,7 +70,7 @@ public interface JvmGraphiteDrawContext {
         antiAlias: Boolean,
     )
 
-    public fun drawCircle(
+    fun drawCircle(
         x: Float,
         y: Float,
         radius: Float,
@@ -80,7 +80,7 @@ public interface JvmGraphiteDrawContext {
         antiAlias: Boolean,
     )
 
-    public fun drawLine(
+    fun drawLine(
         x0: Float,
         y0: Float,
         x1: Float,
