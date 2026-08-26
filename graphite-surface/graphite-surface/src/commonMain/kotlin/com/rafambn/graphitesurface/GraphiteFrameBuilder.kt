@@ -19,6 +19,7 @@ class GraphiteFrameBuilder internal constructor(private val runtimeToken: Any) {
         check(!built) { "frame builder has already finished" }
         insertions += GraphiteFrameInsertion(
             program = recording.program,
+            platformRecording = recording.platformRecording,
             translation = translation,
             clip = clip,
         )

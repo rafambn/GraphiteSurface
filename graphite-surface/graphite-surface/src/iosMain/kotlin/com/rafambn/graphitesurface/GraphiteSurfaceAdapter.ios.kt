@@ -10,9 +10,11 @@ import com.rafambn.graphitesurface.engine.GraphiteEngineGraphiteEngineView_iosKt
 import platform.UIKit.UIView
 
 internal class GraphiteSurfaceAdapter(
+    runtime: GraphiteEngine,
     private val renderer: GraphitePresentationRenderer,
     private val renderMode: GraphiteRenderMode,
 ) {
+    private val workers = runtime.recorders.map(GraphiteRecorder::worker)
     private var engineView: UIView? = null
     private var surfaceCreated = false
     private var lastSize = IntSize.Zero
@@ -42,6 +44,7 @@ internal class GraphiteSurfaceAdapter(
     }
 
     fun dispose() {
+        workers.forEach(PlatformRecorderWorker::unbind)
         engineView?.let { GraphiteEngineGraphiteEngineView_iosKt.gsStopRenderingView(it) }
         engineView?.let { GraphiteEngineGraphiteEngineView_iosKt.gsDisposeViewView(it) }
         engineView = null
@@ -53,6 +56,7 @@ internal class GraphiteSurfaceAdapter(
         val size = IntSize(width, height)
         if (!surfaceCreated) {
             surfaceCreated = true
+            workers.forEach { worker -> worker.bind(view) }
             renderer.onSurfaceCreated()
         }
         if (lastSize != size) {

@@ -1,6 +1,11 @@
+@file:OptIn(org.jetbrains.skiko.ExperimentalSkikoApi::class)
+
 package com.rafambn.graphitesurface.engine
 
 import android.view.Surface
+import org.jetbrains.skia.gpu.graphite.Recording
+import org.jetbrains.skia.gpu.graphite.Recorder
+import org.jetbrains.skia.gpu.graphite.TextureInfo
 import org.jetbrains.skia.gpu.graphite.AndroidGraphiteNative as SkikoAndroidGraphiteNative
 
 /** Private engine boundary between GraphiteSurface and the Skiko Graphite Android host. */
@@ -28,6 +33,37 @@ object AndroidGraphiteNative {
     fun dispose(handle: Long) {
         SkikoAndroidGraphiteNative.dispose(handle)
     }
+
+    fun recordingContext(handle: Long): AndroidGraphiteRecordingContext =
+        AndroidGraphiteRecordingContext(handle)
+
+    fun makeRecorder(handle: Long): Recorder =
+        SkikoAndroidGraphiteNative.makeRecorder(handle)
+
+    fun targetTextureInfo(handle: Long): TextureInfo =
+        SkikoAndroidGraphiteNative.targetTextureInfo(handle)
+
+    fun insertRecording(
+        handle: Long,
+        recording: Recording,
+        translationX: Int,
+        translationY: Int,
+        clipLeft: Int,
+        clipTop: Int,
+        clipRight: Int,
+        clipBottom: Int,
+        hasClip: Boolean,
+    ): Boolean = SkikoAndroidGraphiteNative.insertRecording(
+        handle,
+        recording,
+        translationX,
+        translationY,
+        clipLeft,
+        clipTop,
+        clipRight,
+        clipBottom,
+        hasClip,
+    )
 
     /** Clears the current canvas. */
     fun clear(handle: Long, color: Int) {

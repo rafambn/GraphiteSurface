@@ -2,9 +2,12 @@ const endpoint = Bun.argv[2];
 const timeoutMs = Number(Bun.argv[3] ?? "30000");
 const navigateTo = Bun.argv[4];
 const viewport = Bun.argv[5]?.split("x").map(Number);
+const screenshotPath = Bun.argv[6];
 
 if (!endpoint) {
-    throw new Error("Usage: bun run cdp-probe.ts <webSocketDebuggerUrl> [timeoutMs]");
+    throw new Error(
+        "Usage: bun run cdp-probe.ts <webSocketDebuggerUrl> [timeoutMs] [url] [widthxheight] [screenshotPath]",
+    );
 }
 
 const socket = new WebSocket(endpoint);
@@ -38,7 +41,8 @@ socket.addEventListener("message", event => {
     if (message.method === "Target.attachedToTarget") {
         const sessionId = message.params.sessionId;
         void call("Runtime.enable", {}, sessionId)
-            .then(() => call("Runtime.runIfWaitingForDebugger", {}, sessionId));
+            .then(() => call("Runtime.runIfWaitingForDebugger", {}, sessionId))
+            .catch(() => undefined);
     } else if (message.method === "Runtime.consoleAPICalled") {
         const values = message.params.args.map((argument: any) => argument.value ?? argument.description);
         console.log(message.sessionId ? "[worker console]" : "[console]", ...values);
@@ -131,6 +135,18 @@ while (Date.now() < deadline) {
         screenshotHashes.push(hash);
     }
     await Bun.sleep(100);
+}
+
+const finalScreenshot = await call("Page.captureScreenshot", { format: "png", fromSurface: true });
+const finalScreenshotBytes = Buffer.from(finalScreenshot.data, "base64");
+const finalScreenshotHash = new Bun.CryptoHasher("sha256")
+    .update(finalScreenshotBytes)
+    .digest("hex");
+if (!screenshotHashes.includes(finalScreenshotHash)) {
+    screenshotHashes.push(finalScreenshotHash);
+}
+if (screenshotPath) {
+    await Bun.write(screenshotPath, finalScreenshotBytes);
 }
 
 console.log(JSON.stringify({ screenshotHashes }));

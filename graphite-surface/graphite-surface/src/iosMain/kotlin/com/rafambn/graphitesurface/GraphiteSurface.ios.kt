@@ -14,12 +14,15 @@ import androidx.compose.ui.viewinterop.UIKitView
 @Composable
 @ExperimentalGraphiteSurfaceApi
 internal actual fun PlatformGraphiteSurface(
+    runtime: GraphiteEngine,
     renderer: GraphitePresentationRenderer,
     modifier: Modifier,
     renderMode: GraphiteRenderMode,
     state: GraphiteSurfaceState,
 ) {
-    val adapter = remember(renderer, renderMode) { GraphiteSurfaceAdapter(renderer, renderMode) }
+    val adapter = remember(runtime, renderer, renderMode) {
+        GraphiteSurfaceAdapter(runtime, renderer, renderMode)
+    }
 
     DisposableEffect(state, adapter, renderMode) {
         val requestFrameHandler = { adapter.requestRender() }

@@ -26,19 +26,16 @@ ordering, cancellation, ownership, and failure semantics.
   registry, Skia Graphite Context, presentation Recorder, swapchain textures,
   command interpretation, submission, and cleanup. No Skia or WebGPU draw call
   runs on the browser main thread.
-- User recorder workers currently validate and publish the portable command
-  program asynchronously. `GraphiteRecording` therefore contains a validated
-  immutable command program in this first working slice, and the render worker
-  replays it into its private presentation Recorder. It is not yet a native
-  `skgpu::graphite::Recording` created by each public worker.
-- This adaptation is necessary in the browser because the measured Emdawn m152
+- On JVM, Android, and Apple, every public recorder owns a native Graphite
+  `Recorder`. A recording job creates a deferred canvas compatible with the
+  current presentation, executes the compiled command program once on its
+  recorder worker, and calls `snap()`. The render worker inserts the resulting
+  native `Recording`; it does not replay the program.
+- The browser keeps a documented adaptation because the measured Emdawn m152
   JavaScript WebGPU handle registry is worker-local. It keeps the public
-  semantics common and avoids a main-thread fallback, at the cost of moving
-  Skia recording itself to the render Worker on Web.
-- Native targets deliberately use the same command-program behavior for this
-  slice. A future native optimization may materialize true deferred Graphite
-  Recordings on recorder threads without changing public API or browser
-  behavior.
+  semantics common and avoids a main-thread fallback: recorder Web Workers
+  validate transferable command programs, and the render Worker materializes
+  their Graphite work inside its own handle registry.
 - Browser recorder jobs use transferable `Int8Array` messages. Kotlin/JS
   transfers its `ByteArray` buffer out and back without hexadecimal expansion.
   Kotlin/Wasm performs one copy on each side of the JavaScript interop boundary
@@ -109,19 +106,20 @@ ordering, cancellation, ownership, and failure semantics.
 - **GraphiteRenderer**: the optional user-owned frame producer associated with
   one runtime. It selects continuous, on-demand, or manual scheduling and
   receives only monotonic frame time and public presentation metadata.
-- **Recorder worker**: a dedicated native thread or Web Worker that validates
-  and publishes one immutable command program at a time. Materializing native
-  deferred Graphite Recordings here is a future native optimization, not a
-  version 1 observable guarantee.
+- **Recorder worker**: a dedicated native thread or Web Worker that accepts one
+  immutable command program at a time. Native targets compile it into a
+  deferred native Graphite Recording; browser workers validate and transfer it
+  for render-Worker materialization.
 - **Render worker**: the dedicated native thread, serial dispatch queue, or Web
-  Worker that owns presentation-side Graphite objects, interprets published
-  command programs, submits GPU work, presents, and retires resources.
+  Worker that owns presentation-side Graphite objects, inserts completed native
+  recordings where the backend permits, submits GPU work, presents, and
+  retires resources.
 - **GraphiteDisplayList**: an immutable, backend-independent, reusable CPU
   description of drawing commands.
-- **GraphiteRecording**: an immutable, closeable, runtime-bound command result
+- **GraphiteRecording**: an immutable, garbage-collected, runtime-bound result
   produced by a recorder.
-- **GraphiteFrame**: an immutable, closeable ordered collection of completed
-  recordings for one presentation generation.
+- **GraphiteFrame**: an immutable ordered collection of completed recordings
+  for one presentation generation.
 
 ## Public module boundaries
 
@@ -476,11 +474,10 @@ belong at display-list replay time. A recording is already snapped GPU work.
 - A recorder can produce commands while no presentation surface is attached.
 - Recording has no logical target or pixel dimensions. Those belong to the
   presentation that receives the completed recording.
-- `GraphiteRecording` is public, immutable, closeable, and bound to the
+- `GraphiteRecording` is public, immutable, garbage-collected, and bound to the
   runtime/device that created it.
 - A different runtime rejects it.
-- A frame and in-flight GPU submission retain their own safe references; the
-  caller may close its handle without invalidating retained use.
+- A frame and in-flight GPU submission retain their own safe references.
 - A recording may be inserted or replayed more than once, subject to backend
   prototype validation.
 - After snapping, only integer target translation and clip are supported.
@@ -520,8 +517,7 @@ The replay API supports repeated insertion, integer translation, and integer
 clip. It does not accept an arbitrary matrix. The render worker inserts an
 explicit full-target clear before the frame's recordings.
 
-The current Skiko fork does not expose the required API. Internal bindings are
-needed for:
+The local Skiko fork exposes the required internal API for:
 
 - `Recorder.makeDeferredCanvas()`;
 - presentation `TextureInfo`;
@@ -530,8 +526,8 @@ needed for:
 - completion callbacks;
 - unordered Context and Recorder options.
 
-The fork currently forces ordered recordings. That setting conflicts with the
-accepted reusable-recording model and must change to unordered.
+Contexts and recorder workers use unordered recordings, matching the accepted
+reusable-recording model.
 
 Primary and local references:
 
@@ -1012,7 +1008,7 @@ closures cannot be transferred to a Web Worker with common semantics.
   browser main thread.
 - The prototype must validate the selected Skia/Graphite WebGPU stack with:
   - Graphite Context ownership on a render worker;
-  - one native Recorder per recorder worker;
+  - independent recorder Web Workers;
   - portable command transfer;
   - recording transfer or another viable handoff to the render worker;
   - Canvas/presentation transfer and resize;
@@ -1024,8 +1020,9 @@ closures cannot be transferred to a Web Worker with common semantics.
   back silently to main-thread rendering.
 - Version 1 has no separate `checkSupport()` call because a reliable probe
   would perform most of the same GPU initialization as surface attachment.
-- No cross-platform promise about multiple Graphite recorders in browser
-  workers is final until this prototype succeeds.
+- Browser recorder workers preserve queue and concurrency semantics but cannot
+  own native Emdawn Graphite Recorders while its handle registry remains
+  worker-local.
 - The browser prototype passes only when it proves:
   - the Graphite Context lives on the render worker;
   - at least two Recorder workers execute concurrently;
@@ -1375,6 +1372,44 @@ architecture change is accepted here yet. The next grilling decision must
 define which behavior is required to be common across targets before choosing
 the browser worker model.
 
+### Synchronous proxy follow-up
+
+**Measured on 2026-08-26; production gate is still in progress**
+
+- The worker-local registry is not a terminal limitation if every `wgpu*`
+  library function is marked `__proxy: "sync"`. The recorder pthread blocks
+  only while the main runtime thread executes that binding call against its
+  owner-side JavaScript registry.
+- A focused gate using Emdawn `v20260824.202544` and Emscripten 5.0.6 proved
+  this with two pthreads. Both lacked a local device entry but successfully
+  created and released WebGPU buffers through the owner thread.
+- A complete Graphite gate then used the project's Skia m152 and Emscripten
+  4.0.7 WebGPU ABI. It created two native Recorders, recorded 20,000 circles on
+  each pthread, transferred both native Recording objects, inserted them in
+  order, submitted, waited for `GPUQueue.onSubmittedWorkDone()`, and presented
+  the expected blue/green image.
+- The control without proxy failed with `status=-6` and both local handles at
+  `-1`. The proxy build passed with `status=4`, both recorder states at `2`,
+  `deviceError=0`, and 44.55 ms of CPU overlap while both local handles
+  remained `-1`.
+- The current canvas texture must be acquired immediately before insertion and
+  submit, after recorder work. Holding it across asynchronous pthread work can
+  cross a browser composition boundary and invalidate it.
+- This proves the native Recorder/Recording ownership topology. It does not
+  approve production adoption: proxy overhead, 60-second bounded load, resize,
+  cancellation, shutdown, Kotlin/JS and Kotlin/Wasm integration still require
+  measurement.
+- The full gate cannot simply substitute the current Emdawn port for the
+  project's legacy binding. Emdawn's Futures-based C++ ABI and the Skia m152
+  Dawn backend's callback-based ABI are incompatible. Skia and Emdawn must be
+  upgraded as a matched pair.
+
+Complete commands, versions, logs and source locations are recorded in
+`EMDAWN_PTHREAD_PROXY_FINDINGS.md` and
+`graphite-surface/experiments/wasm-pthreads/README.md`.
+The production migration sequence, lifecycle rules, build matrix, acceptance
+gates and rollback plan are recorded in `WEB_PTHREADS_MIGRATION.md`.
+
 ### Decisions after the Chrome pthread probe
 
 **Accepted**
@@ -1397,6 +1432,11 @@ the browser worker model.
   render pthread owns the only JavaScript registry entry for the imported
   device; both recorder pthreads receive the native handle but cannot resolve
   it. Merely changing WebGPU bindings is rejected as a solution.
+- The later synchronous-proxy gate supersedes the assumption that this
+  ownership failure makes native browser Recorders impossible. Proxying is now
+  an experimental implementation candidate, but the current transferable
+  command adaptation remains the production behavior until the remaining gate
+  criteria pass.
 
 Additional primary references:
 

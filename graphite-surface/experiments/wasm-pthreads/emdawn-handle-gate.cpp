@@ -11,6 +11,7 @@ namespace {
 std::atomic<std::uintptr_t> deviceHandle{0};
 std::atomic<int> renderStatus{0};
 std::atomic<int> recorderStatuses[2]{{0}, {0}};
+std::atomic<int> recorderLocalHandles[2]{{0}, {0}};
 pthread_t recorderThreads[2];
 
 EM_JS(void, requestDevice, (), {
@@ -40,16 +41,20 @@ void* recorderMain(void* rawIndex) {
 
   recorderStatuses[index].store(1, std::memory_order_release);
   const bool localHandleExists = hasLocalJsDevice(handle) != 0;
-  recorderStatuses[index].store(localHandleExists ? 2 : -1, std::memory_order_release);
+  recorderLocalHandles[index].store(localHandleExists ? 1 : -1,
+                                    std::memory_order_release);
   std::printf(
       "[emdawn gate] recorder=%d handle=%zu local-js-object=%s\n",
       index,
       handle,
       localHandleExists ? "yes" : "no");
 
+#if !defined(EMDAWN_PROXY_ENABLED)
   if (!localHandleExists) {
+    recorderStatuses[index].store(-1, std::memory_order_release);
     return nullptr;
   }
+#endif
 
   WGPUBufferDescriptor descriptor = WGPU_BUFFER_DESCRIPTOR_INIT;
   descriptor.usage = WGPUBufferUsage_CopyDst;
@@ -81,7 +86,7 @@ EMSCRIPTEN_KEEPALIVE void emdawn_device_ready() {
   const auto handle = reinterpret_cast<std::uintptr_t>(device);
   deviceHandle.store(handle, std::memory_order_release);
   renderStatus.store(hasLocalJsDevice(handle) ? 2 : -1, std::memory_order_release);
-  std::printf("[emdawn gate] render handle=%zu local-js-object=%s\n",
+  std::printf("[emdawn gate] owner handle=%zu local-js-object=%s\n",
               handle,
               hasLocalJsDevice(handle) ? "yes" : "no");
 
@@ -110,14 +115,14 @@ EMSCRIPTEN_KEEPALIVE int emdawn_recorder_status(int index) {
   return recorderStatuses[index].load(std::memory_order_acquire);
 }
 
+EMSCRIPTEN_KEEPALIVE int emdawn_recorder_local_handle(int index) {
+  if (index < 0 || index > 1) return 0;
+  return recorderLocalHandles[index].load(std::memory_order_acquire);
+}
+
 }  // extern "C"
 
 int main() {
-  pthread_t renderThread;
-  const int result = pthread_create(&renderThread, nullptr, renderMain, nullptr);
-  if (result != 0) {
-    renderStatus.store(-3, std::memory_order_release);
-    return result;
-  }
+  renderMain(nullptr);
   return 0;
 }

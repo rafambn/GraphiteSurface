@@ -25,12 +25,20 @@
         const render = module._emdawn_render_status();
         const recorder0 = module._emdawn_recorder_status(0);
         const recorder1 = module._emdawn_recorder_status(1);
-        metrics.textContent = JSON.stringify({ render, recorder0, recorder1 }, null, 2);
+        const recorder0LocalHandle = module._emdawn_recorder_local_handle(0);
+        const recorder1LocalHandle = module._emdawn_recorder_local_handle(1);
+        metrics.textContent = JSON.stringify({
+          render,
+          recorder0,
+          recorder1,
+          recorder0LocalHandle,
+          recorder1LocalHandle,
+        }, null, 2);
 
         if (recorder0 !== 0 && recorder1 !== 0) {
           const passed = render === 2 && recorder0 === 3 && recorder1 === 3;
           status.textContent = passed
-            ? 'Gate passed: both recorder pthreads created buffers'
+            ? 'Gate passed: proxy let both recorder pthreads create buffers'
             : 'Probe failed: Emdawn handles are not usable across pthread realms';
           return;
         }

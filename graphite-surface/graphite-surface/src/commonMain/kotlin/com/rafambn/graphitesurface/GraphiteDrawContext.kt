@@ -3,6 +3,8 @@ package com.rafambn.graphitesurface
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
 
 /**
  * Library-owned drawing operations for one frame.
@@ -11,6 +13,32 @@ import androidx.compose.ui.graphics.Path
  * consumer code needs to depend on Skia, Skiko, or a platform GPU API.
  */
 internal interface GraphiteDrawContext {
+    fun insertRecording(
+        recording: PlatformRecording,
+        program: GraphiteCommandProgram,
+        translation: IntOffset,
+        clip: IntRect?,
+    ) {
+        save()
+        try {
+            translate(translation.x.toFloat(), translation.y.toFloat())
+            clip?.let { bounds ->
+                clipRect(
+                    Rect(
+                        bounds.left.toFloat(),
+                        bounds.top.toFloat(),
+                        bounds.right.toFloat(),
+                        bounds.bottom.toFloat(),
+                    ),
+                    antiAlias = false,
+                )
+            }
+            executeGraphiteCommands(program)
+        } finally {
+            restore()
+        }
+    }
+
     /** Fills the whole surface with [color] in 0xAARRGGBB format. */
     fun clear(color: Long)
 

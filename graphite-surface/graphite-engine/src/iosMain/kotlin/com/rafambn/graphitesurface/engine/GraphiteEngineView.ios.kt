@@ -1,3 +1,4 @@
+@file:Suppress("INVISIBLE_REFERENCE", "INVISIBLE_MEMBER")
 @file:OptIn(
     kotlinx.cinterop.BetaInteropApi::class,
     kotlinx.cinterop.ExperimentalForeignApi::class,
@@ -10,12 +11,21 @@ import com.rafambn.graphitesurface.engine.api.GSFrameCallback
 import com.rafambn.graphitesurface.engine.api.GSFailureCallback
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.native.internal.NativePtr
 import kotlinx.cinterop.CValue
+import kotlinx.cinterop.ByteVar
+import kotlinx.cinterop.StableRef
 import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.asStableRef
+import kotlinx.cinterop.interpretCPointer
 import kotlinx.cinterop.objcPtr
+import kotlinx.cinterop.toLong
 import kotlinx.cinterop.useContents
 import kotlinx.cinterop.usePinned
 import org.jetbrains.skia.ColorSpace
+import org.jetbrains.skia.IPoint
+import org.jetbrains.skia.IRect
+import org.jetbrains.skia.ImageInfo
 import org.jetbrains.skia.Matrix44
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.PaintMode
@@ -24,6 +34,10 @@ import org.jetbrains.skia.PathFillMode
 import org.jetbrains.skia.Surface
 import org.jetbrains.skia.gpu.graphite.BackendTexture
 import org.jetbrains.skia.gpu.graphite.GraphiteContext
+import org.jetbrains.skia.gpu.graphite.InsertRecordingInfo
+import org.jetbrains.skia.gpu.graphite.Recorder
+import org.jetbrains.skia.gpu.graphite.Recording
+import org.jetbrains.skia.gpu.graphite.TextureInfo
 import org.jetbrains.skia.gpu.graphite.wrapBackendTexture
 import org.jetbrains.skia.impl.use
 import platform.CoreGraphics.CGColorCreate
@@ -81,46 +95,100 @@ fun gsRequestRender(view: UIView) {
 
 @Suppress("unused")
 fun gsDrawableWidth(view: UIView): Int =
-    frameContextOf(view).width
+    frameContextOf(view, 0uL).width
 
 @Suppress("unused")
 fun gsDrawableHeight(view: UIView): Int =
-    frameContextOf(view).height
+    frameContextOf(view, 0uL).height
 
 @Suppress("unused")
-fun gsClear(view: UIView, color: UInt) {
-    frameContextOf(view).canvas.clear(color.toInt())
+fun gsCreateRecorder(view: UIView): ULong =
+    stableHandle(graphiteViewOf(view).makeWorkerRecorder())
+
+@Suppress("unused")
+fun gsDisposeRecorder(recorder: ULong) {
+    stableRefOf<WorkerRecorder>(recorder).let { reference ->
+        reference.get().close()
+        reference.dispose()
+    }
 }
 
 @Suppress("unused")
-fun gsSave(view: UIView) {
-    frameContextOf(view).canvas.save()
+fun gsBeginRecording(recorder: ULong, width: Int, height: Int) {
+    workerRecorderOf(recorder).begin(width, height)
 }
 
 @Suppress("unused")
-fun gsRestore(view: UIView) {
-    frameContextOf(view).canvas.restore()
+fun gsFinishRecording(recorder: ULong): ULong =
+    stableHandle(workerRecorderOf(recorder).finish())
+
+@Suppress("unused")
+fun gsDisposeRecording(recording: ULong) {
+    stableRefOf<Recording>(recording).let { reference ->
+        reference.get().close()
+        reference.dispose()
+    }
+}
+
+@Suppress("unused", "LongParameterList")
+fun gsInsertRecording(
+    view: UIView,
+    recording: ULong,
+    translationX: Int,
+    translationY: Int,
+    clipLeft: Int,
+    clipTop: Int,
+    clipRight: Int,
+    clipBottom: Int,
+    hasClip: Int,
+) {
+    graphiteViewOf(view).insertRecording(
+        recording = stableRefOf<Recording>(recording).get(),
+        translationX = translationX,
+        translationY = translationY,
+        clipLeft = clipLeft,
+        clipTop = clipTop,
+        clipRight = clipRight,
+        clipBottom = clipBottom,
+        hasClip = hasClip != 0,
+    )
 }
 
 @Suppress("unused")
-fun gsTranslate(view: UIView, x: Float, y: Float) {
-    frameContextOf(view).canvas.translate(x, y)
+fun gsClear(view: UIView, target: ULong, color: UInt) {
+    frameContextOf(view, target).canvas.clear(color.toInt())
 }
 
 @Suppress("unused")
-fun gsRotate(view: UIView, degrees: Float) {
-    frameContextOf(view).canvas.rotate(degrees)
+fun gsSave(view: UIView, target: ULong) {
+    frameContextOf(view, target).canvas.save()
+}
+
+@Suppress("unused")
+fun gsRestore(view: UIView, target: ULong) {
+    frameContextOf(view, target).canvas.restore()
+}
+
+@Suppress("unused")
+fun gsTranslate(view: UIView, target: ULong, x: Float, y: Float) {
+    frameContextOf(view, target).canvas.translate(x, y)
+}
+
+@Suppress("unused")
+fun gsRotate(view: UIView, target: ULong, degrees: Float) {
+    frameContextOf(view, target).canvas.rotate(degrees)
 }
 
 @Suppress("unused", "LongParameterList")
 fun gsConcat(
     view: UIView,
+    target: ULong,
     m0: Float, m1: Float, m2: Float, m3: Float,
     m4: Float, m5: Float, m6: Float, m7: Float,
     m8: Float, m9: Float, m10: Float, m11: Float,
     m12: Float, m13: Float, m14: Float, m15: Float,
 ) {
-    frameContextOf(view).canvas.concat(
+    frameContextOf(view, target).canvas.concat(
         Matrix44(
             m0, m4, m8, m12,
             m1, m5, m9, m13,
@@ -133,50 +201,52 @@ fun gsConcat(
 @Suppress("unused")
 fun gsClipRect(
     view: UIView,
+    target: ULong,
     left: Float,
     top: Float,
     right: Float,
     bottom: Float,
     antiAlias: Int,
 ) {
-    frameContextOf(view).canvas.clipRect(left, top, right, bottom, antiAlias != 0)
+    frameContextOf(view, target).canvas.clipRect(left, top, right, bottom, antiAlias != 0)
 }
 
 @Suppress("unused")
-fun gsBeginPath(view: UIView) {
-    frameContextOf(view).path = PathBuilder()
+fun gsBeginPath(view: UIView, target: ULong) {
+    frameContextOf(view, target).path = PathBuilder()
 }
 
 @Suppress("unused")
-fun gsSetPathFillType(view: UIView, fillType: Int) {
-    frameContextOf(view).path.setFillType(
+fun gsSetPathFillType(view: UIView, target: ULong, fillType: Int) {
+    frameContextOf(view, target).path.setFillType(
         if (fillType == 1) PathFillMode.EVEN_ODD else PathFillMode.WINDING,
     )
 }
 
 @Suppress("unused")
-fun gsMoveTo(view: UIView, x: Float, y: Float) {
-    frameContextOf(view).path.moveTo(x, y)
+fun gsMoveTo(view: UIView, target: ULong, x: Float, y: Float) {
+    frameContextOf(view, target).path.moveTo(x, y)
 }
 
 @Suppress("unused")
-fun gsLineTo(view: UIView, x: Float, y: Float) {
-    frameContextOf(view).path.lineTo(x, y)
+fun gsLineTo(view: UIView, target: ULong, x: Float, y: Float) {
+    frameContextOf(view, target).path.lineTo(x, y)
 }
 
 @Suppress("unused")
-fun gsQuadTo(view: UIView, x1: Float, y1: Float, x2: Float, y2: Float) {
-    frameContextOf(view).path.quadTo(x1, y1, x2, y2)
+fun gsQuadTo(view: UIView, target: ULong, x1: Float, y1: Float, x2: Float, y2: Float) {
+    frameContextOf(view, target).path.quadTo(x1, y1, x2, y2)
 }
 
 @Suppress("unused")
-fun gsConicTo(view: UIView, x1: Float, y1: Float, x2: Float, y2: Float, weight: Float) {
-    frameContextOf(view).path.conicTo(x1, y1, x2, y2, weight)
+fun gsConicTo(view: UIView, target: ULong, x1: Float, y1: Float, x2: Float, y2: Float, weight: Float) {
+    frameContextOf(view, target).path.conicTo(x1, y1, x2, y2, weight)
 }
 
 @Suppress("unused")
 fun gsCubicTo(
     view: UIView,
+    target: ULong,
     x1: Float,
     y1: Float,
     x2: Float,
@@ -184,28 +254,29 @@ fun gsCubicTo(
     x3: Float,
     y3: Float,
 ) {
-    frameContextOf(view).path.cubicTo(x1, y1, x2, y2, x3, y3)
+    frameContextOf(view, target).path.cubicTo(x1, y1, x2, y2, x3, y3)
 }
 
 @Suppress("unused")
-fun gsClosePath(view: UIView) {
-    frameContextOf(view).path.closePath()
+fun gsClosePath(view: UIView, target: ULong) {
+    frameContextOf(view, target).path.closePath()
 }
 
 @Suppress("unused")
-fun gsDrawPath(view: UIView, color: UInt, antiAlias: Int) {
-    gsDrawStyledPath(view, color, 0, 1f, antiAlias)
+fun gsDrawPath(view: UIView, target: ULong, color: UInt, antiAlias: Int) {
+    gsDrawStyledPath(view, target, color, 0, 1f, antiAlias)
 }
 
 @Suppress("unused")
 fun gsDrawStyledPath(
     view: UIView,
+    target: ULong,
     color: UInt,
     stroke: Int,
     strokeWidth: Float,
     antiAlias: Int,
 ) {
-    val frame = frameContextOf(view)
+    val frame = frameContextOf(view, target)
     val path = frame.path.detach()
     val paint = makePaint(color, stroke, strokeWidth, antiAlias)
     frame.canvas.drawPath(path, paint)
@@ -216,6 +287,7 @@ fun gsDrawStyledPath(
 @Suppress("unused", "LongParameterList")
 fun gsDrawRect(
     view: UIView,
+    target: ULong,
     left: Float,
     top: Float,
     right: Float,
@@ -226,13 +298,14 @@ fun gsDrawRect(
     antiAlias: Int,
 ) {
     makePaint(color, stroke, strokeWidth, antiAlias).use { paint ->
-        frameContextOf(view).canvas.drawRect(left, top, right, bottom, paint)
+        frameContextOf(view, target).canvas.drawRect(left, top, right, bottom, paint)
     }
 }
 
 @Suppress("unused", "LongParameterList")
 fun gsDrawRoundRect(
     view: UIView,
+    target: ULong,
     left: Float,
     top: Float,
     right: Float,
@@ -245,7 +318,7 @@ fun gsDrawRoundRect(
     antiAlias: Int,
 ) {
     makePaint(color, stroke, strokeWidth, antiAlias).use { paint ->
-        frameContextOf(view).canvas.drawRRect(
+        frameContextOf(view, target).canvas.drawRRect(
             left,
             top,
             right,
@@ -259,6 +332,7 @@ fun gsDrawRoundRect(
 @Suppress("unused", "LongParameterList")
 fun gsDrawOval(
     view: UIView,
+    target: ULong,
     left: Float,
     top: Float,
     right: Float,
@@ -269,13 +343,14 @@ fun gsDrawOval(
     antiAlias: Int,
 ) {
     makePaint(color, stroke, strokeWidth, antiAlias).use { paint ->
-        frameContextOf(view).canvas.drawOval(left, top, right, bottom, paint)
+        frameContextOf(view, target).canvas.drawOval(left, top, right, bottom, paint)
     }
 }
 
 @Suppress("unused", "LongParameterList")
 fun gsDrawCircle(
     view: UIView,
+    target: ULong,
     x: Float,
     y: Float,
     radius: Float,
@@ -285,13 +360,14 @@ fun gsDrawCircle(
     antiAlias: Int,
 ) {
     makePaint(color, stroke, strokeWidth, antiAlias).use { paint ->
-        frameContextOf(view).canvas.drawCircle(x, y, radius, paint)
+        frameContextOf(view, target).canvas.drawCircle(x, y, radius, paint)
     }
 }
 
 @Suppress("unused", "LongParameterList")
 fun gsDrawLine(
     view: UIView,
+    target: ULong,
     x0: Float,
     y0: Float,
     x1: Float,
@@ -301,7 +377,7 @@ fun gsDrawLine(
     antiAlias: Int,
 ) {
     makePaint(color, 1, strokeWidth, antiAlias).use { paint ->
-        frameContextOf(view).canvas.drawLine(x0, y0, x1, y1, paint)
+        frameContextOf(view, target).canvas.drawLine(x0, y0, x1, y1, paint)
     }
 }
 
@@ -312,6 +388,36 @@ private fun makePaint(color: UInt, stroke: Int, strokeWidth: Float, antiAlias: I
         this.strokeWidth = strokeWidth
         isAntiAlias = antiAlias != 0
     }
+
+private class WorkerRecorder(
+    private val recorder: Recorder,
+    private val textureInfo: TextureInfo,
+) : AutoCloseable {
+    var frameContext: FrameContext? = null
+
+    fun begin(width: Int, height: Int) {
+        check(frameContext == null) { "A Graphite recording is already active" }
+        frameContext = FrameContext(
+            canvas = recorder.makeDeferredCanvas(
+                ImageInfo.makeN32Premul(width, height, ColorSpace.sRGB),
+                textureInfo,
+            ),
+            width = width,
+            height = height,
+        )
+    }
+
+    fun finish(): Recording {
+        checkNotNull(frameContext) { "No Graphite recording is active" }
+        frameContext = null
+        return recorder.snap()
+    }
+
+    override fun close() {
+        frameContext = null
+        recorder.close()
+    }
+}
 
 @OptIn(ExperimentalAtomicApi::class)
 private class GraphiteEngineView : UIView {
@@ -332,7 +438,8 @@ private class GraphiteEngineView : UIView {
 
     private val renderQueue = dispatch_queue_create("com.rafambn.graphitesurface.render", null)
     private var context: GraphiteContext? = null
-    private var recorder: org.jetbrains.skia.gpu.graphite.Recorder? = null
+    private var recorder: Recorder? = null
+    private var targetTextureInfo: TextureInfo? = null
     private val inflightSemaphore =
         dispatch_semaphore_create(metalLayer.maximumDrawableCount.toLong())
     private var displayLink: CADisplayLink? = null
@@ -342,6 +449,7 @@ private class GraphiteEngineView : UIView {
     private var frameCallback: GSFrameCallback = null
     private var failureCallback: GSFailureCallback = null
     internal var currentFrameContext: FrameContext? = null
+    private var currentSurface: Surface? = null
 
     constructor(
         renderMode: Int,
@@ -390,6 +498,8 @@ private class GraphiteEngineView : UIView {
         dispatch_async(renderQueue) {
             recorder?.close()
             recorder = null
+            targetTextureInfo?.close()
+            targetTextureInfo = null
             context?.close()
             context = null
         }
@@ -464,6 +574,9 @@ private class GraphiteEngineView : UIView {
                 .also { context = it }
             val currentRecorder = recorder ?: currentContext.makeRecorder().also { recorder = it }
             BackendTexture.makeMetal(width, height, drawable.texture.objcPtr()).use { backendTexture ->
+                if (targetTextureInfo == null) {
+                    targetTextureInfo = backendTexture.textureInfo
+                }
                 val surface = Surface.wrapBackendTexture(
                     recorder = currentRecorder,
                     backendTexture = backendTexture,
@@ -473,15 +586,15 @@ private class GraphiteEngineView : UIView {
                 surface.use {
                     val callback = frameCallback
                     if (callback != null) {
+                        currentSurface = it
                         currentFrameContext = FrameContext(it.canvas, width, height)
                         try {
                             callback()
+                            flushPresentationRecording()
+                            currentContext.submit(syncCpu = true)
                         } finally {
                             currentFrameContext = null
-                        }
-                        currentRecorder.snap().use { recording ->
-                            currentContext.insertRecording(recording)
-                            currentContext.submit(syncCpu = true)
+                            currentSurface = null
                         }
                     }
                 }
@@ -499,8 +612,64 @@ private class GraphiteEngineView : UIView {
             if (!completionOwnsSemaphore) dispatch_semaphore_signal(inflightSemaphore)
         }
     }
+
+    fun makeWorkerRecorder(): WorkerRecorder = WorkerRecorder(
+        recorder = checkNotNull(context) { "The Graphite presentation is not ready" }.makeRecorder(),
+        textureInfo = checkNotNull(targetTextureInfo) { "The Graphite target is not ready" },
+    )
+
+    fun insertRecording(
+        recording: Recording,
+        translationX: Int,
+        translationY: Int,
+        clipLeft: Int,
+        clipTop: Int,
+        clipRight: Int,
+        clipBottom: Int,
+        hasClip: Boolean,
+    ) {
+        flushPresentationRecording()
+        checkNotNull(context).insertRecording(
+            InsertRecordingInfo(
+                recording = recording,
+                targetSurface = checkNotNull(currentSurface) {
+                    "Graphite recordings can only be inserted during onDrawFrame"
+                },
+                targetTranslation = IPoint(translationX, translationY),
+                targetClip = if (hasClip) {
+                    IRect.makeLTRB(clipLeft, clipTop, clipRight, clipBottom)
+                } else {
+                    null
+                },
+            ),
+        )
+    }
+
+    private fun flushPresentationRecording() {
+        val currentContext = checkNotNull(context)
+        checkNotNull(recorder).snap().use(currentContext::insertRecording)
+    }
 }
 
-private fun frameContextOf(view: UIView): FrameContext =
-    (view as? GraphiteEngineView)?.currentFrameContext
-        ?: error("Graphite draw calls are only valid during onDrawFrame")
+private fun graphiteViewOf(view: UIView): GraphiteEngineView =
+    view as? GraphiteEngineView ?: error("The view is not a Graphite engine view")
+
+private fun frameContextOf(view: UIView, target: ULong): FrameContext =
+    if (target == 0uL) {
+        graphiteViewOf(view).currentFrameContext
+            ?: error("Graphite draw calls are only valid during onDrawFrame")
+    } else {
+        workerRecorderOf(target).frameContext
+            ?: error("Graphite worker draw calls require an active recording")
+    }
+
+private fun workerRecorderOf(handle: ULong): WorkerRecorder =
+    stableRefOf<WorkerRecorder>(handle).get()
+
+private fun stableHandle(value: Any): ULong =
+    StableRef.create(value).asCPointer().toLong().toULong()
+
+private inline fun <reified T : Any> stableRefOf(handle: ULong): StableRef<T> =
+    checkNotNull(
+        interpretCPointer<ByteVar>(NativePtr.NULL + handle.toLong()),
+    ).asStableRef()

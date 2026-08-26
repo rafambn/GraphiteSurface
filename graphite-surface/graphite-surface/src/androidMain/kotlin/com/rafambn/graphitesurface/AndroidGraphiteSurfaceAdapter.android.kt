@@ -17,21 +17,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.viewinterop.AndroidView
 import com.rafambn.graphitesurface.engine.AndroidGraphiteNative
+import com.rafambn.graphitesurface.engine.AndroidGraphiteRecordingContext
 import java.util.concurrent.atomic.AtomicBoolean
 
 @Composable
 @ExperimentalGraphiteSurfaceApi
 internal actual fun PlatformGraphiteSurface(
+    runtime: GraphiteEngine,
     renderer: GraphitePresentationRenderer,
     modifier: Modifier,
     renderMode: GraphiteRenderMode,
     state: GraphiteSurfaceState,
 ) {
-    val adapter = remember(renderer, renderMode) {
-        AndroidGraphiteSurfaceAdapter(renderer, renderMode)
+    val adapter = remember(runtime, renderer, renderMode) {
+        AndroidGraphiteSurfaceAdapter(runtime, renderer, renderMode)
     }
 
     DisposableEffect(state, adapter, renderMode) {
@@ -52,13 +56,20 @@ internal actual fun PlatformGraphiteSurface(
 }
 
 private class AndroidGraphiteSurfaceAdapter(
+    runtime: GraphiteEngine,
     private val renderer: GraphitePresentationRenderer,
     private val renderMode: GraphiteRenderMode,
 ) {
+    private val workers = runtime.recorders.map(GraphiteRecorder::worker)
     private var view: GraphiteSurfaceView? = null
 
     fun createView(context: Context): GraphiteSurfaceView {
-        return view ?: GraphiteSurfaceView(context, renderer, renderMode).also { view = it }
+        return view ?: GraphiteSurfaceView(
+            context,
+            renderer,
+            renderMode,
+            workers,
+        ).also { view = it }
     }
 
     fun requestRender() {
@@ -75,6 +86,7 @@ private class GraphiteSurfaceView(
     context: Context,
     private val renderer: GraphitePresentationRenderer,
     private val renderMode: GraphiteRenderMode,
+    private val workers: List<PlatformRecorderWorker>,
 ) : SurfaceView(context), SurfaceHolder.Callback, Choreographer.FrameCallback {
     private val renderThread = HandlerThread(
         "GraphiteSurface",
@@ -85,6 +97,7 @@ private class GraphiteSurfaceView(
 
     private var choreographer: Choreographer? = null
     private var engineHandle = 0L
+    private var recordingContext: AndroidGraphiteRecordingContext? = null
 
     private var frameScheduled = false
     private var pendingRender = true
@@ -127,6 +140,9 @@ private class GraphiteSurfaceView(
                 return@post
             }
             if (!rendererCreated) {
+                val context = AndroidGraphiteNative.recordingContext(engineHandle)
+                workers.forEach { worker -> worker.bind(context) }
+                recordingContext = context
                 rendererCreated = true
                 renderer.onSurfaceCreated()
             }
@@ -184,7 +200,12 @@ private class GraphiteSurfaceView(
         if (AndroidGraphiteNative.beginFrame(engineHandle)) {
             pendingRender = false
             try {
-                renderer.onDrawFrame(AndroidGraphiteDrawContext(engineHandle))
+                renderer.onDrawFrame(
+                    AndroidPresentationDrawContext(
+                        engineHandle,
+                        checkNotNull(recordingContext),
+                    ),
+                )
             } finally {
                 if (!AndroidGraphiteNative.endFrame(engineHandle)) {
                     val error = IllegalStateException("The Android Graphite frame could not be presented")
@@ -219,6 +240,9 @@ private class GraphiteSurfaceView(
             disposed = true
             frameScheduled = false
             choreographer?.removeFrameCallback(this)
+            workers.forEach(PlatformRecorderWorker::unbind)
+            recordingContext?.close()
+            recordingContext = null
             if (engineHandle != 0L) {
                 AndroidGraphiteNative.setSurface(engineHandle, null, 0, 0)
                 AndroidGraphiteNative.dispose(engineHandle)
@@ -249,9 +273,33 @@ private class GraphiteSurfaceView(
     }
 }
 
-private class AndroidGraphiteDrawContext(
+private class AndroidPresentationDrawContext(
     private val engineHandle: Long,
+    private val recordingContext: AndroidGraphiteRecordingContext,
 ) : GraphiteDrawContext {
+    override fun insertRecording(
+        recording: PlatformRecording,
+        program: GraphiteCommandProgram,
+        translation: IntOffset,
+        clip: IntRect?,
+    ) {
+        val native = recording.native
+        if (native == null) {
+            super.insertRecording(recording, program, translation, clip)
+            return
+        }
+        recordingContext.insert(
+            recording = native,
+            translationX = translation.x,
+            translationY = translation.y,
+            clipLeft = clip?.left ?: 0,
+            clipTop = clip?.top ?: 0,
+            clipRight = clip?.right ?: 0,
+            clipBottom = clip?.bottom ?: 0,
+            hasClip = clip != null,
+        )
+    }
+
     override fun clear(color: Long) {
         AndroidGraphiteNative.clear(engineHandle, color.toInt())
     }

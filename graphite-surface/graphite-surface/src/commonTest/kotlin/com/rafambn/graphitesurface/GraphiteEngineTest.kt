@@ -4,6 +4,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -155,6 +157,52 @@ class GraphiteEngineTest {
             val pending = requireNotNull(runtime.takePendingFrame(attachmentId))
             val insertion = pending.insertions.single()
             insertion.program.validate()
+        } finally {
+            runtime.close()
+            runtime.awaitClosed()
+        }
+    }
+
+    @Test
+    fun rendererDelegatesCompletedRecordingsToThePlatformContext() = runTest {
+        val runtime = GraphiteEngine()
+        try {
+            val attachmentId = runtime.attachPresentation {}
+            val presentation = requireNotNull(
+                runtime.updatePresentation(attachmentId, IntSize(16, 16), density = 1f),
+            )
+            val recording = runtime.recorders.single().record {
+                drawCircle(Offset(4f, 4f), 2f, Color.White)
+            }
+            var insertedRecording: PlatformRecording? = null
+            var insertedProgram: GraphiteCommandProgram? = null
+            val context = object : GraphiteDrawContext {
+                override fun insertRecording(
+                    recording: PlatformRecording,
+                    program: GraphiteCommandProgram,
+                    translation: IntOffset,
+                    clip: IntRect?,
+                ) {
+                    insertedRecording = recording
+                    insertedProgram = program
+                }
+
+                override fun clear(color: Long) = Unit
+                override fun save() = Unit
+                override fun restore() = Unit
+                override fun translate(x: Float, y: Float) = Unit
+                override fun rotate(degrees: Float) = Unit
+                override fun drawPath(path: GraphitePathData, paint: GraphitePaintData) = Unit
+            }
+            val renderer = GraphiteEngineRenderer(runtime).also {
+                it.bind(attachmentId, density = 1f)
+            }
+
+            runtime.present(presentation) { insert(recording) }
+            renderer.onDrawFrame(context)
+
+            assertTrue(insertedRecording === recording.platformRecording)
+            assertTrue(insertedProgram === recording.program)
         } finally {
             runtime.close()
             runtime.awaitClosed()

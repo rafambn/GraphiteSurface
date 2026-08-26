@@ -3,9 +3,6 @@
 package com.rafambn.graphitesurface
 
 import androidx.compose.ui.unit.IntSize
-
-import androidx.compose.ui.geometry.Rect
-
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.AtomicReference
 
@@ -43,27 +40,12 @@ internal class GraphiteEngineRenderer(private val runtime: GraphiteEngine) :
         try {
             context.clear(frame.clearColor.toArgbLong())
             frame.insertions.forEach { insertion ->
-                context.save()
-                try {
-                    context.translate(
-                        insertion.translation.x.toFloat(),
-                        insertion.translation.y.toFloat(),
-                    )
-                    insertion.clip?.let { clip ->
-                        context.clipRect(
-                            Rect(
-                                clip.left.toFloat(),
-                                clip.top.toFloat(),
-                                clip.right.toFloat(),
-                                clip.bottom.toFloat(),
-                            ),
-                            antiAlias = false,
-                        )
-                    }
-                    context.executeGraphiteCommands(insertion.program)
-                } finally {
-                    context.restore()
-                }
+                context.insertRecording(
+                    recording = insertion.platformRecording,
+                    program = insertion.program,
+                    translation = insertion.translation,
+                    clip = insertion.clip,
+                )
             }
         } catch (error: Throwable) {
             runtime.failFromRenderWorker(error)

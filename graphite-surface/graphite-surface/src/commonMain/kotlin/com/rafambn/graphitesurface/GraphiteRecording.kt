@@ -4,4 +4,5 @@ package com.rafambn.graphitesurface
 class GraphiteRecording internal constructor(
     internal val runtimeToken: Any,
     internal val program: GraphiteCommandProgram,
+    internal val platformRecording: PlatformRecording,
 )

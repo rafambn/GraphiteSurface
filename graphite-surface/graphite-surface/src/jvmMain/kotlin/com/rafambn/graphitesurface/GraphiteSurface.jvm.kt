@@ -14,8 +14,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.SwingPanel
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.unit.IntSize
 import com.rafambn.graphitesurface.engine.JvmGraphiteDrawContext
 import com.rafambn.graphitesurface.engine.JvmGraphiteRenderer
@@ -26,12 +24,15 @@ import javax.swing.SwingUtilities
 @Composable
 @ExperimentalGraphiteSurfaceApi
 internal actual fun PlatformGraphiteSurface(
+    runtime: GraphiteEngine,
     renderer: GraphitePresentationRenderer,
     modifier: Modifier,
     renderMode: GraphiteRenderMode,
     state: GraphiteSurfaceState,
 ) {
-    val adapter = remember(renderer, renderMode) { JvmGraphiteSurfaceAdapter(renderer) }
+    val adapter = remember(runtime, renderer, renderMode) {
+        JvmGraphiteSurfaceAdapter(runtime, renderer)
+    }
     var frameToken by remember { mutableStateOf(0) }
 
     fun requestFrame() {
@@ -76,104 +77,31 @@ internal actual fun PlatformGraphiteSurface(
 }
 
 private class JvmGraphiteSurfaceAdapter(
+    runtime: GraphiteEngine,
     renderer: GraphitePresentationRenderer,
 ) {
+    private val workers = runtime.recorders.map(GraphiteRecorder::worker)
     private val surface = JvmGraphiteSurface(
         object : JvmGraphiteRenderer {
-            override fun onSurfaceCreated() {
+            override fun onSurfaceCreated(
+                recordingContext: com.rafambn.graphitesurface.engine.JvmGraphiteRecordingContext,
+            ) {
+                workers.forEach { worker -> worker.bind(recordingContext) }
                 renderer.onSurfaceCreated()
             }
 
+            override fun onSurfaceDestroyed(
+                recordingContext: com.rafambn.graphitesurface.engine.JvmGraphiteRecordingContext,
+            ) {
+                workers.forEach(PlatformRecorderWorker::unbind)
+            }
+
             override fun onSurfaceChanged(width: Int, height: Int) {
-        renderer.onSurfaceChanged(IntSize(width, height))
+                renderer.onSurfaceChanged(IntSize(width, height))
             }
 
             override fun onDrawFrame(context: JvmGraphiteDrawContext) {
-                renderer.onDrawFrame(
-                    object : GraphiteDrawContext {
-                        override fun clear(color: Long) = context.clear(color)
-
-                        override fun save() = context.save()
-
-                        override fun restore() = context.restore()
-
-                        override fun translate(x: Float, y: Float) = context.translate(x, y)
-
-                        override fun rotate(degrees: Float) = context.rotate(degrees)
-
-                        override fun concat(transform: GraphiteTransform) =
-                            context.concat(FloatArray(16) { index -> transform[index / 4, index % 4] })
-
-                        override fun clipRect(rect: Rect, antiAlias: Boolean) =
-                            context.clipRect(rect.left, rect.top, rect.right, rect.bottom, antiAlias)
-
-                        override fun drawPath(path: GraphitePathData, paint: GraphitePaintData) =
-                            context.drawPath(
-                                path.verbs,
-                                path.points,
-                                path.weights,
-                                path.fillType,
-                                paint.color.toArgbLong(),
-                                paint.strokeWidth != null,
-                                paint.strokeWidth ?: 0f,
-                                paint.antiAlias,
-                            )
-
-                        override fun drawRect(rect: Rect, paint: GraphitePaintData) =
-                            context.drawRect(
-                                rect.left, rect.top, rect.right, rect.bottom,
-                                paint.color.toArgbLong(),
-                                paint.strokeWidth != null,
-                                paint.strokeWidth ?: 0f,
-                                paint.antiAlias,
-                            )
-
-                        override fun drawRoundRect(
-                            rect: Rect,
-                            radiusX: Float,
-                            radiusY: Float,
-                            paint: GraphitePaintData,
-                        ) = context.drawRoundRect(
-                            rect.left, rect.top, rect.right, rect.bottom, radiusX, radiusY,
-                            paint.color.toArgbLong(),
-                            paint.strokeWidth != null,
-                            paint.strokeWidth ?: 0f,
-                            paint.antiAlias,
-                        )
-
-                        override fun drawOval(rect: Rect, paint: GraphitePaintData) =
-                            context.drawOval(
-                                rect.left, rect.top, rect.right, rect.bottom,
-                                paint.color.toArgbLong(),
-                                paint.strokeWidth != null,
-                                paint.strokeWidth ?: 0f,
-                                paint.antiAlias,
-                            )
-
-                        override fun drawCircle(
-                            center: Offset,
-                            radius: Float,
-                            paint: GraphitePaintData,
-                        ) = context.drawCircle(
-                            center.x, center.y, radius,
-                            paint.color.toArgbLong(),
-                            paint.strokeWidth != null,
-                            paint.strokeWidth ?: 0f,
-                            paint.antiAlias,
-                        )
-
-                        override fun drawLine(
-                            start: Offset,
-                            end: Offset,
-                            paint: GraphitePaintData,
-                        ) = context.drawLine(
-                            start.x, start.y, end.x, end.y,
-                            paint.color.toArgbLong(),
-                            paint.strokeWidth ?: 0f,
-                            paint.antiAlias,
-                        )
-                    },
-                )
+                renderer.onDrawFrame(JvmGraphiteDrawContextAdapter(context))
             }
 
             override fun onSurfaceError(error: Throwable) {

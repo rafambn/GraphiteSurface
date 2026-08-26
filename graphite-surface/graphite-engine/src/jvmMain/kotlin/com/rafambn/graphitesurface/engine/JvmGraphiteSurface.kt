@@ -118,6 +118,7 @@ class JvmGraphiteSurface(
     ) : Backend {
         private val host = GraphiteMetalHost()
         private var graphiteContext: GraphiteContext? = null
+        private var recordingContext: JvmGraphiteRecordingContext? = null
         private var recorder: Recorder? = null
         private var lastWidth = 0
         private var lastHeight = 0
@@ -140,12 +141,6 @@ class JvmGraphiteSurface(
             host.resize(logicalWidth, logicalHeight, scale)
             ensureContext()
 
-            if (width != lastWidth || height != lastHeight) {
-                lastWidth = width
-                lastHeight = height
-                renderer.onSurfaceChanged(width, height)
-            }
-
             val texturePointer = host.nextDrawable()
             if (texturePointer == 0L) return
 
@@ -155,7 +150,14 @@ class JvmGraphiteSurface(
             try {
                 val currentRecorder = checkNotNull(recorder)
                 val currentContext = checkNotNull(graphiteContext)
+                val currentRecordingContext = checkNotNull(recordingContext)
                 backendTexture = BackendTexture.makeMetal(width, height, texturePointer)
+                currentRecordingContext.installTarget(backendTexture)
+                if (width != lastWidth || height != lastHeight) {
+                    lastWidth = width
+                    lastHeight = height
+                    renderer.onSurfaceChanged(width, height)
+                }
                 surface = Surface.wrapBackendTexture(
                     recorder = currentRecorder,
                     backendTexture = backendTexture,
@@ -163,11 +165,36 @@ class JvmGraphiteSurface(
                 )
                 if (surface == null) return
 
-                renderer.onDrawFrame(SkiaGraphiteDrawContext(surface.canvas))
-                currentRecorder.snap().use { recording ->
-                    currentContext.insertRecording(recording)
-                    currentContext.submit(syncCpu = true)
+                fun flushPresentation() {
+                    currentRecorder.snap().use(currentContext::insertRecording)
                 }
+                renderer.onDrawFrame(
+                    SkiaGraphiteDrawContext(surface.canvas) {
+                            recording,
+                            translationX,
+                            translationY,
+                            clipLeft,
+                            clipTop,
+                            clipRight,
+                            clipBottom,
+                            hasClip,
+                        ->
+                        flushPresentation()
+                        currentRecordingContext.insert(
+                            recording,
+                            surface,
+                            translationX,
+                            translationY,
+                            clipLeft,
+                            clipTop,
+                            clipRight,
+                            clipBottom,
+                            hasClip,
+                        )
+                    },
+                )
+                flushPresentation()
+                currentContext.submit(syncCpu = true)
                 host.present()
                 presented = true
             } finally {
@@ -180,6 +207,9 @@ class JvmGraphiteSurface(
         override fun close() {
             if (closed) return
             closed = true
+            recordingContext?.let(renderer::onSurfaceDestroyed)
+            recordingContext?.close()
+            recordingContext = null
             recorder?.close()
             recorder = null
             graphiteContext?.close()
@@ -190,15 +220,18 @@ class JvmGraphiteSurface(
         private fun ensureContext() {
             if (graphiteContext != null) return
             val context = GraphiteContext.makeMetal(host.devicePointer, host.queuePointer)
+            val nativeRecordingContext = JvmGraphiteRecordingContext(context)
             val newRecorder = context.makeRecorder()
             try {
-                renderer.onSurfaceCreated()
+                renderer.onSurfaceCreated(nativeRecordingContext)
             } catch (error: Throwable) {
+                nativeRecordingContext.close()
                 newRecorder.close()
                 context.close()
                 throw error
             }
             graphiteContext = context
+            recordingContext = nativeRecordingContext
             recorder = newRecorder
         }
     }
@@ -208,6 +241,7 @@ class JvmGraphiteSurface(
     ) : Backend {
         private val host = GraphiteVulkanHost()
         private var graphiteContext: GraphiteContext? = null
+        private var recordingContext: JvmGraphiteRecordingContext? = null
         private var recorder: Recorder? = null
         private var lastWidth = 0
         private var lastHeight = 0
@@ -230,12 +264,6 @@ class JvmGraphiteSurface(
             if (width <= 0 || height <= 0) return
             ensureContext()
 
-            if (width != lastWidth || height != lastHeight) {
-                lastWidth = width
-                lastHeight = height
-                renderer.onSurfaceChanged(width, height)
-            }
-
             val imagePointer = host.nextDrawable()
             if (imagePointer == 0L) return
 
@@ -245,6 +273,7 @@ class JvmGraphiteSurface(
             try {
                 val currentRecorder = checkNotNull(recorder)
                 val currentContext = checkNotNull(graphiteContext)
+                val currentRecordingContext = checkNotNull(recordingContext)
                 backendTexture = BackendTexture.makeVulkan(
                     width = width,
                     height = height,
@@ -254,6 +283,12 @@ class JvmGraphiteSurface(
                     queueFamilyIndex = host.queueFamilyIndex,
                     imagePtr = imagePointer,
                 )
+                currentRecordingContext.installTarget(backendTexture)
+                if (width != lastWidth || height != lastHeight) {
+                    lastWidth = width
+                    lastHeight = height
+                    renderer.onSurfaceChanged(width, height)
+                }
                 surface = Surface.wrapBackendTexture(
                     recorder = currentRecorder,
                     backendTexture = backendTexture,
@@ -261,11 +296,36 @@ class JvmGraphiteSurface(
                 )
                 if (surface == null) return
 
-                renderer.onDrawFrame(SkiaGraphiteDrawContext(surface.canvas))
-                currentRecorder.snap().use { recording ->
-                    currentContext.insertRecording(recording)
-                    currentContext.submit(syncCpu = true)
+                fun flushPresentation() {
+                    currentRecorder.snap().use(currentContext::insertRecording)
                 }
+                renderer.onDrawFrame(
+                    SkiaGraphiteDrawContext(surface.canvas) {
+                            recording,
+                            translationX,
+                            translationY,
+                            clipLeft,
+                            clipTop,
+                            clipRight,
+                            clipBottom,
+                            hasClip,
+                        ->
+                        flushPresentation()
+                        currentRecordingContext.insert(
+                            recording,
+                            surface,
+                            translationX,
+                            translationY,
+                            clipLeft,
+                            clipTop,
+                            clipRight,
+                            clipBottom,
+                            hasClip,
+                        )
+                    },
+                )
+                flushPresentation()
+                currentContext.submit(syncCpu = true)
                 host.present()
                 presented = true
             } finally {
@@ -278,6 +338,9 @@ class JvmGraphiteSurface(
         override fun close() {
             if (closed) return
             closed = true
+            recordingContext?.let(renderer::onSurfaceDestroyed)
+            recordingContext?.close()
+            recordingContext = null
             recorder?.close()
             recorder = null
             graphiteContext?.close()
@@ -294,22 +357,57 @@ class JvmGraphiteSurface(
                 queuePtr = host.queuePointer,
                 queueFamilyIndex = host.queueFamilyIndex,
             )
+            val nativeRecordingContext = JvmGraphiteRecordingContext(context)
             val newRecorder = context.makeRecorder()
             try {
-                renderer.onSurfaceCreated()
+                renderer.onSurfaceCreated(nativeRecordingContext)
             } catch (error: Throwable) {
+                nativeRecordingContext.close()
                 newRecorder.close()
                 context.close()
                 throw error
             }
             graphiteContext = context
+            recordingContext = nativeRecordingContext
             recorder = newRecorder
         }
     }
 
-    private class SkiaGraphiteDrawContext(
+    internal class SkiaGraphiteDrawContext(
         private val canvas: Canvas,
+        private val insertRecording: ((
+            JvmGraphiteRecording,
+            Int,
+            Int,
+            Int,
+            Int,
+            Int,
+            Int,
+            Boolean,
+        ) -> Unit)? = null,
     ) : JvmGraphiteDrawContext {
+        override fun insertRecording(
+            recording: JvmGraphiteRecording,
+            translationX: Int,
+            translationY: Int,
+            clipLeft: Int,
+            clipTop: Int,
+            clipRight: Int,
+            clipBottom: Int,
+            hasClip: Boolean,
+        ) {
+            checkNotNull(insertRecording) { "Deferred recordings can only target a frame context" }(
+                recording,
+                translationX,
+                translationY,
+                clipLeft,
+                clipTop,
+                clipRight,
+                clipBottom,
+                hasClip,
+            )
+        }
+
         override fun clear(color: Long) {
             canvas.clear(color.toInt())
         }

@@ -14,6 +14,7 @@ import kotlinx.coroutines.isActive
 @Composable
 @ExperimentalGraphiteSurfaceApi
 internal expect fun PlatformGraphiteSurface(
+    runtime: GraphiteEngine,
     renderer: GraphitePresentationRenderer,
     modifier: Modifier = Modifier,
     renderMode: GraphiteRenderMode = GraphiteRenderMode.Continuous,
@@ -45,6 +46,7 @@ fun GraphiteSurface(
     DriveGraphiteRenderer(renderer)
 
     PlatformGraphiteSurface(
+        runtime = runtime,
         renderer = presentationRenderer,
         modifier = modifier,
         renderMode = GraphiteRenderMode.OnDemand,

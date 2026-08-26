@@ -13,7 +13,7 @@ import kotlinx.coroutines.sync.withLock
 class GraphiteRecorder internal constructor(
     val index: Int,
     private val runtime: GraphiteEngine,
-    private val worker: PlatformRecorderWorker,
+    internal val worker: PlatformRecorderWorker,
     queueCapacity: Int,
 ) {
     private val admission = Channel<Unit>(queueCapacity + 1).also { channel ->
@@ -34,19 +34,26 @@ class GraphiteRecorder internal constructor(
         metrics.admitted((admittedAt - queuedAt).coerceAtLeast(0))
         var submittedToWorker = false
         try {
-            val completedProgram = execution.withLock {
+            val recording = execution.withLock {
                 runtime.requireReady()
                 val job = currentCoroutineContext()[Job]
                 val writer = GraphiteCommandWriter(GraphiteCommandBufferLimit.Default.bytes)
                 GraphiteEncoderImpl(writer) { job?.ensureActive() }.block()
-                writer.finish().also { encoded ->
-                    val message = runtime.prepareRecording(encoded, index)
-                    submittedToWorker = true
-                    worker.process(message)
-                }
+                val program = writer.finish()
+                val message = runtime.prepareRecording(program, index)
+                submittedToWorker = true
+                GraphiteRecording(
+                    runtimeToken = runtime.token,
+                    program = program,
+                    platformRecording = worker.process(
+                        message = message,
+                        program = program,
+                        pixelSize = runtime.presentation.value?.pixelSize,
+                    ),
+                )
             }
             metrics.succeeded(elapsedSince(admittedAt))
-            return GraphiteRecording(runtime.token, completedProgram)
+            return recording
         } catch (cancelled: CancellationException) {
             metrics.cancelled(elapsedSince(admittedAt))
             throw cancelled

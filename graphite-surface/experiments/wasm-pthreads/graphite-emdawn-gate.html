@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Graphite Emdawn pthread gate</title>
+</head>
+<body>
+  <p id="status">Starting Graphite Emdawn pthread gate</p>
+  <pre id="metrics"></pre>
+  <canvas id="graphite-canvas" width="960" height="540"></canvas>
+  <script type="module">
+    import createGate from './graphite-emdawn-gate.mjs';
+
+    const statusElement = document.getElementById('status');
+    const metricsElement = document.getElementById('metrics');
+
+    try {
+      if (!crossOriginIsolated || typeof SharedArrayBuffer !== 'function' || !navigator.gpu) {
+        throw new Error('cross-origin isolation, SharedArrayBuffer, and WebGPU are required');
+      }
+
+      const module = await createGate();
+      const timer = setInterval(() => {
+        const status = module._graphite_emdawn_status();
+        const recorder0 = module._graphite_emdawn_recorder_state(0);
+        const recorder1 = module._graphite_emdawn_recorder_state(1);
+        const started = [
+          module._graphite_emdawn_recorder_started(0),
+          module._graphite_emdawn_recorder_started(1),
+        ];
+        const finished = [
+          module._graphite_emdawn_recorder_finished(0),
+          module._graphite_emdawn_recorder_finished(1),
+        ];
+        const overlapMs = Math.max(
+          0,
+          Math.min(finished[0], finished[1]) - Math.max(started[0], started[1]),
+        );
+        metricsElement.textContent = JSON.stringify({
+          status,
+          recorder0,
+          recorder1,
+          recorder0LocalHandle: module._graphite_emdawn_recorder_local_handle(0),
+          recorder1LocalHandle: module._graphite_emdawn_recorder_local_handle(1),
+          overlapMs,
+          deviceError: module._graphite_emdawn_device_error_code(),
+        }, null, 2);
+
+        if (status === 4) {
+          statusElement.textContent = 'Gate passed: Graphite presented two native pthread recordings';
+          clearInterval(timer);
+        } else if (status < 0) {
+          statusElement.textContent = `Probe failed: native status ${status}`;
+          clearInterval(timer);
+        }
+      }, 25);
+    } catch (error) {
+      statusElement.textContent = `Probe failed: ${error?.message ?? error}`;
+      console.error(error);
+    }
+  </script>
+</body>
+</html>

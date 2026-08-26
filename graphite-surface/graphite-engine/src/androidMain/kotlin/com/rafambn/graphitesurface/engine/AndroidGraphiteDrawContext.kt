@@ -1,20 +1,7 @@
 package com.rafambn.graphitesurface.engine
 
-/** Drawing operations exposed by the JVM Graphite frame. */
-interface JvmGraphiteDrawContext {
-    fun insertRecording(
-        recording: JvmGraphiteRecording,
-        translationX: Int,
-        translationY: Int,
-        clipLeft: Int,
-        clipTop: Int,
-        clipRight: Int,
-        clipBottom: Int,
-        hasClip: Boolean,
-    ) {
-        error("This Graphite draw context cannot insert recordings")
-    }
-
+/** Drawing operations exposed while an Android Graphite recorder is active. */
+interface AndroidGraphiteDrawContext {
     fun clear(color: Long)
 
     fun save()

@@ -1,5 +1,6 @@
 package com.rafambn.graphitesurface
 
+import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
@@ -10,7 +11,11 @@ internal actual class PlatformRecorderWorker actual constructor(index: Int) {
     private val resources = GraphiteWorkerResourceCache()
     private val closed = CompletableDeferred<Unit>()
 
-    internal actual suspend fun process(message: ByteArray): Unit =
+    internal actual suspend fun process(
+        message: ByteArray,
+        program: GraphiteCommandProgram,
+        pixelSize: IntSize?,
+    ): PlatformRecording =
         suspendCancellableCoroutine { continuation ->
             worker.process(
                 commands = message,
@@ -18,7 +23,7 @@ internal actual class PlatformRecorderWorker actual constructor(index: Int) {
                     if (continuation.isActive) {
                         try {
                             resources.process(result)
-                            continuation.resume(Unit)
+                            continuation.resume(PlatformRecording())
                         } catch (error: Throwable) {
                             continuation.resumeWithException(error)
                         }

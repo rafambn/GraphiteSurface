@@ -1,27 +1,21 @@
 package com.rafambn.graphitesurface.sample.dualrecorder
 
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
+import com.rafambn.graphitesurface.GraphiteEngine
 import com.rafambn.graphitesurface.GraphiteMetricsSnapshot
 import com.rafambn.graphitesurface.GraphitePresentationInfo
-import com.rafambn.graphitesurface.GraphiteRecording
 import com.rafambn.graphitesurface.GraphiteRenderMode
 import com.rafambn.graphitesurface.GraphiteRenderer
-import com.rafambn.graphitesurface.GraphiteEngine
 import com.rafambn.graphitesurface.GraphiteTransform
 import com.rafambn.graphitesurface.sample.loopingRotationDegrees
-import androidx.compose.ui.graphics.Color
-import kotlin.concurrent.atomics.AtomicBoolean
-import kotlin.concurrent.atomics.AtomicLong
-import kotlin.concurrent.atomics.AtomicReference
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalAtomicApi::class)
 internal class DualRecorderViewModel : ViewModel() {
     private val mutableError = MutableStateFlow<Throwable?>(null)
     internal val error: StateFlow<Throwable?> = mutableError.asStateFlow()
@@ -29,8 +23,7 @@ internal class DualRecorderViewModel : ViewModel() {
     private val mutableUiState = MutableStateFlow(DualRecorderUiState())
     internal val uiState: StateFlow<DualRecorderUiState> = mutableUiState.asStateFlow()
 
-    private val recorderEnabled = listOf(AtomicBoolean(true), AtomicBoolean(true))
-    private val renderedFrames = AtomicLong(0)
+    private var renderedFrames = 0L
     internal val renderer: GraphiteRenderer? = try {
         GraphiteRenderer(
             runtime = GraphiteEngine(
@@ -48,8 +41,13 @@ internal class DualRecorderViewModel : ViewModel() {
     }
 
     internal fun toggleRecorder(index: Int) {
-        val enabled = recorderEnabled.getOrNull(index) ?: return
-        enabled.store(!enabled.load())
+        val current = mutableUiState.value
+        val recorder = current.recorders[index]
+        mutableUiState.value = current.copy(
+            recorders = current.recorders.toMutableList().apply {
+                this[index] = recorder.copy(enabled = !recorder.enabled)
+            },
+        )
         renderer?.runtime?.let(::publishMetrics)
     }
 
@@ -64,47 +62,46 @@ internal class DualRecorderViewModel : ViewModel() {
             val rotation = loopingRotationDegrees(frameTimeNanos)
             val centerX = presentation.pixelSize.width / 2f
             val centerY = presentation.pixelSize.height / 2f
-            val recordings = listOf(
-                AtomicReference<GraphiteRecording?>(null),
-                AtomicReference<GraphiteRecording?>(null),
-            )
-
-            coroutineScope {
-                if (recorderEnabled[0].load()) {
-                    launch {
-                        recordings[0].store(
-                            recorders[0].record {
-                                withTransform(
-                                    GraphiteTransform.translation(centerX, centerY) *
-                                        GraphiteTransform.rotationDegrees(-rotation * 0.08f) *
-                                        GraphiteTransform.translation(-centerX, -centerY),
-                                ) { draw(prepared.background) }
-                            },
-                        )
+            val enabled = uiState.value.recorders.map { it.enabled }
+            val (background, foreground) = coroutineScope {
+                val background = if (enabled[0]) {
+                    async {
+                        recorders[0].record {
+                            withTransform(
+                                GraphiteTransform.translation(centerX, centerY) *
+                                    GraphiteTransform.rotationDegrees(-rotation * 0.08f) *
+                                    GraphiteTransform.translation(-centerX, -centerY),
+                            ) { draw(prepared.background) }
+                        }
                     }
+                } else {
+                    null
                 }
-                if (recorderEnabled[1].load()) {
-                    launch {
-                        recordings[1].store(
-                            recorders[1].record {
-                                withTransform(
-                                    GraphiteTransform.translation(centerX, centerY) *
-                                        GraphiteTransform.rotationDegrees(rotation),
-                                ) { draw(prepared.foreground) }
-                            },
-                        )
+                val foreground = if (enabled[1]) {
+                    async {
+                        recorders[1].record {
+                            withTransform(
+                                GraphiteTransform.translation(centerX, centerY) *
+                                    GraphiteTransform.rotationDegrees(rotation),
+                            ) { draw(prepared.foreground) }
+                        }
                     }
+                } else {
+                    null
                 }
+                background?.await() to foreground?.await()
             }
 
             present(
                 presentation = presentation,
                 clearColor = Color(16, 17, 20),
             ) {
-                recordings.forEach { slot -> slot.load()?.let(::insert) }
+                background?.let(::insert)
+                foreground?.let(::insert)
             }
 
-            if (renderedFrames.addAndFetch(1) % METRICS_REFRESH_FRAMES == 0L) {
+            renderedFrames++
+            if (renderedFrames % METRICS_REFRESH_FRAMES == 0L) {
                 publishMetrics(this)
             }
         } catch (cancelled: CancellationException) {
@@ -116,9 +113,10 @@ internal class DualRecorderViewModel : ViewModel() {
 
     private fun publishMetrics(runtime: GraphiteEngine) {
         val snapshot = runtime.diagnostics.snapshot()
+        val enabled = uiState.value.recorders.map { it.enabled }
         mutableUiState.value = DualRecorderUiState(
             recorders = snapshot.recorders.map { metrics ->
-                metrics.toUiState(enabled = recorderEnabled[metrics.index].load())
+                metrics.toUiState(enabled = enabled[metrics.index])
             },
         )
     }
