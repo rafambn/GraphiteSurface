@@ -452,6 +452,9 @@ class JvmGraphiteSurface(
             color: Long,
             stroke: Boolean,
             strokeWidth: Float,
+            strokeCap: Int,
+            strokeJoin: Int,
+            strokeMiter: Float,
             antiAlias: Boolean,
         ) {
             val builder = PathBuilder()
@@ -482,7 +485,15 @@ class JvmGraphiteSurface(
                 }
             }
             builder.detach().use { path ->
-                makePaint(color, stroke, strokeWidth, antiAlias).use { paint ->
+                makePaint(
+                    color,
+                    stroke,
+                    strokeWidth,
+                    antiAlias,
+                    strokeCap,
+                    strokeJoin,
+                    strokeMiter,
+                ).use { paint ->
                     canvas.drawPath(path, paint)
                 }
             }
@@ -575,10 +586,16 @@ class JvmGraphiteSurface(
             stroke: Boolean,
             strokeWidth: Float,
             antiAlias: Boolean,
+            strokeCap: Int = 0,
+            strokeJoin: Int = 0,
+            strokeMiter: Float = 4f,
         ): Paint = Paint().apply {
             this.color = color.toInt()
             mode = if (stroke) PaintMode.STROKE else PaintMode.FILL
             this.strokeWidth = strokeWidth
+            this.strokeCap = org.jetbrains.skia.PaintStrokeCap.entries[strokeCap]
+            this.strokeJoin = org.jetbrains.skia.PaintStrokeJoin.entries[strokeJoin]
+            this.strokeMiter = strokeMiter
             isAntiAlias = antiAlias
         }
     }

@@ -41,7 +41,7 @@
 + (void)gsCubicToView:(UIView *)view target:(unsigned long long)target x1:(float)x1 y1:(float)y1 x2:(float)x2 y2:(float)y2 x3:(float)x3 y3:(float)y3;
 + (void)gsClosePathView:(UIView *)view target:(unsigned long long)target;
 + (void)gsDrawPathView:(UIView *)view target:(unsigned long long)target color:(unsigned)color antiAlias:(int)antiAlias;
-+ (void)gsDrawStyledPathView:(UIView *)view target:(unsigned long long)target color:(unsigned)color stroke:(int)stroke strokeWidth:(float)strokeWidth antiAlias:(int)antiAlias;
++ (void)gsDrawStyledPathView:(UIView *)view target:(unsigned long long)target color:(unsigned)color stroke:(int)stroke strokeWidth:(float)strokeWidth strokeCap:(int)strokeCap strokeJoin:(int)strokeJoin strokeMiter:(float)strokeMiter antiAlias:(int)antiAlias;
 + (void)gsDrawRectView:(UIView *)view target:(unsigned long long)target left:(float)left top:(float)top right:(float)right bottom:(float)bottom color:(unsigned)color stroke:(int)stroke strokeWidth:(float)strokeWidth antiAlias:(int)antiAlias;
 + (void)gsDrawRoundRectView:(UIView *)view target:(unsigned long long)target left:(float)left top:(float)top right:(float)right bottom:(float)bottom radiusX:(float)radiusX radiusY:(float)radiusY color:(unsigned)color stroke:(int)stroke strokeWidth:(float)strokeWidth antiAlias:(int)antiAlias;
 + (void)gsDrawOvalView:(UIView *)view target:(unsigned long long)target left:(float)left top:(float)top right:(float)right bottom:(float)bottom color:(unsigned)color stroke:(int)stroke strokeWidth:(float)strokeWidth antiAlias:(int)antiAlias;

@@ -1,6 +1,8 @@
 package com.rafambn.graphitesurface
 
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 
 internal class GraphiteCommandReader(
     private val bytes: ByteArray,
@@ -67,9 +69,26 @@ internal class GraphiteCommandReader(
             else -> error("invalid paint style: $value")
         }
         val strokeWidth = readFloat()
+        val strokeCap = when (val value = readByte()) {
+            0 -> StrokeCap.Butt
+            1 -> StrokeCap.Round
+            2 -> StrokeCap.Square
+            else -> error("invalid stroke cap: $value")
+        }
+        val strokeJoin = when (val value = readByte()) {
+            0 -> StrokeJoin.Miter
+            1 -> StrokeJoin.Round
+            2 -> StrokeJoin.Bevel
+            else -> error("invalid stroke join: $value")
+        }
+        val strokeMiter = readFloat()
+        if (strokeMiter < 0f) error("stroke miter must be non-negative")
         return GraphitePaintData(
             color = color,
             strokeWidth = if (isStroke) strokeWidth else null,
+            strokeCap = strokeCap,
+            strokeJoin = strokeJoin,
+            strokeMiter = strokeMiter,
             antiAlias = when (val value = readByte()) {
                 0 -> false
                 1 -> true

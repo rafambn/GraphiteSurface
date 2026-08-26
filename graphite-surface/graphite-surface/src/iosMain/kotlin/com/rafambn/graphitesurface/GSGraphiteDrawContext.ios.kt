@@ -134,6 +134,9 @@ internal class GSGraphiteDrawContext(
             paint.color.toArgbLong().toUInt(),
             paint.isStroke.toNativeInt(),
             paint.strokeWidth ?: 0f,
+            paint.strokeCapCode,
+            paint.strokeJoinCode,
+            paint.strokeMiter,
             paint.antiAlias.toNativeInt(),
         )
     }

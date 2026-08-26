@@ -37,6 +37,9 @@ interface JvmGraphiteDrawContext {
         color: Long,
         stroke: Boolean,
         strokeWidth: Float,
+        strokeCap: Int,
+        strokeJoin: Int,
+        strokeMiter: Float,
         antiAlias: Boolean,
     )
 

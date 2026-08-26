@@ -31,8 +31,16 @@ includeBuild("skiko-fork/skiko/skiko") {
         substitute(module("org.jetbrains.skiko:skiko-graphite-wasm-js")).using(project(":skiko-graphite"))
         substitute(module("org.jetbrains.skiko:skiko-awt-runtime-macos-arm64")).using(project(":"))
         substitute(module("org.jetbrains.skiko:skiko-graphite-awt-runtime-macos-arm64")).using(project(":skiko-graphite"))
+        substitute(module("org.jetbrains.skiko:skiko-awt-runtime-macos-x64")).using(project(":"))
+        substitute(module("org.jetbrains.skiko:skiko-graphite-awt-runtime-macos-x64")).using(project(":skiko-graphite"))
+        substitute(module("org.jetbrains.skiko:skiko-awt-runtime-linux-arm64")).using(project(":"))
+        substitute(module("org.jetbrains.skiko:skiko-graphite-awt-runtime-linux-arm64")).using(project(":skiko-graphite"))
         substitute(module("org.jetbrains.skiko:skiko-awt-runtime-linux-x64")).using(project(":"))
         substitute(module("org.jetbrains.skiko:skiko-graphite-awt-runtime-linux-x64")).using(project(":skiko-graphite"))
+        substitute(module("org.jetbrains.skiko:skiko-awt-runtime-windows-arm64")).using(project(":"))
+        substitute(module("org.jetbrains.skiko:skiko-graphite-awt-runtime-windows-arm64")).using(project(":skiko-graphite"))
+        substitute(module("org.jetbrains.skiko:skiko-awt-runtime-windows-x64")).using(project(":"))
+        substitute(module("org.jetbrains.skiko:skiko-graphite-awt-runtime-windows-x64")).using(project(":skiko-graphite"))
     }
 }
 

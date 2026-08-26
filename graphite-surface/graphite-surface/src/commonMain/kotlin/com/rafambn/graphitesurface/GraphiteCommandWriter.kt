@@ -27,6 +27,9 @@ internal class GraphiteCommandWriter(private val limitBytes: Int) {
         writeInt(paint.color.toArgbLong().toInt())
         writeByte(if (paint.strokeWidth == null) 0 else 1)
         writeFloat(paint.strokeWidth ?: 0f)
+        writeByte(paint.strokeCapCode)
+        writeByte(paint.strokeJoinCode)
+        writeFloat(paint.strokeMiter)
         writeByte(if (paint.antiAlias) 1 else 0)
     }
 

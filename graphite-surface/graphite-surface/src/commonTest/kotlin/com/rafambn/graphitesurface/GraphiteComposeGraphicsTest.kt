@@ -7,6 +7,8 @@ import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathFillType
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -112,7 +114,13 @@ class GraphiteComposeGraphicsTest {
         val writer = GraphiteCommandWriter(GraphiteCommandBufferLimit.Default.bytes)
         writer.command(GraphiteCommandOpcode.DrawRect) {
             writeRect(Rect(0f, 0f, 1f, 1f))
-            writePaint(GraphitePaintData(Color(1, 2, 3, 4), null, true))
+            writePaint(
+                GraphitePaintData(
+                    color = Color(1, 2, 3, 4),
+                    strokeWidth = null,
+                    antiAlias = true,
+                )
+            )
         }
         val program = writer.finish()
         val reader = GraphiteCommandReader(program.commands)
@@ -126,6 +134,40 @@ class GraphiteComposeGraphicsTest {
         assertNotEquals(Color.White, paint.color)
         assertEquals(0xFFFFFFFFL, Color.White.toArgbLong())
         assertFailsWith<IllegalArgumentException> { Color.Unspecified.toArgbLong() }
+    }
+
+    @Test
+    fun strokeProtocolPreservesEveryCapAndJoin() {
+        listOf(StrokeCap.Butt, StrokeCap.Round, StrokeCap.Square).forEach { cap ->
+            listOf(StrokeJoin.Miter, StrokeJoin.Round, StrokeJoin.Bevel).forEach { join ->
+                val writer = GraphiteCommandWriter(GraphiteCommandBufferLimit.Default.bytes)
+                writer.command(GraphiteCommandOpcode.DrawRect) {
+                    writeRect(Rect(0f, 0f, 1f, 1f))
+                    writePaint(
+                        GraphitePaintData(
+                            color = Color.Red,
+                            strokeWidth = 3f,
+                            strokeCap = cap,
+                            strokeJoin = join,
+                            strokeMiter = 7f,
+                            antiAlias = true,
+                        )
+                    )
+                }
+
+                val reader = GraphiteCommandReader(writer.finish().commands)
+                reader.readInt()
+                reader.readInt()
+                reader.readByte()
+                val payload = GraphiteCommandReader(reader.readBytes(reader.readInt()))
+                payload.readRect()
+                val paint = payload.readPaint()
+
+                assertEquals(cap, paint.strokeCap)
+                assertEquals(join, paint.strokeJoin)
+                assertEquals(7f, paint.strokeMiter)
+            }
+        }
     }
 
     @Test

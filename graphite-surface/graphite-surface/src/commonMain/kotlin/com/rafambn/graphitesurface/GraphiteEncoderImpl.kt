@@ -81,7 +81,10 @@ internal class GraphiteEncoderImpl(
         require(strokeWidth.isFinite() && strokeWidth >= 0f) {
             "stroke width must be finite and non-negative"
         }
-        geometry(GraphiteCommandOpcode.DrawLine, GraphitePaintData(color, strokeWidth, antiAlias)) {
+        geometry(
+            GraphiteCommandOpcode.DrawLine,
+            GraphitePaintData(color = color, strokeWidth = strokeWidth, antiAlias = antiAlias),
+        ) {
             writeFloat(start.x)
             writeFloat(start.y)
             writeFloat(end.x)
@@ -139,9 +142,15 @@ internal class GraphiteEncoderImpl(
         color: Color,
         style: GraphiteDrawStyle,
         antiAlias: Boolean,
-    ): GraphitePaintData = GraphitePaintData(
-        color = color,
-        strokeWidth = (style as? GraphiteDrawStyle.Stroke)?.width,
-        antiAlias = antiAlias,
-    )
+    ): GraphitePaintData {
+        val stroke = style as? GraphiteDrawStyle.Stroke
+        return GraphitePaintData(
+            color = color,
+            strokeWidth = stroke?.width,
+            strokeCap = stroke?.cap ?: androidx.compose.ui.graphics.StrokeCap.Butt,
+            strokeJoin = stroke?.join ?: androidx.compose.ui.graphics.StrokeJoin.Miter,
+            strokeMiter = stroke?.miter ?: 4f,
+            antiAlias = antiAlias,
+        )
+    }
 }

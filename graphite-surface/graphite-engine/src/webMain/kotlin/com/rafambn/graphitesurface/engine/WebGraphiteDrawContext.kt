@@ -26,6 +26,9 @@ class WebGraphiteDrawContext internal constructor() {
         color: Long,
         stroke: Boolean,
         strokeWidth: Float,
+        strokeCap: Int,
+        strokeJoin: Int,
+        strokeMiter: Float,
         antiAlias: Boolean,
     ) {
         beginCommand(7)
@@ -39,6 +42,9 @@ class WebGraphiteDrawContext internal constructor() {
         commands.append(',').append(color)
         commands.append(',').append(stroke.asInt())
         commands.append(',').append(strokeWidth)
+        commands.append(',').append(strokeCap)
+        commands.append(',').append(strokeJoin)
+        commands.append(',').append(strokeMiter)
         commands.append(',').append(antiAlias.asInt())
         commands.append(']')
     }

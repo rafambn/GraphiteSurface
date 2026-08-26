@@ -44,12 +44,23 @@ const withFloatArray = (values, block) => {
     }
 };
 
-const createPaint = (color, stroke, strokeWidth, antiAlias) => {
+const createPaint = (
+    color,
+    stroke,
+    strokeWidth,
+    antiAlias,
+    strokeCap = 0,
+    strokeJoin = 0,
+    strokeMiter = 4,
+) => {
     const paint = Skia.org_jetbrains_skia_Paint__1nMake();
     if (!paint) throw new Error('Skia failed to create a paint');
     Skia.org_jetbrains_skia_Paint__1nSetColor(paint, color | 0);
     Skia.org_jetbrains_skia_Paint__1nSetMode(paint, stroke ? 1 : 0);
     Skia.org_jetbrains_skia_Paint__1nSetStrokeWidth(paint, strokeWidth);
+    Skia.org_jetbrains_skia_Paint__1nSetStrokeCap(paint, strokeCap);
+    Skia.org_jetbrains_skia_Paint__1nSetStrokeJoin(paint, strokeJoin);
+    Skia.org_jetbrains_skia_Paint__1nSetStrokeMiter(paint, strokeMiter);
     Skia.org_jetbrains_skia_Paint__1nSetAntiAlias(paint, Boolean(antiAlias));
     return paint;
 };
@@ -166,7 +177,10 @@ const executeCommands = (canvas, encoded) => {
                 break;
             case 7: {
                 const path = buildPath(command[1], command[2], command[3], command[4]);
-                const paint = createPaint(command[5], command[6], command[7], command[8]);
+                const paint = createPaint(
+                    command[5], command[6], command[7], command[11],
+                    command[8], command[9], command[10],
+                );
                 try {
                     Skia.org_jetbrains_skia_Canvas__1nDrawPath(canvas, path, paint);
                 } finally {

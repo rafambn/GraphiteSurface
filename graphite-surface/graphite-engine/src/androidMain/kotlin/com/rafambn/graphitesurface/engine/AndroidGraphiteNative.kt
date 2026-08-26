@@ -142,6 +142,9 @@ object AndroidGraphiteNative {
         color: Int,
         stroke: Boolean,
         strokeWidth: Float,
+        strokeCap: Int,
+        strokeJoin: Int,
+        strokeMiter: Float,
         antiAlias: Boolean,
     ) {
         SkikoAndroidGraphiteNative.drawImmutablePath(
@@ -153,6 +156,9 @@ object AndroidGraphiteNative {
             color,
             stroke,
             strokeWidth,
+            strokeCap,
+            strokeJoin,
+            strokeMiter,
             antiAlias,
         )
     }

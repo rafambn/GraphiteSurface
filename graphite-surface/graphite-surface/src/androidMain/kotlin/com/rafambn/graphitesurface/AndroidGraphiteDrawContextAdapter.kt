@@ -32,6 +32,9 @@ internal class AndroidGraphiteDrawContextAdapter(
             paint.color.toArgbLong(),
             paint.strokeWidth != null,
             paint.strokeWidth ?: 0f,
+            paint.strokeCapCode,
+            paint.strokeJoinCode,
+            paint.strokeMiter,
             paint.antiAlias,
         )
 

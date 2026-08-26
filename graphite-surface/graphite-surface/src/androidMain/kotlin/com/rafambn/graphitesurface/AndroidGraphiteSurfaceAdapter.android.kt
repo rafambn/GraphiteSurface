@@ -343,6 +343,9 @@ private class AndroidPresentationDrawContext(
             paint.color.toArgbLong().toInt(),
             paint.strokeWidth != null,
             paint.strokeWidth ?: 0f,
+            paint.strokeCapCode,
+            paint.strokeJoinCode,
+            paint.strokeMiter,
             paint.antiAlias,
         )
     }

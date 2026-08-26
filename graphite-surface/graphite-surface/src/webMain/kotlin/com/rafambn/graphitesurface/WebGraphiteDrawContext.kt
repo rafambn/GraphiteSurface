@@ -44,6 +44,9 @@ internal class WebGraphiteDrawContext(
             paint.color.toArgbLong(),
             paint.strokeWidth != null,
             paint.strokeWidth ?: 0f,
+            paint.strokeCapCode,
+            paint.strokeJoinCode,
+            paint.strokeMiter,
             paint.antiAlias,
         )
     }

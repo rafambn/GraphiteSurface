@@ -264,7 +264,7 @@ fun gsClosePath(view: UIView, target: ULong) {
 
 @Suppress("unused")
 fun gsDrawPath(view: UIView, target: ULong, color: UInt, antiAlias: Int) {
-    gsDrawStyledPath(view, target, color, 0, 1f, antiAlias)
+    gsDrawStyledPath(view, target, color, 0, 1f, 0, 0, 4f, antiAlias)
 }
 
 @Suppress("unused")
@@ -274,11 +274,22 @@ fun gsDrawStyledPath(
     color: UInt,
     stroke: Int,
     strokeWidth: Float,
+    strokeCap: Int,
+    strokeJoin: Int,
+    strokeMiter: Float,
     antiAlias: Int,
 ) {
     val frame = frameContextOf(view, target)
     val path = frame.path.detach()
-    val paint = makePaint(color, stroke, strokeWidth, antiAlias)
+    val paint = makePaint(
+        color,
+        stroke,
+        strokeWidth,
+        antiAlias,
+        strokeCap,
+        strokeJoin,
+        strokeMiter,
+    )
     frame.canvas.drawPath(path, paint)
     path.close()
     paint.close()
@@ -381,11 +392,22 @@ fun gsDrawLine(
     }
 }
 
-private fun makePaint(color: UInt, stroke: Int, strokeWidth: Float, antiAlias: Int): Paint =
+private fun makePaint(
+    color: UInt,
+    stroke: Int,
+    strokeWidth: Float,
+    antiAlias: Int,
+    strokeCap: Int = 0,
+    strokeJoin: Int = 0,
+    strokeMiter: Float = 4f,
+): Paint =
     Paint().apply {
         this.color = color.toInt()
         mode = if (stroke != 0) PaintMode.STROKE else PaintMode.FILL
         this.strokeWidth = strokeWidth
+        this.strokeCap = org.jetbrains.skia.PaintStrokeCap.entries[strokeCap]
+        this.strokeJoin = org.jetbrains.skia.PaintStrokeJoin.entries[strokeJoin]
+        this.strokeMiter = strokeMiter
         isAntiAlias = antiAlias != 0
     }
 
