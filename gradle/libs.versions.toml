@@ -12,6 +12,9 @@ graphiteEngineSkiko = "0.152.0-alpha01"
 kotlinxCoroutines = "1.11.0"
 
 [libraries]
+runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeAdapter" }
+ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeAdapter" }
+foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "composeAdapter" }
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeAdapter" }
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeAdapter" }
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "composeAdapter" }
@@ -26,6 +29,8 @@ kotlinx-coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
 
 [plugins]
+multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+compose = { id = "org.jetbrains.compose", version.ref = "composeAdapter" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 android-kmp-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }

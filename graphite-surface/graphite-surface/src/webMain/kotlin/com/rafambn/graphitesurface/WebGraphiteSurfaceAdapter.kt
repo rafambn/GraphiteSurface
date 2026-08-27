@@ -41,7 +41,7 @@ internal class WebGraphiteSurfaceAdapter(
             continuously = engineContinuously,
             onSurfaceCreated = renderer::onSurfaceCreated,
             onSurfaceChanged = { width, height ->
-        renderer.onSurfaceChanged(IntSize(width, height))
+                renderer.onSurfaceChanged(IntSize(width, height))
             },
             onDrawFrame = { context ->
                 renderer.onDrawFrame(WebGraphiteDrawContext(context))
@@ -54,7 +54,7 @@ internal class WebGraphiteSurfaceAdapter(
             // Kotlin/Wasm can finish its first Compose placement pass with the
             // interop wrapper detached. Keep the real WebGPU host visible while
             // that wrapper is being attached or reused.
-            if (document.documentElement?.contains(createdHost) != true) {
+            if (!disposed && document.documentElement?.contains(createdHost) != true) {
                 createdHost.style.position = "fixed"
                 createdHost.style.left = "0"
                 createdHost.style.top = "0"
@@ -79,6 +79,9 @@ internal class WebGraphiteSurfaceAdapter(
         disposed = true
         engine?.dispose()
         engine = null
+        host?.let { currentHost ->
+            currentHost.parentNode?.removeChild(currentHost)
+        }
         host = null
         canvas = null
     }

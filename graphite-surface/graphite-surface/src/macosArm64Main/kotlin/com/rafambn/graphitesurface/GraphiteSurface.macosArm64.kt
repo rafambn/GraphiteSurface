@@ -1,0 +1,16 @@
+@file:OptIn(com.rafambn.graphitesurface.ExperimentalGraphiteSurfaceApi::class)
+
+package com.rafambn.graphitesurface
+
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+
+@Composable
+@ExperimentalGraphiteSurfaceApi
+internal actual fun PlatformGraphiteSurface(
+    runtime: GraphiteEngine,
+    renderer: GraphitePresentationRenderer,
+    modifier: Modifier,
+    renderMode: GraphiteRenderMode,
+    state: GraphiteSurfaceState,
+): Unit = unsupportedGraphiteSurfaceHost("macOS Arm64")

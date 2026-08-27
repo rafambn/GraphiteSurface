@@ -58,23 +58,25 @@ project(":graphite-surface").projectDir = file("graphite-surface/graphite-surfac
 include(":graphite-engine")
 project(":graphite-engine").projectDir = file("graphite-surface/graphite-engine")
 
-include(":sample")
-project(":sample").projectDir = file("graphite-surface/sample")
+if (gradle.parent == null) {
+    include(":sample")
+    project(":sample").projectDir = file("graphite-surface/sample")
 
-include(":sample:sharedUI")
-project(":sample:sharedUI").projectDir = file("graphite-surface/sample/sharedUI")
+    include(":sample:sharedUI")
+    project(":sample:sharedUI").projectDir = file("graphite-surface/sample/sharedUI")
 
-include(":sample:desktopApp")
-project(":sample:desktopApp").projectDir = file("graphite-surface/sample/desktopApp")
+    include(":sample:desktopApp")
+    project(":sample:desktopApp").projectDir = file("graphite-surface/sample/desktopApp")
 
-include(":sample:androidApp")
-project(":sample:androidApp").projectDir = file("graphite-surface/sample/androidApp")
+    include(":sample:androidApp")
+    project(":sample:androidApp").projectDir = file("graphite-surface/sample/androidApp")
 
-include(":sample:jsApp")
-project(":sample:jsApp").projectDir = file("graphite-surface/sample/jsApp")
+    include(":sample:jsApp")
+    project(":sample:jsApp").projectDir = file("graphite-surface/sample/jsApp")
 
-include(":sample:wasmApp")
-project(":sample:wasmApp").projectDir = file("graphite-surface/sample/wasmApp")
+    include(":sample:wasmApp")
+    project(":sample:wasmApp").projectDir = file("graphite-surface/sample/wasmApp")
+}
 
 if (providers.gradleProperty("graphite.pthreadsExperiment").orNull == "true") {
     include(":experiments")

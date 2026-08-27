@@ -159,8 +159,11 @@ That Worker owns WebGPU, Emdawn's handle registry, and Skia Graphite. Frames are
 `GPUCanvasContext.getCurrentTexture()`, wrapped as a Skia Graphite Dawn
 `BackendTexture`, recorded with a Graphite `Recorder`, and submitted to the
 same texture. No Skia or WebGPU drawing executes on browser main. The JS build uses Kotlin/JS; the second uses Kotlin/Wasm. Both
-link the local Skiko fork and its WebGPU-enabled Emscripten module, and require
-a browser with WebGPU enabled. There is no WebGL or Compose Canvas fallback.
+link the local Skiko fork and its WebGPU-enabled Emscripten module. They require
+WebGPU, module Web Workers, `SharedArrayBuffer`, and cross-origin isolation via
+`Cross-Origin-Opener-Policy: same-origin` plus
+`Cross-Origin-Embedder-Policy: require-corp`. There is no WebGL or Compose
+Canvas fallback inside GraphiteSurface; consumers can provide their own fallback.
 
 ## Compose and engine versions
 

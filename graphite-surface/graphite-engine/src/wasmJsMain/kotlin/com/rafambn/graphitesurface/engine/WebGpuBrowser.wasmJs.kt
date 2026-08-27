@@ -35,6 +35,8 @@ internal actual fun supportsGraphiteRenderWorker(canvas: HTMLCanvasElement): Boo
     """
     Boolean(
       navigator.gpu &&
+      globalThis.crossOriginIsolated === true &&
+      typeof SharedArrayBuffer === 'function' &&
       typeof Worker === 'function' &&
       canvas &&
       typeof canvas.transferControlToOffscreen === 'function'

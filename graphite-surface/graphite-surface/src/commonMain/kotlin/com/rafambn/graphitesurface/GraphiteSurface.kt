@@ -34,7 +34,15 @@ fun GraphiteSurface(
     val presentationRenderer = remember(runtime) { GraphiteEngineRenderer(runtime) }
 
     DisposableEffect(runtime, presentationRenderer, density) {
-        val attachmentId = runtime.attachPresentation(surfaceState::requestFrame)
+        val attachmentId = try {
+            runtime.attachPresentation(surfaceState::requestFrame)
+        } catch (_: GraphiteEngineUnavailableException) {
+            null
+        } catch (_: GraphiteEngineClosedException) {
+            null
+        }
+        if (attachmentId == null) return@DisposableEffect onDispose {}
+
         presentationRenderer.bind(attachmentId, density)
         surfaceState.requestFrame()
         onDispose {
