@@ -8,9 +8,24 @@ class GraphiteFrameBuilder internal constructor(private val runtimeToken: Any) {
     private val insertions = mutableListOf<GraphiteFrameInsertion>()
     private var built = false
 
+    /** Inserts [recording] with an integer translation for source compatibility. */
     fun insert(
         recording: GraphiteRecording,
-        translation: IntOffset = IntOffset.Zero,
+        translation: IntOffset,
+        clip: IntRect? = null,
+    ) = insert(
+        recording = recording,
+        transform = GraphiteTransform.translation(
+            translation.x.toFloat(),
+            translation.y.toFloat(),
+        ),
+        clip = clip,
+    )
+
+    /** Inserts [recording] with an arbitrary transform. */
+    fun insert(
+        recording: GraphiteRecording,
+        transform: GraphiteTransform = GraphiteTransform.Identity,
         clip: IntRect? = null,
     ) {
         if (recording.runtimeToken !== runtimeToken) {
@@ -20,7 +35,7 @@ class GraphiteFrameBuilder internal constructor(private val runtimeToken: Any) {
         insertions += GraphiteFrameInsertion(
             program = recording.program,
             platformRecording = recording.platformRecording,
-            translation = translation,
+            transform = transform,
             clip = clip,
         )
     }

@@ -151,11 +151,14 @@ class GraphiteEngineTest {
             }
             assertEquals(
                 GraphitePresentResult.Accepted,
-                runtime.present(presentation) { insert(recording) },
+                runtime.present(presentation) {
+                    insert(recording, translation = IntOffset(2, 3))
+                },
             )
 
             val pending = requireNotNull(runtime.takePendingFrame(attachmentId))
             val insertion = pending.insertions.single()
+            assertEquals(GraphiteTransform.translation(2f, 3f), insertion.transform)
             insertion.program.validate()
         } finally {
             runtime.close()
@@ -176,15 +179,17 @@ class GraphiteEngineTest {
             }
             var insertedRecording: PlatformRecording? = null
             var insertedProgram: GraphiteCommandProgram? = null
+            var insertedTransform: GraphiteTransform? = null
             val context = object : GraphiteDrawContext {
                 override fun insertRecording(
                     recording: PlatformRecording,
                     program: GraphiteCommandProgram,
-                    translation: IntOffset,
+                    transform: GraphiteTransform,
                     clip: IntRect?,
                 ) {
                     insertedRecording = recording
                     insertedProgram = program
+                    insertedTransform = transform
                 }
 
                 override fun clear(color: Long) = Unit
@@ -198,11 +203,13 @@ class GraphiteEngineTest {
                 it.bind(attachmentId, density = 1f)
             }
 
-            runtime.present(presentation) { insert(recording) }
+            val transform = GraphiteTransform.translation(3.5f, 7.25f)
+            runtime.present(presentation) { insert(recording, transform = transform) }
             renderer.onDrawFrame(context)
 
             assertTrue(insertedRecording === recording.platformRecording)
             assertTrue(insertedProgram === recording.program)
+            assertEquals(transform, insertedTransform)
         } finally {
             runtime.close()
             runtime.awaitClosed()

@@ -2,7 +2,6 @@ package com.rafambn.graphitesurface
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import com.rafambn.graphitesurface.engine.JvmGraphiteDrawContext
 
@@ -12,24 +11,41 @@ internal class JvmGraphiteDrawContextAdapter(
     override fun insertRecording(
         recording: PlatformRecording,
         program: GraphiteCommandProgram,
-        translation: IntOffset,
+        transform: GraphiteTransform,
         clip: IntRect?,
     ) {
         val native = recording.native
         if (native == null) {
-            super.insertRecording(recording, program, translation, clip)
+            super.insertRecording(recording, program, transform, clip)
             return
         }
-        context.insertRecording(
-            recording = native,
-            translationX = translation.x,
-            translationY = translation.y,
-            clipLeft = clip?.left ?: 0,
-            clipTop = clip?.top ?: 0,
-            clipRight = clip?.right ?: 0,
-            clipBottom = clip?.bottom ?: 0,
-            hasClip = clip != null,
-        )
+        context.save()
+        try {
+            concat(transform)
+            clip?.let { bounds ->
+                clipRect(
+                    Rect(
+                        bounds.left.toFloat(),
+                        bounds.top.toFloat(),
+                        bounds.right.toFloat(),
+                        bounds.bottom.toFloat(),
+                    ),
+                    antiAlias = false,
+                )
+            }
+            context.insertRecording(
+                recording = native,
+                translationX = 0,
+                translationY = 0,
+                clipLeft = 0,
+                clipTop = 0,
+                clipRight = 0,
+                clipBottom = 0,
+                hasClip = false,
+            )
+        } finally {
+            context.restore()
+        }
     }
 
     override fun clear(color: Long) = context.clear(color)

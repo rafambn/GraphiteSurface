@@ -3,7 +3,6 @@ package com.rafambn.graphitesurface
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 
 /**
@@ -16,12 +15,12 @@ internal interface GraphiteDrawContext {
     fun insertRecording(
         recording: PlatformRecording,
         program: GraphiteCommandProgram,
-        translation: IntOffset,
+        transform: GraphiteTransform,
         clip: IntRect?,
     ) {
         save()
         try {
-            translate(translation.x.toFloat(), translation.y.toFloat())
+            concat(transform)
             clip?.let { bounds ->
                 clipRect(
                     Rect(

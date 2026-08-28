@@ -43,7 +43,7 @@ internal class GraphiteEngineRenderer(private val runtime: GraphiteEngine) :
                 context.insertRecording(
                     recording = insertion.platformRecording,
                     program = insertion.program,
-                    translation = insertion.translation,
+                    transform = insertion.transform,
                     clip = insertion.clip,
                 )
             }

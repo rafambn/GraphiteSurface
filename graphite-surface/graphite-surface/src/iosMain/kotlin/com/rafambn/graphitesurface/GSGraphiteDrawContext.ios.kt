@@ -4,7 +4,6 @@ package com.rafambn.graphitesurface
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import com.rafambn.graphitesurface.engine.GraphiteEngineGraphiteEngineView_iosKt
 import platform.UIKit.UIView
@@ -16,25 +15,42 @@ internal class GSGraphiteDrawContext(
     override fun insertRecording(
         recording: PlatformRecording,
         program: GraphiteCommandProgram,
-        translation: IntOffset,
+        transform: GraphiteTransform,
         clip: IntRect?,
     ) {
         val native = recording.handle
         if (native == 0uL) {
-            super.insertRecording(recording, program, translation, clip)
+            super.insertRecording(recording, program, transform, clip)
             return
         }
-        GraphiteEngineGraphiteEngineView_iosKt.gsInsertRecordingView(
-            view,
-            native,
-            translation.x,
-            translation.y,
-            clip?.left ?: 0,
-            clip?.top ?: 0,
-            clip?.right ?: 0,
-            clip?.bottom ?: 0,
-            (clip != null).toNativeInt(),
-        )
+        save()
+        try {
+            concat(transform)
+            clip?.let { bounds ->
+                clipRect(
+                    Rect(
+                        bounds.left.toFloat(),
+                        bounds.top.toFloat(),
+                        bounds.right.toFloat(),
+                        bounds.bottom.toFloat(),
+                    ),
+                    antiAlias = false,
+                )
+            }
+            GraphiteEngineGraphiteEngineView_iosKt.gsInsertRecordingView(
+                view,
+                native,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+            )
+        } finally {
+            restore()
+        }
     }
 
     override fun clear(color: Long) {

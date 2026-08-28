@@ -52,4 +52,7 @@ The Android build uses a `SurfaceView` and a dedicated display-priority render
 thread. The JVM host uses Metal on macOS and Vulkan/X11 on Linux. Apple uses a
 `CAMetalLayer` whose Graphite work runs on a serial native queue. Browser
 targets transfer an `OffscreenCanvas` to a module Worker that exclusively owns
-WebGPU and Graphite. Other JVM operating systems remain unsupported.
+WebGPU and Graphite. The Kotlin/Native macOS Arm64 adapter currently replays
+immutable Graphite command programs through Compose Canvas until an AppKit
+Metal presentation bridge is available. Other JVM operating systems remain
+unsupported.
